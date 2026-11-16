@@ -123,6 +123,10 @@ code,
   flex: 0 0 auto;
 }
 
+.model-select {
+  width: 200px;
+}
+
 .brand {
   white-space: nowrap;
 }
@@ -228,6 +232,53 @@ code,
 
 .sender-hint {
   font-size: 12px;
+}
+
+/* 思考中：输入框外圈旋转彩虹边框 */
+@property --rainbow-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+.composer .ant-sender.thinking {
+  position: relative;
+  border-color: transparent;
+}
+
+.composer .ant-sender.thinking::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  padding: 2px;
+  border-radius: inherit;
+  background: conic-gradient(
+    from var(--rainbow-angle),
+    #ff4d4f,
+    #faad14,
+    #52c41a,
+    #13c2c2,
+    #1677ff,
+    #722ed1,
+    #ff4d4f
+  );
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  animation: rainbow-angle 2.5s linear infinite;
+}
+
+@keyframes rainbow-angle {
+  to {
+    --rainbow-angle: 360deg;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .composer .ant-sender.thinking::before {
+    animation: none;
+  }
 }
 
 .bubbles .ant-bubble-content {
@@ -415,6 +466,10 @@ code,
 
   .bar .directory {
     display: none;
+  }
+
+  .model-select {
+    width: 130px;
   }
 
   .chat-main {

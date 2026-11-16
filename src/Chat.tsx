@@ -1,78 +1,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import {
-  Alert,
-  Avatar,
-  Badge,
-  Button,
-  Flex,
-  Modal,
-  Space,
-  Tag,
-  Tooltip,
-  Typography,
-  App as AntdApp,
-} from "antd"
-import {
-  Actions,
-  Bubble,
-  Prompts,
-  Sender,
-  ThoughtChain,
-  Welcome,
-  type BubbleItemType,
-  type PromptsItemType,
-  type ThoughtChainItemType,
-} from "@ant-design/x"
-import {
-  BulbOutlined,
-  CopyOutlined,
-  ExperimentOutlined,
-  FileSearchOutlined,
-  LogoutOutlined,
-  RobotOutlined,
-  ThunderboltFilled,
-  UserOutlined,
-} from "@ant-design/icons"
+import { Alert, Badge, Button, Flex, Select, Tag, Tooltip, Typography } from "antd"
+import { Sender } from "@ant-design/x"
+import { KeyOutlined, LogoutOutlined } from "@ant-design/icons"
 import type { PermissionRequest } from "@opencode/client"
-import Markdown from "./components/Markdown"
+import ApiKeyModal from "./components/ApiKeyModal"
+import Messages from "./components/Messages"
+import PermissionModal from "./components/PermissionModal"
 import { makeClient, type Conn } from "./lib/client"
 import { blocksFromMessages, patch, upsert, type Block, type ToolStatus } from "./lib/blocks"
+import { errorText } from "./lib/error"
 
 type ChatStatus = "connecting" | "online" | "offline"
 
-type ActivityBlock = Extract<Block, { kind: "reasoning" | "tool" }>
+type ModelRef = { providerID: string; id: string }
 
-type ViewItem =
-  | { key: string; role: "user"; text: string }
-  | { key: string; role: "ai"; text: string }
-  | { key: string; role: "activity"; blocks: ActivityBlock[] }
-  | { key: string; role: "system"; text: string }
-
-const SUGGESTIONS: PromptsItemType[] = [
-  {
-    key: "explain",
-    icon: <FileSearchOutlined />,
-    label: "了解项目",
-    description: "介绍一下这个项目的结构、入口和关键模块",
-  },
-  {
-    key: "improve",
-    icon: <BulbOutlined />,
-    label: "找点活干",
-    description: "看看这个项目还有哪些可以改进的地方",
-  },
-  {
-    key: "test",
-    icon: <ExperimentOutlined />,
-    label: "跑测试",
-    description: "运行测试，并修复失败的用例",
-  },
-]
-
-function errorText(error: unknown): string {
-  if (error instanceof Error) return error.message
-  return String(error)
-}
+type ModelOption = { value: string; label: string }
 
 function textOf(content: unknown): string {
   if (!Array.isArray(content)) return ""
@@ -82,31 +24,6 @@ function textOf(content: unknown): string {
     .join("\n")
 }
 
-/**
- * Collapse consecutive reasoning / tool blocks into a single activity group so
- * each run renders as one ThoughtChain instead of a stack of one-item cards.
- */
-function toViewItems(blocks: Block[]): ViewItem[] {
-  const items: ViewItem[] = []
-  for (const block of blocks) {
-    if (block.kind === "reasoning" || block.kind === "tool") {
-      const last = items[items.length - 1]
-      if (last?.role === "activity") {
-        last.blocks.push(block)
-      } else {
-        items.push({ key: `activity:${block.id}`, role: "activity", blocks: [block] })
-      }
-      continue
-    }
-    if (block.kind === "notice") {
-      items.push({ key: block.id, role: "system", text: block.text })
-      continue
-    }
-    items.push({ key: block.id, role: block.kind === "user" ? "user" : "ai", text: block.text })
-  }
-  return items
-}
-
 const STATUS_META: Record<ChatStatus, { badge: "processing" | "success" | "error"; label: string }> = {
   connecting: { badge: "processing", label: "连接中" },
   online: { badge: "success", label: "已连接" },
@@ -114,7 +31,6 @@ const STATUS_META: Record<ChatStatus, { badge: "processing" | "success" | "error
 }
 
 export default function Chat({ conn, onDisconnect }: { conn: Conn; onDisconnect: () => void }) {
-  const { message } = AntdApp.useApp()
   const client = useMemo(() => makeClient(conn), [conn])
   const [sessionID, setSessionID] = useState<string | null>(null)
   const [blocks, setBlocks] = useState<Block[]>([])
@@ -123,12 +39,56 @@ export default function Chat({ conn, onDisconnect }: { conn: Conn; onDisconnect:
   const [queue, setQueue] = useState<PermissionRequest[]>([])
   const [error, setError] = useState<string | null>(null)
   const [draft, setDraft] = useState("")
+  const [model, setModel] = useState<ModelRef | null>(null)
+  const [modelOptions, setModelOptions] = useState<ModelOption[]>([])
+  const [keyOpen, setKeyOpen] = useState(false)
 
   const sessionRef = useRef<string | null>(null)
+  const modelRef = useRef<ModelRef | null>(null)
 
   useEffect(() => {
     sessionRef.current = sessionID
   }, [sessionID])
+
+  // Models the server offers in this directory, plus the server default.
+  const reloadModels = useCallback(async () => {
+    const location = conn.directory ? { directory: conn.directory } : undefined
+    const [list, current] = await Promise.all([
+      client.model.list({ location, types: ["chat"] }),
+      client.model.default({ location }),
+    ])
+    setModelOptions(
+      list.data.map((item) => ({
+        value: `${item.providerID}/${item.id}`,
+        label: `${item.name ?? item.id} · ${item.providerID}`,
+      })),
+    )
+    if (!modelRef.current && current.data) {
+      const ref = { providerID: current.data.providerID, id: current.data.id }
+      modelRef.current = ref
+      setModel(ref)
+    }
+  }, [client, conn.directory])
+
+  useEffect(() => {
+    reloadModels().catch(() => {
+      // Model list is optional chrome; chat still works on the server default.
+    })
+  }, [reloadModels])
+
+  async function pickModel(value: string) {
+    const slash = value.indexOf("/")
+    if (slash < 0) return
+    const ref = { providerID: value.slice(0, slash), id: value.slice(slash + 1) }
+    modelRef.current = ref
+    setModel(ref)
+    if (!sessionID) return
+    try {
+      await client.session.switchModel({ sessionID, model: ref })
+    } catch (cause) {
+      setError(errorText(cause))
+    }
+  }
 
   const reload = useCallback(
     async (id: string) => {
@@ -148,6 +108,14 @@ export default function Chat({ conn, onDisconnect }: { conn: Conn; onDisconnect:
           location: conn.directory ? { directory: conn.directory } : undefined,
         })
         if (cancelled) return
+        const chosen = modelRef.current
+        if (chosen) {
+          try {
+            await client.session.switchModel({ sessionID: session.id, model: chosen })
+          } catch {
+            // Keep the server default if the chosen model is not routable.
+          }
+        }
         setSessionID(session.id)
         setStatus("online")
         await reload(session.id)
@@ -386,96 +354,6 @@ export default function Chat({ conn, onDisconnect }: { conn: Conn; onDisconnect:
     }
   }
 
-  const copy = useCallback(
-    async (text: string) => {
-      try {
-        await navigator.clipboard.writeText(text)
-        message.success("已复制")
-      } catch {
-        message.error("复制失败")
-      }
-    },
-    [message],
-  )
-
-  const bubbleItems = useMemo<BubbleItemType[]>(() => {
-    const lastTextID = [...blocks].reverse().find((block) => block.kind === "text")?.id
-
-    const items: BubbleItemType[] = toViewItems(blocks).map((item) => {
-      if (item.role === "activity") {
-        return {
-          key: item.key,
-          role: "activity",
-          content: <Activity blocks={item.blocks} />,
-        }
-      }
-      if (item.role === "system") {
-        return { key: item.key, role: "system", content: item.text }
-      }
-      if (item.role === "user") {
-        return { key: item.key, role: "user", content: item.text }
-      }
-      return {
-        key: item.key,
-        role: "ai",
-        content: <Markdown text={item.text} streaming={busy && item.key === lastTextID} />,
-        footer: (
-          <Actions
-            items={[
-              {
-                key: "copy",
-                label: "复制",
-                icon: <CopyOutlined />,
-                onItemClick: () => void copy(item.text),
-              },
-            ]}
-          />
-        ),
-      }
-    })
-
-    if (busy) {
-      items.push({ key: "working", role: "ai", content: "", loading: true })
-    }
-
-    return items
-  }, [blocks, busy, copy])
-
-  const roles = useMemo(
-    () => ({
-      user: {
-        placement: "end" as const,
-        variant: "filled" as const,
-        avatar: <Avatar size="small" icon={<UserOutlined />} />,
-        styles: { content: { background: "#1e3252" } },
-      },
-      ai: {
-        placement: "start" as const,
-        variant: "outlined" as const,
-        avatar: (
-          <Avatar
-            size="small"
-            icon={<RobotOutlined />}
-            style={{ background: "linear-gradient(135deg, #4f8cff, #7c5cff)" }}
-          />
-        ),
-      },
-      activity: {
-        placement: "start" as const,
-        variant: "borderless" as const,
-        avatar: (
-          <Avatar
-            size="small"
-            icon={<ThunderboltFilled />}
-            style={{ background: "#2a303b", color: "#8fb4ff" }}
-          />
-        ),
-      },
-      system: { placement: "start" as const },
-    }),
-    [],
-  )
-
   const request = queue[0]
   const meta = STATUS_META[status]
 
@@ -492,6 +370,22 @@ export default function Chat({ conn, onDisconnect }: { conn: Conn; onDisconnect:
           </Typography.Text>
         </Flex>
         <Flex align="center" gap={8} className="bar-right">
+          <Select
+            className="model-select"
+            placeholder="选择模型"
+            value={model ? `${model.providerID}/${model.id}` : undefined}
+            options={modelOptions}
+            onChange={(value) => pickModel(value)}
+            popupMatchSelectWidth={false}
+          />
+          <Tooltip title="设置 API Key">
+            <Button
+              type="text"
+              size="small"
+              icon={<KeyOutlined />}
+              onClick={() => setKeyOpen(true)}
+            />
+          </Tooltip>
           <Typography.Text type="secondary" className="small">
             {meta.label}
           </Typography.Text>
@@ -520,43 +414,17 @@ export default function Chat({ conn, onDisconnect }: { conn: Conn; onDisconnect:
           />
         )}
 
-        {blocks.length === 0 && !busy ? (
-          <div className="empty">
-            <Welcome
-              variant="borderless"
-              icon={
-                <Avatar
-                  size={48}
-                  icon={<ThunderboltFilled />}
-                  style={{
-                    background: "linear-gradient(135deg, #4f8cff, #7c5cff)",
-                    color: "#fff",
-                  }}
-                />
-              }
-              title="交给 agent 吧"
-              description={`已连接 ${conn.directory}，在下面描述你想做的事。`}
-            />
-            <Prompts
-              title="或者试试这些"
-              items={SUGGESTIONS}
-              vertical
-              onItemClick={({ data }) => setDraft(String(data.description ?? data.label ?? ""))}
-            />
-          </div>
-        ) : (
-          <Bubble.List
-            className="bubbles"
-            items={bubbleItems}
-            role={roles}
-            autoScroll
-            style={{ height: "100%" }}
-          />
-        )}
+        <Messages
+          blocks={blocks}
+          busy={busy}
+          directory={conn.directory}
+          onSuggestion={setDraft}
+        />
       </main>
 
       <footer className="composer">
         <Sender
+          className={busy ? "thinking" : undefined}
           value={draft}
           onChange={setDraft}
           onSubmit={(text) => void send(text)}
@@ -577,109 +445,21 @@ export default function Chat({ conn, onDisconnect }: { conn: Conn; onDisconnect:
         />
       </footer>
 
-      <Modal
-        open={!!request}
-        title={
-          <Space>
-            需要授权
-            {queue.length > 1 && <Tag color="blue">{queue.length} 个待处理</Tag>}
-          </Space>
-        }
-        closable={false}
-        mask={{ closable: false }}
-        keyboard={false}
-        footer={[
-          <Button key="reject" danger onClick={() => void reply("reject")}>
-            拒绝
-          </Button>,
-          <Button key="once" onClick={() => void reply("once")}>
-            仅本次
-          </Button>,
-          <Button key="always" type="primary" onClick={() => void reply("always")}>
-            总是允许
-          </Button>,
-        ]}
-      >
-        <Space direction="vertical" size={12} style={{ width: "100%" }}>
-          <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
-            {request?.message ?? `工具请求执行 ${request?.action ?? ""}`}
-          </Typography.Paragraph>
-          {request && <Typography.Text code>{request.action}</Typography.Text>}
-          {!!request?.resources.length && (
-            <div className="resources">
-              {request.resources.map((resource) => (
-                <Typography.Text key={resource} className="resource mono" ellipsis={{ tooltip: resource }}>
-                  {resource}
-                </Typography.Text>
-              ))}
-            </div>
-          )}
-        </Space>
-      </Modal>
+      <PermissionModal
+        request={request}
+        count={queue.length}
+        onReply={(decision) => void reply(decision)}
+      />
+
+      <ApiKeyModal
+        open={keyOpen}
+        client={client}
+        directory={conn.directory}
+        currentProvider={model?.providerID}
+        onClose={() => setKeyOpen(false)}
+        onSaved={reloadModels}
+      />
     </div>
   )
 }
 
-function Activity({ blocks }: { blocks: ActivityBlock[] }) {
-  const autoKeys = useMemo(
-    () =>
-      blocks
-        .filter((block) => {
-          if (block.kind === "tool") return block.status !== "ok"
-          return block.id === blocks[blocks.length - 1]?.id
-        })
-        .map((block) => block.id),
-    [blocks],
-  )
-
-  const [expanded, setExpanded] = useState<string[]>(autoKeys)
-  const previousAutoKeys = useRef<string[]>(autoKeys)
-  const autoKeyString = autoKeys.join("|")
-
-  // Keep in-flight items open, and fold them again once they settle. Keys the
-  // user opened by hand are never in `previousAutoKeys`, so they stay open.
-  useEffect(() => {
-    const previous = previousAutoKeys.current
-    previousAutoKeys.current = autoKeys
-    setExpanded((current) => {
-      const next = new Set(current)
-      for (const key of previous) {
-        if (!autoKeys.includes(key)) next.delete(key)
-      }
-      for (const key of autoKeys) next.add(key)
-      return Array.from(next)
-    })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoKeyString])
-
-  const items: ThoughtChainItemType[] = blocks.map((block) => {
-    if (block.kind === "reasoning") {
-      return {
-        key: block.id,
-        icon: <BulbOutlined />,
-        title: "思考过程",
-        collapsible: true,
-        content: block.text ? <pre className="chain-pre">{block.text}</pre> : null,
-      }
-    }
-
-    return {
-      key: block.id,
-      title: <span className="chain-tool-name">{block.name}</span>,
-      status:
-        block.status === "running" ? "loading" : block.status === "ok" ? "success" : "error",
-      collapsible: true,
-      content: block.detail ? <pre className="chain-pre">{block.detail}</pre> : null,
-    }
-  })
-
-  return (
-    <ThoughtChain
-      className="activity"
-      items={items}
-      expandedKeys={expanded}
-      onExpand={setExpanded}
-      line="dashed"
-    />
-  )
-}
