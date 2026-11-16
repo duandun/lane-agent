@@ -27,6 +27,7 @@ export function useChatSession(conn: Conn, client: Client) {
   const [blocks, setBlocks] = useState<Block[]>([])
   const [status, setStatus] = useState<ChatStatus>("connecting")
   const [busy, setBusy] = useState(false)
+  const [speaking, setSpeaking] = useState(false)
   const [queue, setQueue] = useState<PermissionRequest[]>([])
   const [error, setError] = useState<string | null>(null)
 
@@ -105,13 +106,16 @@ export function useChatSession(conn: Conn, client: Client) {
               break
 
             case "session.execution.started":
-              if (event.data.sessionID === sessionRef.current) setBusy(true)
+              if (event.data.sessionID !== sessionRef.current) break
+              setBusy(true)
+              setSpeaking(false)
               break
 
             case "session.text.started": {
               if (event.data.sessionID !== sessionRef.current) break
               const id = `text:${event.data.assistantMessageID}:${event.data.ordinal}`
               setBlocks((current) => upsert(current, { id, kind: "text", text: "" }))
+              setSpeaking(true)
               break
             }
 
@@ -130,6 +134,7 @@ export function useChatSession(conn: Conn, client: Client) {
                   block.kind === "text" ? { ...block, text: block.text + event.data.delta } : block,
                 ),
               )
+              setSpeaking(true)
               break
             }
 
@@ -137,6 +142,7 @@ export function useChatSession(conn: Conn, client: Client) {
               if (event.data.sessionID !== sessionRef.current) break
               const id = `text:${event.data.assistantMessageID}:${event.data.ordinal}`
               setBlocks((current) => upsert(current, { id, kind: "text", text: event.data.text }))
+              setSpeaking(false)
               break
             }
 
@@ -144,6 +150,7 @@ export function useChatSession(conn: Conn, client: Client) {
               if (event.data.sessionID !== sessionRef.current) break
               const id = `reasoning:${event.data.assistantMessageID}:${event.data.ordinal}`
               setBlocks((current) => upsert(current, { id, kind: "reasoning", text: "" }))
+              setSpeaking(false)
               break
             }
 
@@ -167,6 +174,7 @@ export function useChatSession(conn: Conn, client: Client) {
 
             case "session.tool.input.started": {
               if (event.data.sessionID !== sessionRef.current) break
+              setSpeaking(false)
               setBlocks((current) =>
                 upsert(current, {
                   id: `tool:${event.data.id}`,
@@ -220,6 +228,7 @@ export function useChatSession(conn: Conn, client: Client) {
             }
 
             case "permission.asked":
+              setSpeaking(false)
               setQueue((current) =>
                 current.some((item) => item.id === event.data.id)
                   ? current
@@ -238,6 +247,7 @@ export function useChatSession(conn: Conn, client: Client) {
             case "session.idle": {
               if (event.data.sessionID !== sessionRef.current) break
               setBusy(false)
+              setSpeaking(false)
               await reload(event.data.sessionID)
               break
             }
@@ -245,6 +255,7 @@ export function useChatSession(conn: Conn, client: Client) {
             case "session.execution.failed": {
               if (event.data.sessionID !== sessionRef.current) break
               setBusy(false)
+              setSpeaking(false)
               setError(JSON.stringify(event.data.error))
               await reload(event.data.sessionID)
               break
@@ -267,6 +278,7 @@ export function useChatSession(conn: Conn, client: Client) {
     const value = text.trim()
     if (!value || !sessionID || busy) return
     setBusy(true)
+    setSpeaking(false)
     setError(null)
     setBlocks((current) => [...current, { id: `local:${Date.now()}`, kind: "user", text: value }])
     try {
@@ -284,6 +296,7 @@ export function useChatSession(conn: Conn, client: Client) {
       if (!sessionID || busy) return
       setError(null)
       setBusy(true)
+      setSpeaking(false)
       setBlocks((current) => {
         const index = current.findIndex((block) => block.id === userBlockID)
         return index === -1 ? current : current.slice(0, index + 1)
@@ -336,6 +349,7 @@ export function useChatSession(conn: Conn, client: Client) {
     blocks,
     status,
     busy,
+    speaking,
     queue,
     error,
     clearError: () => setError(null),

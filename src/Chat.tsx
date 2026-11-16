@@ -3,6 +3,7 @@ import { Alert, Badge, Button, Dropdown, Flex, Select, Tag, Tooltip, Typography 
 import { Sender } from "@ant-design/x"
 import { LogoutOutlined, MoonOutlined, SunOutlined, DesktopOutlined } from "@ant-design/icons"
 import CustomModelModal from "./components/CustomModelModal"
+import Live2DAvatar, { type AvatarState } from "./components/Live2DAvatar"
 import Messages from "./components/Messages"
 import PermissionModal from "./components/PermissionModal"
 import { useChatSession, type ChatStatus, type ModelRef } from "./hooks/useChatSession"
@@ -48,6 +49,7 @@ export default function Chat({
     blocks,
     status,
     busy,
+    speaking,
     queue,
     error,
     clearError,
@@ -129,6 +131,14 @@ export default function Chat({
   }
 
   const meta = STATUS_META[status]
+
+  function avatarState(): AvatarState {
+    if (status === "offline" || error) return "error"
+    if (status === "connecting") return "connecting"
+    if (queue.length > 0) return "waiting"
+    if (speaking) return "talking"
+    return busy ? "thinking" : "idle"
+  }
 
   return (
     <div className="app">
@@ -246,6 +256,8 @@ export default function Chat({
           />
         </div>
       </footer>
+
+      <Live2DAvatar state={avatarState()} />
 
       <PermissionModal
         request={queue[0]}
