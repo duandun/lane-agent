@@ -409,29 +409,148 @@ code,
 /* -------------------------------------------------------- activity chain */
 
 .activity {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   width: 100%;
 }
 
-.chain-tool-name {
-  font-family: var(--mono);
-  color: #8fb4ff;
+.process-row {
+  border-radius: 6px;
+}
+
+.process-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 26px;
+  padding: 2px 6px;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  color: var(--muted);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.process-head:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.process-head:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.process-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  color: #8b93a4;
   font-size: 13px;
 }
 
-.chain-pre {
-  margin: 0;
-  padding: 10px 12px;
-  max-height: 280px;
+.process-title {
+  flex: 0 0 auto;
+  color: #b9c1d1;
+}
+
+.process-preview {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: #6f7787;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.process-preview.mono {
+  font-family: var(--mono);
+}
+
+.process-status {
+  display: inline-flex;
+  flex: 0 0 auto;
+  margin-left: auto;
+  font-size: 12px;
+}
+
+.process-status.running {
+  color: var(--accent);
+}
+
+.process-status.ok {
+  color: var(--ok);
+}
+
+.process-status.error {
+  color: var(--err);
+}
+
+.process-chevron {
+  flex: 0 0 auto;
+  color: #6f7787;
+  font-size: 10px;
+  transform: rotate(-90deg);
+  transition: transform 160ms ease;
+}
+
+.process-row.is-open .process-chevron {
+  transform: rotate(0deg);
+}
+
+.process-body {
+  margin: 2px 6px 6px 27px;
+  color: #b9c1d1;
+  animation: process-in 180ms ease-out;
+}
+
+.process-body.process-markdown {
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.process-body.process-markdown .markdown {
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.process-body.process-output {
+  max-height: 320px;
+  padding: 8px 10px;
   overflow: auto;
   background: var(--bg);
   border: 1px solid var(--line);
-  border-radius: 8px;
-  color: #b9c1d1;
+  border-radius: 6px;
   font-family: var(--mono);
   font-size: 12px;
   line-height: 1.6;
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+@keyframes process-in {
+  from {
+    opacity: 0;
+    transform: translateY(-2px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .process-body {
+    animation: none;
+  }
+
+  .process-chevron {
+    transition: none;
+  }
 }
 
 /* ------------------------------------------------------------------ modal */

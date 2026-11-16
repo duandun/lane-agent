@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Alert, Badge, Button, Flex, Select, Tag, Tooltip, Typography } from "antd"
 import { Sender } from "@ant-design/x"
-import { KeyOutlined, LogoutOutlined } from "@ant-design/icons"
+import { LogoutOutlined } from "@ant-design/icons"
 import type { PermissionRequest } from "@opencode/client"
-import ApiKeyModal from "./components/ApiKeyModal"
+import CustomModelModal from "./components/CustomModelModal"
 import Messages from "./components/Messages"
 import PermissionModal from "./components/PermissionModal"
 import { makeClient, type Conn } from "./lib/client"
 import { blocksFromMessages, patch, upsert, type Block, type ToolStatus } from "./lib/blocks"
+import { loadCustomModels, type CustomModel } from "./lib/customModels"
 import { errorText } from "./lib/error"
 
 type ChatStatus = "connecting" | "online" | "offline"
@@ -15,6 +16,8 @@ type ChatStatus = "connecting" | "online" | "offline"
 type ModelRef = { providerID: string; id: string }
 
 type ModelOption = { value: string; label: string }
+
+const CUSTOM_MODEL_VALUE = "__custom_model__"
 
 function textOf(content: unknown): string {
   if (!Array.isArray(content)) return ""
@@ -41,7 +44,8 @@ export default function Chat({ conn, onDisconnect }: { conn: Conn; onDisconnect:
   const [draft, setDraft] = useState("")
   const [model, setModel] = useState<ModelRef | null>(null)
   const [modelOptions, setModelOptions] = useState<ModelOption[]>([])
-  const [keyOpen, setKeyOpen] = useState(false)
+  const [customOpen, setCustomOpen] = useState(false)
+  const [customModels, setCustomModels] = useState<CustomModel[]>(loadCustomModels)
 
   const sessionRef = useRef<string | null>(null)
   const modelRef = useRef<ModelRef | null>(null)
@@ -75,6 +79,16 @@ export default function Chat({ conn, onDisconnect }: { conn: Conn; onDisconnect:
       // Model list is optional chrome; chat still works on the server default.
     })
   }, [reloadModels])
+
+  const customModel = customModels.find((item) => item.providerID === model?.providerID) ?? null
+
+  const modelSelectOptions = useMemo(
+    () => [
+      ...modelOptions,
+      { value: CUSTOM_MODEL_VALUE, label: customModel ? "编辑自定义模型…" : "自定义模型…" },
+    ],
+    [modelOptions, customModel],
+  )
 
   async function pickModel(value: string) {
     const slash = value.indexOf("/")
@@ -374,18 +388,16 @@ export default function Chat({ conn, onDisconnect }: { conn: Conn; onDisconnect:
             className="model-select"
             placeholder="选择模型"
             value={model ? `${model.providerID}/${model.id}` : undefined}
-            options={modelOptions}
-            onChange={(value) => pickModel(value)}
+            options={modelSelectOptions}
+            onChange={(value) => {
+              if (value === CUSTOM_MODEL_VALUE) {
+                setCustomOpen(true)
+                return
+              }
+              void pickModel(value)
+            }}
             popupMatchSelectWidth={false}
           />
-          <Tooltip title="设置 API Key">
-            <Button
-              type="text"
-              size="small"
-              icon={<KeyOutlined />}
-              onClick={() => setKeyOpen(true)}
-            />
-          </Tooltip>
           <Typography.Text type="secondary" className="small">
             {meta.label}
           </Typography.Text>
@@ -451,13 +463,18 @@ export default function Chat({ conn, onDisconnect }: { conn: Conn; onDisconnect:
         onReply={(decision) => void reply(decision)}
       />
 
-      <ApiKeyModal
-        open={keyOpen}
+      <CustomModelModal
+        open={customOpen}
         client={client}
         directory={conn.directory}
-        currentProvider={model?.providerID}
-        onClose={() => setKeyOpen(false)}
-        onSaved={reloadModels}
+        current={model}
+        editing={customModel}
+        onClose={() => setCustomOpen(false)}
+        onSaved={async (saved) => {
+          setCustomModels(loadCustomModels())
+          await reloadModels()
+          await pickModel(`${saved.providerID}/${saved.modelID}`)
+        }}
       />
     </div>
   )

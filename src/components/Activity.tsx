@@ -1,70 +1,70 @@
-import { useEffect, useMemo, useRef, useState } from "react"
-import { ThoughtChain, type ThoughtChainItemType } from "@ant-design/x"
-import { BulbOutlined } from "@ant-design/icons"
+import { useState } from "react"
+import {
+  BulbOutlined,
+  CheckCircleFilled,
+  CloseCircleFilled,
+  CodeOutlined,
+  DownOutlined,
+  LoadingOutlined,
+} from "@ant-design/icons"
+import Markdown from "./Markdown"
 import type { Block } from "../lib/blocks"
 
 export type ActivityBlock = Extract<Block, { kind: "reasoning" | "tool" }>
 
 export default function Activity({ blocks }: { blocks: ActivityBlock[] }) {
-  const autoKeys = useMemo(
-    () =>
-      blocks
-        .filter((block) => {
-          if (block.kind === "tool") return block.status !== "ok"
-          return block.id === blocks[blocks.length - 1]?.id
-        })
-        .map((block) => block.id),
-    [blocks],
+  return (
+    <div className="activity">
+      {blocks.map((block) => (
+        <ProcessRow key={block.id} block={block} />
+      ))}
+    </div>
   )
+}
 
-  const [expanded, setExpanded] = useState<string[]>(autoKeys)
-  const previousAutoKeys = useRef<string[]>(autoKeys)
-  const autoKeyString = autoKeys.join("|")
-
-  // Keep in-flight items open, and fold them again once they settle. Keys the
-  // user opened by hand are never in `previousAutoKeys`, so they stay open.
-  useEffect(() => {
-    const previous = previousAutoKeys.current
-    previousAutoKeys.current = autoKeys
-    setExpanded((current) => {
-      const next = new Set(current)
-      for (const key of previous) {
-        if (!autoKeys.includes(key)) next.delete(key)
-      }
-      for (const key of autoKeys) next.add(key)
-      return Array.from(next)
-    })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoKeyString])
-
-  const items: ThoughtChainItemType[] = blocks.map((block) => {
-    if (block.kind === "reasoning") {
-      return {
-        key: block.id,
-        icon: <BulbOutlined />,
-        title: "思考过程",
-        collapsible: true,
-        content: block.text ? <pre className="chain-pre">{block.text}</pre> : null,
-      }
-    }
-
-    return {
-      key: block.id,
-      title: <span className="chain-tool-name">{block.name}</span>,
-      status:
-        block.status === "running" ? "loading" : block.status === "ok" ? "success" : "error",
-      collapsible: true,
-      content: block.detail ? <pre className="chain-pre">{block.detail}</pre> : null,
-    }
-  })
+/**
+ * Compact disclosure row, DeepSeek Harness style: icon, label and a one-line
+ * preview when folded; clicking the header reveals the full content.
+ */
+function ProcessRow({ block }: { block: ActivityBlock }) {
+  const [open, setOpen] = useState(false)
+  const reasoning = block.kind === "reasoning"
+  const text = reasoning ? block.text : block.detail
+  const preview = text.trim().split("\n")[0] ?? ""
 
   return (
-    <ThoughtChain
-      className="activity"
-      items={items}
-      expandedKeys={expanded}
-      onExpand={setExpanded}
-      line="dashed"
-    />
+    <div className={`process-row${open ? " is-open" : ""}`}>
+      <button
+        type="button"
+        className="process-head"
+        aria-expanded={open}
+        onClick={() => setOpen((value) => !value)}
+      >
+        <span className="process-icon">{reasoning ? <BulbOutlined /> : <CodeOutlined />}</span>
+        <span className={`process-title${reasoning ? "" : " mono"}`}>
+          {reasoning ? "思考" : block.name}
+        </span>
+        {!open && preview && (
+          <span className={`process-preview${reasoning ? "" : " mono"}`}>{preview}</span>
+        )}
+        {!reasoning && (
+          <span className={`process-status ${block.status}`}>
+            {block.status === "running" ? (
+              <LoadingOutlined spin />
+            ) : block.status === "ok" ? (
+              <CheckCircleFilled />
+            ) : (
+              <CloseCircleFilled />
+            )}
+          </span>
+        )}
+        <DownOutlined className="process-chevron" />
+      </button>
+      {open && text && (
+        <div className={`process-body${reasoning ? " process-markdown" : " process-output"}`}>
+          {reasoning ? <Markdown text={text} /> : text}
+        </div>
+      )}
+    </div>
   )
 }
