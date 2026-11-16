@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react"
+import React, { useEffect, useRef, useState } from "react"
 
 const SIZE = 96
 
@@ -13,14 +13,23 @@ export type EagleState =
 
 type Pos = { x: number; y: number }
 
-/** 可拖拽的卡通雄鹰伙伴，动作由 agent 状态驱动。 */
-export default function EagleCompanion({ state = "idle" }: { state?: EagleState }) {
+/** 可拖拽的卡通雄鹰伙伴，动作由 agent 状态驱动；单击可开关语音。 */
+export default function EagleCompanion({
+  state = "idle",
+  voiceEnabled = false,
+  onToggleVoice,
+}: {
+  state?: EagleState
+  voiceEnabled?: boolean
+  onToggleVoice?: () => void
+}) {
   const [pos, setPos] = useState<Pos>(() => ({
     x: Math.max(0, window.innerWidth - SIZE - 24),
     y: Math.max(0, window.innerHeight - SIZE - 24),
   }))
   const [dragging, setDragging] = useState(false)
   const offset = useRef<Pos | null>(null)
+  const press = useRef<{ x: number; y: number; moved: boolean } | null>(null)
 
   useEffect(() => {
     const clamp = () =>
@@ -36,12 +45,16 @@ export default function EagleCompanion({ state = "idle" }: { state?: EagleState 
     e.preventDefault()
     e.currentTarget.setPointerCapture(e.pointerId)
     offset.current = { x: e.clientX - pos.x, y: e.clientY - pos.y }
+    press.current = { x: e.clientX, y: e.clientY, moved: false }
     setDragging(true)
   }
 
   function move(e: React.PointerEvent<HTMLDivElement>) {
     const start = offset.current
     if (!start) return
+    if (press.current && Math.hypot(e.clientX - press.current.x, e.clientY - press.current.y) > 4) {
+      press.current.moved = true
+    }
     setPos({
       x: Math.min(Math.max(0, e.clientX - start.x), window.innerWidth - SIZE),
       y: Math.min(Math.max(0, e.clientY - start.y), window.innerHeight - SIZE),
@@ -49,11 +62,14 @@ export default function EagleCompanion({ state = "idle" }: { state?: EagleState 
   }
 
   function up(e: React.PointerEvent<HTMLDivElement>) {
+    const wasClick = press.current && !press.current.moved
     offset.current = null
+    press.current = null
     setDragging(false)
     if (e.currentTarget.hasPointerCapture(e.pointerId)) {
       e.currentTarget.releasePointerCapture(e.pointerId)
     }
+    if (wasClick) onToggleVoice?.()
   }
 
   return (
@@ -64,7 +80,13 @@ export default function EagleCompanion({ state = "idle" }: { state?: EagleState 
       onPointerMove={move}
       onPointerUp={up}
       onPointerCancel={up}
-      title="按住拖动"
+      title={
+        onToggleVoice
+          ? voiceEnabled
+            ? "单击关闭语音 · 按住拖动"
+            : "单击开启语音 · 按住拖动"
+          : "按住拖动"
+      }
       role="img"
       aria-label="鹰助手"
     >
