@@ -6,8 +6,8 @@ import {
 } from "@ant-design/x-markdown"
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism"
 
-// CodeHighlighter hardcodes Prism's light theme; swap in a dark one so fenced
-// blocks blend with the rest of the shell.
+// CodeHighlighter 固定使用 Prism 浅色主题，这里换成暗色，
+// 让代码块和外壳风格一致。
 const codeTheme = {
   ...oneDark,
   'pre[class*="language-"]': {
@@ -20,7 +20,7 @@ const codeTheme = {
 const STREAMING = { hasNextChunk: true, incremental: true } as const
 const DONE = false
 
-// Prism names some languages differently from the fence labels models emit.
+// Prism 的语言名和模型输出的 fence 标签不完全一致。
 const LANG_ALIASES: Record<string, string> = {
   ts: "typescript",
   js: "javascript",
@@ -55,14 +55,15 @@ function Code({ children, lang, block, domNode, streamStatus, ...rest }: Markdow
   return <code {...rest}>{children}</code>
 }
 
-// The `code` component above already renders a block container for fenced
-// code, so drop the <pre> wrapper instead of nesting a div inside it.
+// 上面的 code 组件已经为 fenced code 渲染了块级容器，
+// 这里丢掉 <pre> 包装，避免再套一层 div。
 function Pre({ children }: MarkdownComponentProps) {
   return <>{children}</>
 }
 
 const components = { code: Code, pre: Pre }
 
+/** 把助手文本渲染为 Markdown；fenced code 使用暗色 Prism 主题。 */
 function Markdown({ text, streaming }: { text: string; streaming?: boolean }) {
   return (
     <XMarkdown

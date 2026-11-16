@@ -9,7 +9,7 @@ export type Block =
 
 export type ToolStatus = "running" | "ok" | "error"
 
-/** Insert a block, or merge into the existing one with the same id. */
+/** 插入 block；同 id 已存在时合并。 */
 export function upsert(blocks: Block[], block: Block): Block[] {
   const index = blocks.findIndex((b) => b.id === block.id)
   if (index === -1) return [...blocks, block]
@@ -54,9 +54,9 @@ function toolDetail(state: unknown): string {
 }
 
 /**
- * Rebuild the whole block list from server truth.
- * Used on session load and again after every run finishes, so the optimistic
- * event-driven list is reconciled with what the server actually persisted.
+ * 用服务端真值重建整个 block 列表。
+ * 会话加载和每次运行结束后都会调用，把事件驱动的乐观列表与服务端
+ * 实际持久化的内容对齐。
  */
 export function blocksFromMessages(messages: SessionMessageInfo[]): Block[] {
   const blocks: Block[] = []

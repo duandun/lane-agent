@@ -4,6 +4,17 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>OpenCode Web</title>
+    <script>
+      // 在样式加载前定好主题，避免先闪一下暗色。
+      try {
+        var saved = localStorage.getItem("opencode-web.theme")
+        var mode = saved === "light" || saved === "dark" ? saved : "auto"
+        var dark =
+          mode === "dark" ||
+          (mode === "auto" && window.matchMedia("(prefers-color-scheme: dark)").matches)
+        document.documentElement.dataset.theme = dark ? "dark" : "light"
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

@@ -8,9 +8,30 @@
   --accent: #4f8cff;
   --ok: #35c48a;
   --err: #ef5b5b;
+  --bar: rgba(22, 26, 33, 0.9);
+  --user-bubble: #1e3252;
+  --activity-avatar: #2a303b;
+  --activity-avatar-fg: #8fb4ff;
   --mono: "SF Mono", ui-monospace, Menlo, monospace;
   font-family: -apple-system, "SF Pro Text", "PingFang SC", "Segoe UI", system-ui, sans-serif;
   color-scheme: dark;
+}
+
+:root[data-theme="light"] {
+  --bg: #f5f6f8;
+  --panel: #ffffff;
+  --panel-2: #eef0f4;
+  --line: #dfe3ea;
+  --text: #1f2430;
+  --muted: #6b7280;
+  --accent: #2f6fed;
+  --ok: #1f9d6b;
+  --err: #dc4a4a;
+  --bar: rgba(250, 251, 252, 0.9);
+  --user-bubble: #e3ecff;
+  --activity-avatar: #e8ebf0;
+  --activity-avatar-fg: #2f6fed;
+  color-scheme: light;
 }
 
 * {
@@ -107,7 +128,7 @@ code,
   gap: 16px;
   padding: 10px 20px;
   border-bottom: 1px solid var(--line);
-  background: rgba(22, 26, 33, 0.9);
+  background: var(--bar);
   backdrop-filter: blur(10px);
   font-size: 13px;
   overflow: hidden;
@@ -244,6 +265,8 @@ code,
 .composer .ant-sender.thinking {
   position: relative;
   border-color: transparent;
+  /* 与页面底色一致，把光晕挡在输入框外部 */
+  background: var(--bg);
 }
 
 .composer .ant-sender.thinking::before {
@@ -275,8 +298,41 @@ code,
   }
 }
 
+/* 思考中：输入框背后的彩色光晕 */
+.sender-glow {
+  position: relative;
+  z-index: 0;
+}
+
+.sender-glow::before {
+  content: "";
+  position: absolute;
+  inset: -8px;
+  z-index: -1;
+  border-radius: 24px;
+  background: conic-gradient(
+    from var(--rainbow-angle),
+    #ff4d4f,
+    #faad14,
+    #52c41a,
+    #13c2c2,
+    #1677ff,
+    #722ed1,
+    #ff4d4f
+  );
+  filter: blur(18px);
+  opacity: 0.45;
+  pointer-events: none;
+  animation: rainbow-angle 2.5s linear infinite;
+}
+
+:root[data-theme="light"] .sender-glow::before {
+  opacity: 0.3;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .composer .ant-sender.thinking::before {
+  .composer .ant-sender.thinking::before,
+  .sender-glow::before {
     animation: none;
   }
 }
@@ -413,6 +469,14 @@ code,
   flex-direction: column;
   gap: 2px;
   width: 100%;
+  margin-left: 10px;
+  padding-left: 8px;
+  border-left: 1px solid var(--line);
+  animation: process-in 180ms ease-out;
+}
+
+.group-head .process-title {
+  color: var(--text);
 }
 
 .process-row {
@@ -448,20 +512,20 @@ code,
 .process-icon {
   display: inline-flex;
   flex: 0 0 auto;
-  color: #8b93a4;
+  color: var(--muted);
   font-size: 13px;
 }
 
 .process-title {
   flex: 0 0 auto;
-  color: #b9c1d1;
+  color: var(--text);
 }
 
 .process-preview {
   flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
-  color: #6f7787;
+  color: var(--muted);
   font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -492,19 +556,19 @@ code,
 
 .process-chevron {
   flex: 0 0 auto;
-  color: #6f7787;
+  color: var(--muted);
   font-size: 10px;
   transform: rotate(-90deg);
   transition: transform 160ms ease;
 }
 
-.process-row.is-open .process-chevron {
+.process-row.is-open > .process-head .process-chevron {
   transform: rotate(0deg);
 }
 
 .process-body {
   margin: 2px 6px 6px 27px;
-  color: #b9c1d1;
+  color: var(--text);
   animation: process-in 180ms ease-out;
 }
 
@@ -544,7 +608,8 @@ code,
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .process-body {
+  .process-body,
+  .activity {
     animation: none;
   }
 

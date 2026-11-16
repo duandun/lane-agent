@@ -3,12 +3,9 @@ import { Alert, Avatar, Button, Card, Form, Input, Typography } from "antd"
 import { Welcome } from "@ant-design/x"
 import { ApiOutlined, LockOutlined, FolderOpenOutlined, LinkOutlined } from "@ant-design/icons"
 import { makeClient, type Conn } from "./lib/client"
+import { errorText } from "./lib/error"
 
-function errorText(error: unknown): string {
-  if (error instanceof Error) return error.message
-  return String(error)
-}
-
+/** 连接表单：先用 Basic Auth 校验服务端，通过后再保存 Conn。 */
 export default function Connect({
   initial,
   onConnect,

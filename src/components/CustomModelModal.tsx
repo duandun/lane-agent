@@ -3,9 +3,14 @@ import { App as AntdApp, Flex, Input, Modal, Typography } from "antd"
 import type { Client } from "../lib/client"
 import { saveCustomModel, type CustomModel } from "../lib/customModels"
 import { errorText } from "../lib/error"
+import Field from "./Field"
 
 const PACKAGE = "@opencode/ai/providers/openai-compatible"
 
+/**
+ * 自定义 OpenAI 兼容供应商的编辑弹窗：合并写入项目的 opencode.json、
+ * 保存 Key 并重载服务端配置。editing 会回填表单并锁定 Provider ID。
+ */
 export default function CustomModelModal({
   open,
   client,
@@ -61,7 +66,7 @@ export default function CustomModelModal({
     try {
       const location = directory ? { directory } : undefined
 
-      // Merge into the existing project config; never replace other settings.
+      // 合并进已有的项目配置，不覆盖其他设置。
       let path = "opencode.json"
       let config: Record<string, unknown> = {}
       for (const candidate of ["opencode.json", "opencode.jsonc"]) {
@@ -142,58 +147,43 @@ export default function CustomModelModal({
         <Typography.Text type="secondary" className="small">
           当前模型：{current ? `${current.providerID}/${current.id}` : "未选择"}
         </Typography.Text>
-        <Flex vertical gap={6}>
-          <Typography.Text type="secondary" className="small">
-            Provider ID
-          </Typography.Text>
+        <Field label="Provider ID">
           <Input
             value={providerID}
             onChange={(event) => setProviderID(event.target.value)}
             placeholder="custom-deepseek"
             disabled={!!editing}
           />
-        </Flex>
-        <Flex vertical gap={6}>
-          <Typography.Text type="secondary" className="small">
-            模型 ID
-          </Typography.Text>
+        </Field>
+        <Field label="模型 ID">
           <Input
             value={modelID}
             onChange={(event) => setModelID(event.target.value)}
             placeholder="deepseek-chat"
           />
-        </Flex>
-        <Flex vertical gap={6}>
-          <Typography.Text type="secondary" className="small">
-            显示名称
-          </Typography.Text>
+        </Field>
+        <Field label="显示名称">
           <Input
             value={name}
             onChange={(event) => setName(event.target.value)}
             placeholder="可选，默认使用 Provider ID"
           />
-        </Flex>
-        <Flex vertical gap={6}>
-          <Typography.Text type="secondary" className="small">
-            接口地址
-          </Typography.Text>
+        </Field>
+        <Field label="接口地址">
           <Input
             value={baseURL}
             onChange={(event) => setBaseURL(event.target.value)}
             placeholder="https://api.deepseek.com/v1"
           />
-        </Flex>
-        <Flex vertical gap={6}>
-          <Typography.Text type="secondary" className="small">
-            API Key（留空表示沿用已保存的 Key）
-          </Typography.Text>
+        </Field>
+        <Field label="API Key（留空表示沿用已保存的 Key）">
           <Input.Password
             value={apiKey}
             onChange={(event) => setApiKey(event.target.value)}
             placeholder="sk-..."
             autoComplete="off"
           />
-        </Flex>
+        </Field>
         <Typography.Text type="secondary" className="small">
           保存会合并写入 {directory || "server 默认目录"}/opencode.json 并重新加载配置；Key 存在 server 凭据库。
         </Typography.Text>

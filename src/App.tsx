@@ -5,11 +5,12 @@ import xZhCN from "@ant-design/x/locale/zh_CN"
 import { XProvider } from "@ant-design/x"
 import Chat from "./Chat"
 import Connect from "./Connect"
+import { useThemeMode } from "./hooks/useThemeMode"
 import { DEFAULT_CONN, type Conn } from "./lib/client"
-import { themeConfig } from "./lib/theme"
+import { darkTheme, lightTheme } from "./lib/theme"
 
-// antd and antdX keep separate locale dictionaries; merge them so both antd
-// widgets and antdX internals (e.g. the Sender stop button) speak Chinese.
+// antd 和 antdX 各自维护 locale 字典，合并后 antd 组件和 antdX 内部
+// （例如 Sender 的停止按钮）都使用中文。
 const locale = { ...zhCN, ...xZhCN }
 
 const STORAGE_KEY = "opencode-web.conn"
@@ -23,15 +24,19 @@ function loadConn(): Conn | null {
   }
 }
 
+/** 根组件：恢复本地保存的连接，切换 Connect 与 Chat。 */
 export default function App() {
   const [conn, setConn] = useState<Conn | null>(() => loadConn())
+  const { mode, resolved, setMode } = useThemeMode()
 
   return (
-    <XProvider theme={themeConfig} locale={locale}>
+    <XProvider theme={resolved === "dark" ? darkTheme : lightTheme} locale={locale}>
       <AntdApp component={false}>
         {conn ? (
           <Chat
             conn={conn}
+            themeMode={mode}
+            onThemeChange={setMode}
             onDisconnect={() => {
               localStorage.removeItem(STORAGE_KEY)
               setConn(null)

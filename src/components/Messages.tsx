@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from "react"
+import { useMemo } from "react"
 import { Avatar, App as AntdApp } from "antd"
 import {
   Actions,
@@ -13,6 +13,7 @@ import {
   CopyOutlined,
   ExperimentOutlined,
   FileSearchOutlined,
+  RedoOutlined,
   RobotOutlined,
   ThunderboltFilled,
   UserOutlined,
@@ -26,6 +27,38 @@ type ViewItem =
   | { key: string; role: "ai"; text: string }
   | { key: string; role: "activity"; blocks: ActivityBlock[] }
   | { key: string; role: "system"; text: string }
+
+const ROLES = {
+  user: {
+    placement: "end" as const,
+    variant: "filled" as const,
+    avatar: <Avatar size="small" icon={<UserOutlined />} />,
+    styles: { content: { background: "var(--user-bubble)" } },
+  },
+  ai: {
+    placement: "start" as const,
+    variant: "outlined" as const,
+    avatar: (
+      <Avatar
+        size="small"
+        icon={<RobotOutlined />}
+        style={{ background: "linear-gradient(135deg, #4f8cff, #7c5cff)" }}
+      />
+    ),
+  },
+  activity: {
+    placement: "start" as const,
+    variant: "borderless" as const,
+    avatar: (
+      <Avatar
+        size="small"
+        icon={<ThunderboltFilled />}
+        style={{ background: "var(--activity-avatar)", color: "var(--activity-avatar-fg)" }}
+      />
+    ),
+  },
+  system: { placement: "start" as const },
+}
 
 const SUGGESTIONS: PromptsItemType[] = [
   {
@@ -49,8 +82,8 @@ const SUGGESTIONS: PromptsItemType[] = [
 ]
 
 /**
- * Collapse consecutive reasoning / tool blocks into a single activity group so
- * each run renders as one ThoughtChain instead of a stack of one-item cards.
+ * 把连续的 reasoning / tool block 合并成一个 activity 组，
+ * 让每次运行只渲染一张活动卡片，而不是一叠单项卡片。
  */
 function toViewItems(blocks: Block[]): ViewItem[] {
   const items: ViewItem[] = []
@@ -73,40 +106,49 @@ function toViewItems(blocks: Block[]): ViewItem[] {
   return items
 }
 
+/**
+ * 对话视图：把思考和工具调用折叠成活动气泡，并为回答提供复制和重新生成。
+ */
 export default function Messages({
   blocks,
   busy,
   directory,
   onSuggestion,
+  onRegenerate,
 }: {
   blocks: Block[]
   busy: boolean
   directory: string
   onSuggestion: (text: string) => void
+  onRegenerate: (messageID: string, text: string, userBlockID: string) => void
 }) {
   const { message } = AntdApp.useApp()
 
-  const copy = useCallback(
-    async (text: string) => {
+  const bubbleItems = useMemo<BubbleItemType[]>(() => {
+    const copy = async (text: string) => {
       try {
         await navigator.clipboard.writeText(text)
         message.success("已复制")
       } catch {
         message.error("复制失败")
       }
-    },
-    [message],
-  )
+    }
 
-  const bubbleItems = useMemo<BubbleItemType[]>(() => {
     const lastTextID = [...blocks].reverse().find((block) => block.kind === "text")?.id
+    const views = toViewItems(blocks)
+    const lastView = views[views.length - 1]
+    const activityRunning = busy && lastView?.role === "activity"
+    const lastAIIndex = views.reduce(
+      (last, view, index) => (view.role === "ai" ? index : last),
+      -1,
+    )
 
-    const items: BubbleItemType[] = toViewItems(blocks).map((item) => {
+    const items: BubbleItemType[] = views.map((item, index) => {
       if (item.role === "activity") {
         return {
           key: item.key,
           role: "activity",
-          content: <Activity blocks={item.blocks} />,
+          content: <Activity blocks={item.blocks} active={activityRunning && item.key === lastView.key} />,
         }
       }
       if (item.role === "system") {
@@ -115,22 +157,37 @@ export default function Messages({
       if (item.role === "user") {
         return { key: item.key, role: "user", content: item.text }
       }
+
+      // 重新生成会丢弃该 prompt 之后的所有内容，所以只给最后一条回答展示，
+      // 且要求该 prompt 已持久化到服务端。
+      const prompt =
+        index === lastAIIndex
+          ? [...views.slice(0, index)].reverse().find((view) => view.role === "user")
+          : undefined
+      const actions = [
+        ...(!busy && prompt?.key.startsWith("msg:")
+          ? [
+              {
+                key: "regenerate",
+                label: "重新生成",
+                icon: <RedoOutlined />,
+                onItemClick: () => onRegenerate(prompt.key.slice(4), prompt.text, prompt.key),
+              },
+            ]
+          : []),
+        {
+          key: "copy",
+          label: "复制",
+          icon: <CopyOutlined />,
+          onItemClick: () => void copy(item.text),
+        },
+      ]
+
       return {
         key: item.key,
         role: "ai",
         content: <Markdown text={item.text} streaming={busy && item.key === lastTextID} />,
-        footer: (
-          <Actions
-            items={[
-              {
-                key: "copy",
-                label: "复制",
-                icon: <CopyOutlined />,
-                onItemClick: () => void copy(item.text),
-              },
-            ]}
-          />
-        ),
+        footer: <Actions items={actions} />,
       }
     })
 
@@ -139,42 +196,7 @@ export default function Messages({
     }
 
     return items
-  }, [blocks, busy, copy])
-
-  const roles = useMemo(
-    () => ({
-      user: {
-        placement: "end" as const,
-        variant: "filled" as const,
-        avatar: <Avatar size="small" icon={<UserOutlined />} />,
-        styles: { content: { background: "#1e3252" } },
-      },
-      ai: {
-        placement: "start" as const,
-        variant: "outlined" as const,
-        avatar: (
-          <Avatar
-            size="small"
-            icon={<RobotOutlined />}
-            style={{ background: "linear-gradient(135deg, #4f8cff, #7c5cff)" }}
-          />
-        ),
-      },
-      activity: {
-        placement: "start" as const,
-        variant: "borderless" as const,
-        avatar: (
-          <Avatar
-            size="small"
-            icon={<ThunderboltFilled />}
-            style={{ background: "#2a303b", color: "#8fb4ff" }}
-          />
-        ),
-      },
-      system: { placement: "start" as const },
-    }),
-    [],
-  )
+  }, [blocks, busy, message, onRegenerate])
 
   if (blocks.length === 0 && !busy) {
     return (
@@ -208,7 +230,7 @@ export default function Messages({
     <Bubble.List
       className="bubbles"
       items={bubbleItems}
-      role={roles}
+      role={ROLES}
       autoScroll
       style={{ height: "100%" }}
     />

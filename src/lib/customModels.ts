@@ -30,6 +30,6 @@ export function saveCustomModel(model: CustomModel) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(list))
   } catch {
-    // Private mode may block storage; the server config is the source of truth.
+    // 隐私模式可能禁用 localStorage；以服务端配置为准。
   }
 }

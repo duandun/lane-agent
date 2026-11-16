@@ -1,12 +1,11 @@
 import { OpenCode } from "@opencode/client"
 
 /**
- * Everything the browser needs to reach an OpenCode server.
+ * 浏览器连接 OpenCode server 所需的全部信息。
  *
- * Note: `@opencode/client/service` (Service.ensure / Service.headers) is Node-only
- * because it spawns and authenticates against the local background service.
- * In a browser you must point at a server you started yourself with `opencode serve`
- * and authenticate with HTTP Basic, using the username `opencode`.
+ * 注意：`@opencode/client/service`（Service.ensure / Service.headers）只能跑在
+ * Node 里，因为它要拉起并认证本地后台服务。浏览器必须连接自己用
+ * `opencode serve` 启动的服务，并用 HTTP Basic 认证，用户名固定为 `opencode`。
  */
 export type Conn = {
   baseUrl: string

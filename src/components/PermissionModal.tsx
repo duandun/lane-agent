@@ -1,6 +1,7 @@
 import { Button, Modal, Space, Tag, Typography } from "antd"
 import type { PermissionRequest } from "@opencode/client"
 
+/** 待处理工具授权请求的弹窗；队列数量显示在标题里。 */
 export default function PermissionModal({
   request,
   count,

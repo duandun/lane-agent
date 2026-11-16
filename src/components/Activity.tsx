@@ -1,31 +1,56 @@
-import { useState } from "react"
-import {
-  BulbOutlined,
-  CheckCircleFilled,
-  CloseCircleFilled,
-  CodeOutlined,
-  DownOutlined,
-  LoadingOutlined,
-} from "@ant-design/icons"
+import { useEffect, useState } from "react"
+import { BulbOutlined, CodeOutlined, ThunderboltFilled } from "@ant-design/icons"
+import DisclosureRow from "./DisclosureRow"
 import Markdown from "./Markdown"
 import type { Block } from "../lib/blocks"
 
 export type ActivityBlock = Extract<Block, { kind: "reasoning" | "tool" }>
 
-export default function Activity({ blocks }: { blocks: ActivityBlock[] }) {
+/**
+ * 一轮运行中的思考和工具调用，折叠成单个「已处理」行。
+ * active 时自动展开，运行结束后自动收起。
+ */
+export default function Activity({
+  blocks,
+  active,
+}: {
+  blocks: ActivityBlock[]
+  active: boolean
+}) {
+  const [open, setOpen] = useState(active)
+
+  // 运行中展开，结束后折叠成一行。
+  useEffect(() => {
+    setOpen(active)
+  }, [active])
+
+  const tools = blocks.filter((block) => block.kind === "tool").length
+  const thinks = blocks.length - tools
+  const summary = [thinks ? `${thinks} 次思考` : "", tools ? `${tools} 个工具` : ""]
+    .filter(Boolean)
+    .join(" · ")
+  const failed = blocks.some((block) => block.kind === "tool" && block.status === "error")
+
   return (
-    <div className="activity">
-      {blocks.map((block) => (
-        <ProcessRow key={block.id} block={block} />
-      ))}
-    </div>
+    <DisclosureRow
+      icon={<ThunderboltFilled />}
+      title={active ? "处理中…" : "已处理"}
+      preview={summary}
+      status={active ? "running" : failed ? "error" : "ok"}
+      open={open}
+      onToggle={() => setOpen((value) => !value)}
+      headClassName="group-head"
+    >
+      <div className="activity">
+        {blocks.map((block) => (
+          <ProcessRow key={block.id} block={block} />
+        ))}
+      </div>
+    </DisclosureRow>
   )
 }
 
-/**
- * Compact disclosure row, DeepSeek Harness style: icon, label and a one-line
- * preview when folded; clicking the header reveals the full content.
- */
+/** 活动组内的一条思考或工具调用。 */
 function ProcessRow({ block }: { block: ActivityBlock }) {
   const [open, setOpen] = useState(false)
   const reasoning = block.kind === "reasoning"
@@ -33,38 +58,21 @@ function ProcessRow({ block }: { block: ActivityBlock }) {
   const preview = text.trim().split("\n")[0] ?? ""
 
   return (
-    <div className={`process-row${open ? " is-open" : ""}`}>
-      <button
-        type="button"
-        className="process-head"
-        aria-expanded={open}
-        onClick={() => setOpen((value) => !value)}
-      >
-        <span className="process-icon">{reasoning ? <BulbOutlined /> : <CodeOutlined />}</span>
-        <span className={`process-title${reasoning ? "" : " mono"}`}>
-          {reasoning ? "思考" : block.name}
-        </span>
-        {!open && preview && (
-          <span className={`process-preview${reasoning ? "" : " mono"}`}>{preview}</span>
-        )}
-        {!reasoning && (
-          <span className={`process-status ${block.status}`}>
-            {block.status === "running" ? (
-              <LoadingOutlined spin />
-            ) : block.status === "ok" ? (
-              <CheckCircleFilled />
-            ) : (
-              <CloseCircleFilled />
-            )}
-          </span>
-        )}
-        <DownOutlined className="process-chevron" />
-      </button>
-      {open && text && (
+    <DisclosureRow
+      icon={reasoning ? <BulbOutlined /> : <CodeOutlined />}
+      title={reasoning ? "思考" : block.name}
+      titleMono={!reasoning}
+      preview={preview}
+      previewMono={!reasoning}
+      status={reasoning ? undefined : block.status}
+      open={open}
+      onToggle={() => setOpen((value) => !value)}
+    >
+      {text && (
         <div className={`process-body${reasoning ? " process-markdown" : " process-output"}`}>
           {reasoning ? <Markdown text={text} /> : text}
         </div>
       )}
-    </div>
+    </DisclosureRow>
   )
 }
