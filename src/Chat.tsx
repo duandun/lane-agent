@@ -3,7 +3,7 @@ import { Alert, Badge, Button, Dropdown, Flex, Select, Tag, Tooltip, Typography 
 import { Sender } from "@ant-design/x"
 import { LogoutOutlined, MoonOutlined, SunOutlined, DesktopOutlined } from "@ant-design/icons"
 import CustomModelModal from "./components/CustomModelModal"
-import Live2DAvatar, { type AvatarState } from "./components/Live2DAvatar"
+import EagleCompanion, { type EagleState } from "./components/EagleCompanion"
 import Messages from "./components/Messages"
 import PermissionModal from "./components/PermissionModal"
 import { useChatSession, type ChatStatus, type ModelRef } from "./hooks/useChatSession"
@@ -49,7 +49,7 @@ export default function Chat({
     blocks,
     status,
     busy,
-    speaking,
+    activity,
     queue,
     error,
     clearError,
@@ -132,12 +132,14 @@ export default function Chat({
 
   const meta = STATUS_META[status]
 
-  function avatarState(): AvatarState {
+  function companionState(): EagleState {
     if (status === "offline" || error) return "error"
-    if (status === "connecting") return "connecting"
+    if (status === "connecting") return "takeoff"
     if (queue.length > 0) return "waiting"
-    if (speaking) return "talking"
-    return busy ? "thinking" : "idle"
+    if (activity === "talking") return "talking"
+    if (activity === "working") return "soaring"
+    if (activity === "thinking") return "thinking"
+    return "idle"
   }
 
   return (
@@ -257,7 +259,7 @@ export default function Chat({
         </div>
       </footer>
 
-      <Live2DAvatar state={avatarState()} />
+      <EagleCompanion state={companionState()} />
 
       <PermissionModal
         request={queue[0]}

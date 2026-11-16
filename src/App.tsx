@@ -5,6 +5,7 @@ import xZhCN from "@ant-design/x/locale/zh_CN"
 import { XProvider } from "@ant-design/x"
 import Chat from "./Chat"
 import Connect from "./Connect"
+import EagleCompanion from "./components/EagleCompanion"
 import { useThemeMode } from "./hooks/useThemeMode"
 import { DEFAULT_CONN, type Conn } from "./lib/client"
 import { darkTheme, lightTheme } from "./lib/theme"
@@ -43,13 +44,16 @@ export default function App() {
             }}
           />
         ) : (
-          <Connect
-            initial={loadConn() ?? DEFAULT_CONN}
-            onConnect={(next) => {
-              localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
-              setConn(next)
-            }}
-          />
+          <>
+            <Connect
+              initial={loadConn() ?? DEFAULT_CONN}
+              onConnect={(next) => {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
+                setConn(next)
+              }}
+            />
+            <EagleCompanion />
+          </>
         )}
       </AntdApp>
     </XProvider>
