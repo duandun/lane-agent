@@ -16,7 +16,7 @@ export type Conn = {
 export const DEFAULT_CONN: Conn = {
   baseUrl: "http://127.0.0.1:4096",
   password: "",
-  directory: "",
+  directory: "/Users/cr/opencode-workspace",
 }
 
 const USERNAME = "opencode"

@@ -18,7 +18,7 @@ opencode serve  ← agent / 工具 / 权限 / 会话都在这里
 
 ```bash
 OPENCODE_PASSWORD=your-secret \
-  opencode serve --port 4096 --cors http://localhost:5173
+  opencode serve --hostname 0.0.0.0 --port 4096 --cors https://ai.cr123.life
 ```
 
 终端 2 — 起前端：
@@ -35,7 +35,7 @@ bun dev
 | --- | --- |
 | 服务地址 | `http://127.0.0.1:4096` |
 | 密码 | 你上面设的 `OPENCODE_PASSWORD` |
-| 项目目录 | 服务器上的绝对路径，agent 就在这里干活 |
+| 项目目录 | 默认 `/Users/cr/opencode-workspace`，agent 就在这里干活 |
 
 生产环境是 https://ai.cr123.life （静态前端）。直接打开它时，服务端要把这个 origin 加进 CORS：
 

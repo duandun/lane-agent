@@ -88,7 +88,7 @@ export default function Connect({
             label="项目目录（服务器上的绝对路径）"
             extra="agent 会在这个目录里读写文件、执行命令。"
           >
-            <Input prefix={<FolderOpenOutlined />} placeholder="/Users/you/code/project" />
+            <Input prefix={<FolderOpenOutlined />} placeholder="/Users/cr/opencode-workspace" disabled />
           </Form.Item>
 
           {error && (
@@ -96,9 +96,8 @@ export default function Connect({
               className="connect-error"
               type="error"
               showIcon
-              message={error}
-              closable
-              onClose={() => setError(null)}
+              title={error}
+              closable={{ onClose: () => setError(null) }}
             />
           )}
 
@@ -113,7 +112,7 @@ export default function Connect({
           先在终端启动服务
         </Typography.Text>
         <pre>{`OPENCODE_PASSWORD=your-secret \\
-  opencode serve --port 4096 --cors ${window.location.origin}`}</pre>
+  opencode serve --hostname 0.0.0.0 --port 4096 --cors https://ai.cr123.life`}</pre>
       </Card>
     </div>
   )
