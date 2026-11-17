@@ -2,9 +2,10 @@
   "name": "opencode-web-demo",
   "version": "0.1.0",
   "description": "OpenCode Web 的 Electron 桌面壳",
+  "desktopName": "opencode-web.desktop",
   "private": true,
   "type": "module",
-  "main": "electron/main.js",
+  "main": "src/app/main.js",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -14,19 +15,26 @@
     "electron:dev": "vite & VITE_PID=$!; trap 'kill $VITE_PID' EXIT; electron . --dev",
     "electron:start": "vite build && electron .",
     "electron:package": "vite build && ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ ELECTRON_BUILDER_BINARIES_MIRROR=https://npmmirror.com/mirrors/electron-builder-binaries/ electron-builder",
+    "electron:package:linux": "vite build && ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ ELECTRON_BUILDER_BINARIES_MIRROR=https://npmmirror.com/mirrors/electron-builder-binaries/ electron-builder --linux AppImage --x64",
     "electron:package:win": "vite build && ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ ELECTRON_BUILDER_BINARIES_MIRROR=https://npmmirror.com/mirrors/electron-builder-binaries/ electron-builder --win --x64"
   },
   "build": {
     "appId": "com.opencode.web",
     "productName": "OpenCode Web",
     "directories": {
-      "output": "release"
+      "output": "release",
+      "buildResources": "src/app/build"
     },
     "files": [
       "dist/**/*",
-      "electron/**/*",
+      "src/app/**/*",
+      "!src/app/build/**",
       "!node_modules/**/*"
-    ]
+    ],
+    "linux": {
+      "category": "Development",
+      "syncDesktopName": true
+    }
   },
   "dependencies": {
     "@ant-design/icons": "^6.3.4",

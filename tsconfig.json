@@ -10,6 +10,11 @@
     "skipLibCheck": true,
     "isolatedModules": true,
     "resolveJsonModule": true,
+    "paths": {
+      "@core/*": ["./src/core/*"],
+      "@web/*": ["./src/web/*"],
+      "@app/*": ["./src/app/*"]
+    },
     "types": ["vite/client"]
   },
   "include": ["src", "vite.config.ts"]

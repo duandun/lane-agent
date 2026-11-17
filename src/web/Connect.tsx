@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { Alert, Avatar, Button, Card, Form, Input, Typography } from 'antd';
 import { Welcome } from '@ant-design/x';
 import { ApiOutlined, LockOutlined, FolderOpenOutlined, LinkOutlined } from '@ant-design/icons';
-import { makeClient, type Conn } from './lib/client';
-import { errorText } from './lib/error';
+import { makeClient, type Conn } from '@core/lib/client';
+import { errorText } from '@core/lib/error';
 
 /** 连接表单：先用 Basic Auth 校验服务端，通过后再保存 Conn。 */
 export default function Connect({

@@ -48,14 +48,21 @@ OPENCODE_PASSWORD=your-secret \
 
 ```bash
 bun run electron:dev      # Vite + Electron 窗口，热更新
-bun run electron:start    # 构建 dist 后用 Electron 打开
-bun run electron:package      # 构建并打包，产物在 release/
+bun run electron:start    # 构建 dist 后用 Electron 打开（离线）
+bun run electron:package      # 构建并打包 dist，产物在 release/
+bun run electron:package:linux  # 同上，出 Linux x64 AppImage
 bun run electron:package:win  # 同上，出 Windows x64 安装包（macOS 上可直接交叉构建）
 ```
 
 Windows 产物是 NSIS 安装包 `release/OpenCode Web Setup <版本>.exe`，未签名，首次运行会被 SmartScreen 拦一下（更多信息 → 仍要运行）。
 
-Electron 里也是 http origin（默认 `http://localhost:5173`，被占用时退回随机端口），所以上面的 `--cors` 不用改。
+生产环境把 dist 打进安装包，Electron 用固定的本地 HTTP 服务（`http://localhost:5173`）加载它——不能直接 `file://` 打开，否则 Origin 是 `null`，会被 opencode server 的 CORS 拒绝。所以桌面端离线时服务端也要放行这个 origin：
+
+```bash
+opencode serve --port 4096 --cors http://localhost:5173
+```
+
+5173 被占用时启动会直接报错（不退回随机端口），避免 Origin 变化导致 CORS 失效。连接页底部的命令会按当前页面 origin 自动填好。
 
 `electron:package` 在 macOS 上出 dmg + zip，未做代码签名（没有 Apple 证书），拷到别的机器首次打开要右键 → 打开。脚本里写死了 npmmirror 的 Electron 下载镜像；网络能直连 GitHub 的话删掉那两个环境变量即可。
 
@@ -76,14 +83,24 @@ Electron 里也是 http origin（默认 `http://localhost:5173`，被占用时�
 ## 代码结构
 
 ```
-src/App.tsx          XProvider 主题 + 连接态切换
-src/Connect.tsx      连接页（antd Form / Card / Alert）
-src/Chat.tsx         聊天页（antdX Bubble.List / Sender / ThoughtChain / Prompts / Actions）
-src/lib/client.ts    Basic Auth + 建客户端
-src/lib/blocks.ts    把服务端消息映射成渲染用的 block 列表
-src/lib/theme.ts     antd / antdX 暗色 token
-src/styles.css       页面骨架样式
+src/
+  core/                web 和 app 共用的代码
+    components/        消息、Markdown、活动链、弹窗等通用组件
+    hooks/             会话事件流、主题
+    lib/               Basic Auth 客户端、block 映射、主题 token
+    styles.css         页面骨架样式
+  web/                 Web 端
+    index.html         页面入口
+    main.tsx           React 挂载
+    App.tsx            连接态切换
+    Connect.tsx        连接页（antd Form / Card / Alert）
+    Chat.tsx           聊天页（antdX Bubble.List / Sender / ThoughtChain / Prompts / Actions）
+  app/                 Electron 端
+    main.js            主进程：本地静态服务 + 打开窗口
+    build/icon.png     打包图标
 ```
+
+Web 和 Electron 共用 `core`；Electron 加载的是 `web` 构建出来的 `dist`。跨目录引用用 `@core/*` 等别名，Vite 的 `resolve.alias` 和 tsconfig 的 `paths` 两边都要配。
 
 事件流是 UI 的唯一数据源：`session.text.delta` 增量出字，`session.tool.*` 画工具卡片，`permission.asked` 弹授权框，`execution.*` 收尾。每次运行结束后用 `message.list` 重新对齐一次，避免客户端状态和服务端真值漂移。
 
@@ -97,7 +114,7 @@ src/styles.css       页面骨架样式
 - `Welcome` + `Prompts`：空会话的引导和快捷任务。
 - `Actions`：助手消息的复制按钮；弹窗、表单、状态灯用 antd。
 
-暗色主题在 `src/lib/theme.ts` 里用 antd token 表达，antdX 组件复用同一套 token。
+暗色主题在 `core/lib/theme.ts` 里用 antd token 表达，antdX 组件复用同一套 token。
 
 ## 已知边界
 

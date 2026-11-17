@@ -3,10 +3,10 @@ import { App as AntdApp } from 'antd';
 import zhCN from 'antd/locale/zh_CN';
 import xZhCN from '@ant-design/x/locale/zh_CN';
 import { XProvider } from '@ant-design/x';
-import EagleCompanion from './components/EagleCompanion';
-import { useThemeMode } from './hooks/useThemeMode';
-import { DEFAULT_CONN, type Conn } from './lib/client';
-import { darkTheme, lightTheme } from './lib/theme';
+import EagleCompanion from '@core/components/EagleCompanion';
+import { useThemeMode } from '@core/hooks/useThemeMode';
+import { DEFAULT_CONN, type Conn } from '@core/lib/client';
+import { darkTheme, lightTheme } from '@core/lib/theme';
 
 // antd 和 antdX 各自维护 locale 字典，合并后 antd 组件和 antdX 内部
 // （例如 Sender 的停止按钮）都使用中文。

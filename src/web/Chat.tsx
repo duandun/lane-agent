@@ -2,15 +2,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Badge, Button, Dropdown, Flex, Select, Tag, Tooltip, Typography } from 'antd';
 import { Sender } from '@ant-design/x';
 import { LogoutOutlined, MoonOutlined, SunOutlined, DesktopOutlined } from '@ant-design/icons';
-import CustomModelModal from './components/CustomModelModal';
-import EagleCompanion, { type EagleState } from './components/EagleCompanion';
-import Messages from './components/Messages';
-import PermissionModal from './components/PermissionModal';
-import { useChatSession, type ChatStatus, type ModelRef } from './hooks/useChatSession';
-import type { ThemeMode } from './hooks/useThemeMode';
-import { makeClient, type Conn } from './lib/client';
-import { loadCustomModels, type CustomModel } from './lib/customModels';
-import { clearModel, loadModel, saveModel } from './lib/modelPreference';
+import CustomModelModal from '@core/components/CustomModelModal';
+import EagleCompanion, { type EagleState } from '@core/components/EagleCompanion';
+import Messages from '@core/components/Messages';
+import PermissionModal from '@core/components/PermissionModal';
+import { useChatSession, type ChatStatus, type ModelRef } from '@core/hooks/useChatSession';
+import type { ThemeMode } from '@core/hooks/useThemeMode';
+import { makeClient, type Conn } from '@core/lib/client';
+import { loadCustomModels, type CustomModel } from '@core/lib/customModels';
+import { clearModel, loadModel, saveModel } from '@core/lib/modelPreference';
 
 type ModelOption = { value: string; label: string };
 
