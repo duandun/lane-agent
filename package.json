@@ -5,18 +5,19 @@
   "desktopName": "opencode-web.desktop",
   "private": true,
   "type": "module",
-  "main": "src/app/main.js",
+  "main": "dist-electron/main.js",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:app": "tsc -p tsconfig.electron.json",
     "preview": "vite preview",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "electron:dev": "vite & VITE_PID=$!; trap 'kill $VITE_PID' EXIT; electron . --dev",
-    "electron:start": "vite build && electron .",
-    "electron:package": "vite build && ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ ELECTRON_BUILDER_BINARIES_MIRROR=https://npmmirror.com/mirrors/electron-builder-binaries/ electron-builder",
-    "electron:package:linux": "vite build && ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ ELECTRON_BUILDER_BINARIES_MIRROR=https://npmmirror.com/mirrors/electron-builder-binaries/ electron-builder --linux AppImage --x64",
-    "electron:package:win": "vite build && ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ ELECTRON_BUILDER_BINARIES_MIRROR=https://npmmirror.com/mirrors/electron-builder-binaries/ electron-builder --win --x64"
+    "electron:dev": "tsc -p tsconfig.electron.json && (vite & VITE_PID=$!; trap 'kill $VITE_PID' EXIT; electron . --dev)",
+    "electron:start": "vite build && tsc -p tsconfig.electron.json && electron .",
+    "electron:package": "vite build && tsc -p tsconfig.electron.json && ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ ELECTRON_BUILDER_BINARIES_MIRROR=https://npmmirror.com/mirrors/electron-builder-binaries/ electron-builder",
+    "electron:package:linux": "vite build && tsc -p tsconfig.electron.json && ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ ELECTRON_BUILDER_BINARIES_MIRROR=https://npmmirror.com/mirrors/electron-builder-binaries/ electron-builder --linux AppImage --x64",
+    "electron:package:win": "vite build && tsc -p tsconfig.electron.json && ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ ELECTRON_BUILDER_BINARIES_MIRROR=https://npmmirror.com/mirrors/electron-builder-binaries/ electron-builder --win --x64"
   },
   "build": {
     "appId": "com.opencode.web",
@@ -27,8 +28,7 @@
     },
     "files": [
       "dist/**/*",
-      "src/app/**/*",
-      "!src/app/build/**",
+      "dist-electron/**/*",
       "!node_modules/**/*"
     ],
     "linux": {

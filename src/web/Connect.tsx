@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Alert, Avatar, Button, Card, Form, Input, Typography } from 'antd';
+import { Alert, Avatar, Button, Card, Flex, Form, Input, Typography } from 'antd';
 import { Welcome } from '@ant-design/x';
 import { ApiOutlined, LockOutlined, FolderOpenOutlined, LinkOutlined } from '@ant-design/icons';
+import { appBridge } from '@core/lib/bridge';
 import { makeClient, type Conn } from '@core/lib/client';
 import { errorText } from '@core/lib/error';
 
@@ -16,6 +17,24 @@ export default function Connect({
   const [form] = Form.useForm<Conn>();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [bridgeChecking, setBridgeChecking] = useState(false);
+  const [bridgeResult, setBridgeResult] = useState<{ ok: boolean; text: string } | null>(null);
+
+  async function checkBridge() {
+    if (!appBridge) return;
+    setBridgeChecking(true);
+    try {
+      const [pong, info] = await Promise.all([appBridge.ping(), appBridge.info()]);
+      setBridgeResult({
+        ok: true,
+        text: `${pong} · Electron ${info.versions.electron} · Node ${info.versions.node} · ${info.platform}/${info.arch}`,
+      });
+    } catch (cause) {
+      setBridgeResult({ ok: false, text: errorText(cause) });
+    } finally {
+      setBridgeChecking(false);
+    }
+  }
 
   async function submit(values: Conn) {
     const next: Conn = {
@@ -118,6 +137,27 @@ export default function Connect({
         <pre>{`OPENCODE_PASSWORD=your-secret \\
   opencode serve --hostname 0.0.0.0 --port 4096 --cors https://ai.cr123.life`}</pre>
       </Card>
+
+      {appBridge && (
+        <Card className="connect-hint" size="small" variant="borderless">
+          <Flex align="center" justify="space-between" gap={8}>
+            <Typography.Text type="secondary" className="small">
+              App 通道
+            </Typography.Text>
+            <Button size="small" loading={bridgeChecking} onClick={() => void checkBridge()}>
+              检测 IPC
+            </Button>
+          </Flex>
+          {bridgeResult && (
+            <Typography.Text
+              className="bridge-result small"
+              type={bridgeResult.ok ? 'success' : 'danger'}
+            >
+              {bridgeResult.ok ? `正常：${bridgeResult.text}` : `失败：${bridgeResult.text}`}
+            </Typography.Text>
+          )}
+        </Card>
+      )}
     </div>
   );
 }

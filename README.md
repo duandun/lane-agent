@@ -56,6 +56,8 @@ bun run electron:package:win  # 同上，出 Windows x64 安装包（macOS 上�
 
 Windows 产物是 NSIS 安装包 `release/OpenCode Web Setup <版本>.exe`，未签名，首次运行会被 SmartScreen 拦一下（更多信息 → 仍要运行）。
 
+主进程用 TypeScript（`src/app/*.ts`），`electron:*` 脚本会先用 `tsc -p tsconfig.electron.json` 编译到 `dist-electron/` 再启动或打包；该目录不进 git。只编译主进程用 `bun run build:app`。
+
 生产环境把 dist 打进安装包，Electron 用固定的本地 HTTP 服务（`http://localhost:5173`）加载它——不能直接 `file://` 打开，否则 Origin 是 `null`，会被 opencode server 的 CORS 拒绝。所以桌面端离线时服务端也要放行这个 origin：
 
 ```bash
@@ -65,6 +67,16 @@ opencode serve --port 4096 --cors http://localhost:5173
 5173 被占用时启动会直接报错（不退回随机端口），避免 Origin 变化导致 CORS 失效。连接页底部的命令会按当前页面 origin 自动填好。
 
 `electron:package` 在 macOS 上出 dmg + zip，未做代码签名（没有 Apple 证书），拷到别的机器首次打开要右键 → 打开。脚本里写死了 npmmirror 的 Electron 下载镜像；网络能直连 GitHub 的话删掉那两个环境变量即可。
+
+## Node 通道
+
+渲染进程不直接拿 Node，主进程通过 IPC 提供受控能力：
+
+1. `src/app/ipc.ts` 用 `ipcMain.handle('app:xxx', ...)` 注册操作。
+2. `src/app/preload.cts` 在 `contextBridge` 里把对应方法暴露到 `window.appBridge`（编译为 `preload.cjs`）。
+3. `src/core/lib/bridge.ts` 补类型；浏览器里 `window.appBridge` 是 `undefined`，用之前先判断。
+
+目前只有健康检查：`ping()` 返回 `pong`，`info()` 返回 platform / arch / Electron / Node / Chrome 版本。
 
 ## 三个容易踩的坑
 
@@ -95,8 +107,10 @@ src/
     App.tsx            连接态切换
     Connect.tsx        连接页（antd Form / Card / Alert）
     Chat.tsx           聊天页（antdX Bubble.List / Sender / ThoughtChain / Prompts / Actions）
-  app/                 Electron 端
-    main.js            主进程：本地静态服务 + 打开窗口
+  app/                 Electron 端（TypeScript，编译到 dist-electron）
+    main.ts            主进程：本地静态服务 + 打开窗口
+    ipc.ts             Node 能力注册（ipcMain.handle）
+    preload.cts        contextBridge 暴露给渲染进程（编译为 preload.cjs）
     build/icon.png     打包图标
 ```
 

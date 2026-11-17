@@ -113,6 +113,11 @@ code,
   overflow-x: auto;
 }
 
+.bridge-result {
+  display: block;
+  word-break: break-all;
+}
+
 /* ------------------------------------------------------------------- chat */
 
 .app {
