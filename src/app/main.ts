@@ -3,7 +3,7 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { extname, join, normalize, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { registerIpc } from './ipc.js';
+import { registerIpc } from './ipc';
 
 const DIST = fileURLToPath(new URL('../dist', import.meta.url));
 const PRELOAD = fileURLToPath(new URL('./preload.cjs', import.meta.url));

@@ -72,7 +72,7 @@ opencode serve --port 4096 --cors http://localhost:5173
 
 渲染进程不直接拿 Node，主进程通过 IPC 提供受控能力：
 
-1. `src/app/ipc.ts` 用 `ipcMain.handle('app:xxx', ...)` 注册操作。
+1. `src/app/ipc/*.ts` 用 `ipcMain.handle('app:xxx', ...)` 注册操作，新增能力就加一个文件并在 `ipc/index.ts` 里注册。
 2. `src/app/preload.cts` 在 `contextBridge` 里把对应方法暴露到 `window.appBridge`（编译为 `preload.cjs`）。
 3. `src/core/lib/bridge.ts` 补类型；浏览器里 `window.appBridge` 是 `undefined`，用之前先判断。
 
@@ -116,7 +116,12 @@ src/
     Chat.tsx           聊天页（antdX Bubble.List / Sender / ThoughtChain / Prompts / Actions）
   app/                 Electron 端（TypeScript，编译到 dist-electron）
     main.ts            主进程：本地静态服务 + 打开窗口
-    ipc.ts             Node 能力注册（ipcMain.handle）
+    ipc/
+      index.ts         汇总注册 Node 能力
+      health.ts        app:ping / app:info
+      fs.ts            fs:list / fs:read / fs:write
+      exec.ts          exec:npx
+      paths.ts         root 路径校验
     preload.cts        contextBridge 暴露给渲染进程（编译为 preload.cjs）
     build/icon.png     打包图标
 ```

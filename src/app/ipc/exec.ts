@@ -1,44 +1,11 @@
 import { app, ipcMain } from 'electron';
 import { spawn } from 'node:child_process';
-import { access, chmod, mkdir, readFile, readdir, realpath, writeFile } from 'node:fs/promises';
-import { delimiter, dirname, join, relative, resolve, sep } from 'node:path';
+import { access, chmod, mkdir, writeFile } from 'node:fs/promises';
+import { delimiter, join } from 'node:path';
+import { rootPath } from './paths.js';
 
 const MAX_OUTPUT = 1024 * 1024;
 const NPX_TIMEOUT = 5 * 60 * 1000;
-
-/**
- * Node 能力的唯一入口：所有主进程操作都在这里注册，
- * 再通过 preload 的 contextBridge 暴露给渲染进程。
- */
-
-function inside(base: string, target: string): boolean {
-  return target === base || target.startsWith(base + sep);
-}
-
-/**
- * 把相对路径解析到 root 内：先做词法校验，再用 realpath 防住软链接逃逸。
- * 目标不存在时（写新文件）校验最近的已存在父目录。
- */
-async function resolveWithin(base: string, rel: string): Promise<string> {
-  const target = resolve(base, rel);
-  if (!inside(base, target)) throw new Error('路径不在工作目录内');
-
-  try {
-    const real = await realpath(target);
-    if (!inside(base, real)) throw new Error('路径不在工作目录内');
-    return real;
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
-    const parent = await realpath(dirname(target));
-    if (!inside(base, parent)) throw new Error('路径不在工作目录内');
-    return target;
-  }
-}
-
-async function rootPath(root: string): Promise<string> {
-  const base = await realpath(resolve(root));
-  return base;
-}
 
 type ExecResult = { code: number | null; stdout: string; stderr: string };
 
@@ -152,48 +119,11 @@ async function runNpx(cwd: string, args: string[]): Promise<ExecResult> {
   });
 }
 
-export function registerIpc() {
-  // 文件操作只发生在传入的 root 内，root 由 UI 的项目目录决定。
-  ipcMain.handle('fs:list', async (_event, root: string, dir = '.') => {
-    const base = await rootPath(root);
-    const target = await resolveWithin(base, dir);
-    const entries = await readdir(target, { withFileTypes: true });
-    return entries
-      .map((entry) => ({
-        name: entry.name,
-        path: relative(base, join(target, entry.name)).split(sep).join('/'),
-        dir: entry.isDirectory(),
-      }))
-      .sort((a, b) => Number(b.dir) - Number(a.dir) || a.name.localeCompare(b.name));
-  });
-
-  ipcMain.handle('fs:read', async (_event, root: string, path: string) => {
-    const base = await rootPath(root);
-    return readFile(await resolveWithin(base, path), 'utf8');
-  });
-
-  ipcMain.handle('fs:write', async (_event, root: string, path: string, content: string) => {
-    const base = await rootPath(root);
-    await writeFile(await resolveWithin(base, path), content, 'utf8');
-  });
-
+export function registerExecIpc() {
   ipcMain.handle('exec:npx', async (_event, root: string, args: string[]) => {
     if (!Array.isArray(args) || args.some((arg) => typeof arg !== 'string' || arg.includes('\0'))) {
       throw new Error('npx 参数不合法');
     }
     return runNpx(await rootPath(root), args);
   });
-
-  ipcMain.handle('app:ping', () => 'pong');
-
-  ipcMain.handle('app:info', () => ({
-    platform: process.platform,
-    arch: process.arch,
-    appVersion: app.getVersion(),
-    versions: {
-      electron: process.versions.electron ?? '',
-      node: process.versions.node,
-      chrome: process.versions.chrome ?? '',
-    },
-  }));
 }
