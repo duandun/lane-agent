@@ -1,3 +1,4 @@
+import { registerDialogIpc } from './dialog.js';
 import { registerExecIpc } from './exec.js';
 import { registerFsIpc } from './fs.js';
 import { registerHealthIpc } from './health.js';
@@ -12,4 +13,5 @@ export function registerIpc() {
   registerFsIpc();
   registerExecIpc();
   registerLocalServiceIpc();
+  registerDialogIpc();
 }

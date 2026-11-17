@@ -28,6 +28,7 @@ export type AppBridge = {
   ping: () => Promise<string>;
   info: () => Promise<AppInfo>;
   localService: () => Promise<LocalService | null>;
+  selectDirectory: () => Promise<string | null>;
   fs: {
     list: (root: string, dir?: string) => Promise<FsEntry[]>;
     read: (root: string, path: string) => Promise<string>;

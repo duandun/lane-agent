@@ -99,11 +99,17 @@ export default function Connect({
     }
   }
 
+  async function pickDirectory() {
+    if (!appBridge) return;
+    const path = await appBridge.selectDirectory();
+    if (path) form.setFieldValue('directory', path);
+  }
+
   async function submit(values: Conn) {
     const next: Conn = {
       baseUrl: values.baseUrl.trim(),
       password: values.password ?? '',
-      directory: (values.directory ?? '').trim(),
+      directory: appBridge ? (values.directory ?? '').trim() : DEFAULT_CONN.directory,
     };
 
     setPending(true);
@@ -111,7 +117,7 @@ export default function Connect({
     try {
       const info = await makeClient(next).server.info();
       if (!next.directory) {
-        setError(`已连接 v${info.version}，但请填写项目目录（服务器上的绝对路径）`);
+        setError(`已连接 v${info.version}，但请填写项目目录`);
         return;
       }
       onConnect(next);
@@ -121,6 +127,11 @@ export default function Connect({
       setPending(false);
     }
   }
+
+  // Web 端不能选择本机目录，固定用默认工作区。
+  const initialValues: Conn = appBridge
+    ? initial
+    : { ...initial, directory: DEFAULT_CONN.directory };
 
   return (
     <div className="flex min-h-dvh flex-col items-center justify-center gap-4 px-4 py-8">
@@ -144,7 +155,7 @@ export default function Connect({
         <Form
           form={form}
           layout="vertical"
-          initialValues={initial}
+          initialValues={initialValues}
           requiredMark={false}
           onFinish={(values) => void submit(values)}
         >
@@ -170,13 +181,20 @@ export default function Connect({
 
           <Form.Item
             name="directory"
-            label="项目目录（服务器上的绝对路径）"
+            label="项目目录"
             extra="agent 会在这个目录里读写文件、执行命令。"
           >
             <Input
               prefix={<FolderOpenOutlined />}
               placeholder="/Users/cr/opencode-workspace"
-              disabled
+              disabled={!appBridge}
+              suffix={
+                appBridge ? (
+                  <Button type="text" size="small" onClick={() => void pickDirectory()}>
+                    选择
+                  </Button>
+                ) : undefined
+              }
             />
           </Form.Item>
 
@@ -208,54 +226,54 @@ export default function Connect({
   opencode serve --hostname 0.0.0.0 --port 4096 --cors https://ai.cr123.life`}</pre>
       </Card>
 
-      {appBridge && (
-        <Card
-          className="w-full max-w-[480px] border! border-(--line)! bg-(--panel)! [&_.ant-card-body]:grid! [&_.ant-card-body]:gap-2!"
-          size="small"
-          variant="borderless"
-        >
-          <Flex align="center" justify="space-between" gap={8}>
-            <Typography.Text type="secondary" className="text-xs!">
-              App 通道
-            </Typography.Text>
-            <Flex gap={8} wrap>
-              <Button size="small" loading={bridgeChecking} onClick={() => void checkBridge()}>
-                检测 IPC
-              </Button>
-              <Button size="small" loading={fsChecking} onClick={() => void listWorkspace()}>
-                列出文件
-              </Button>
-              <Button size="small" loading={npxChecking} onClick={() => void testNpx()}>
-                测试 npx
-              </Button>
-            </Flex>
-          </Flex>
-          {bridgeResult && (
-            <Typography.Text
-              className="block break-all text-xs!"
-              type={bridgeResult.ok ? 'success' : 'danger'}
-            >
-              {bridgeResult.ok ? `正常：${bridgeResult.text}` : `失败：${bridgeResult.text}`}
-            </Typography.Text>
-          )}
-          {fsResult && (
-            <Typography.Text
-              className="block break-all text-xs!"
-              type={fsResult.ok ? 'success' : 'danger'}
-            >
-              {fsResult.ok ? `fs:list ${fsResult.text}` : `fs:list 失败：${fsResult.text}`}
-            </Typography.Text>
-          )}
-          {npxResult && (
-            <Typography.Text
-              className="block break-all text-xs!"
-              type={npxResult.ok ? 'success' : 'danger'}
-            >
-              {npxResult.ok ? `npx ${npxResult.text}` : `npx 失败：${npxResult.text}`}
-            </Typography.Text>
-          )}
-        </Card>
-      )}
+      {/*{appBridge && (*/}
+      {/*  <Card*/}
+      {/*    className="w-full max-w-[480px] border! border-(--line)! bg-(--panel)! [&_.ant-card-body]:grid! [&_.ant-card-body]:gap-2!"*/}
+      {/*    size="small"*/}
+      {/*    variant="borderless"*/}
+      {/*  >*/}
+      {/*    <Flex align="center" justify="space-between" gap={8}>*/}
+      {/*      <Typography.Text type="secondary" className="text-xs!">*/}
+      {/*        App 通道*/}
+      {/*      </Typography.Text>*/}
+      {/*      <Flex gap={8} wrap>*/}
+      {/*        <Button size="small" loading={bridgeChecking} onClick={() => void checkBridge()}>*/}
+      {/*          检测 IPC*/}
+      {/*        </Button>*/}
+      {/*        <Button size="small" loading={fsChecking} onClick={() => void listWorkspace()}>*/}
+      {/*          列出文件*/}
+      {/*        </Button>*/}
+      {/*        <Button size="small" loading={npxChecking} onClick={() => void testNpx()}>*/}
+      {/*          测试 npx*/}
+      {/*        </Button>*/}
+      {/*      </Flex>*/}
+      {/*    </Flex>*/}
+      {/*    {bridgeResult && (*/}
+      {/*      <Typography.Text*/}
+      {/*        className="block break-all text-xs!"*/}
+      {/*        type={bridgeResult.ok ? 'success' : 'danger'}*/}
+      {/*      >*/}
+      {/*        {bridgeResult.ok ? `正常：${bridgeResult.text}` : `失败：${bridgeResult.text}`}*/}
+      {/*      </Typography.Text>*/}
+      {/*    )}*/}
+      {/*    {fsResult && (*/}
+      {/*      <Typography.Text*/}
+      {/*        className="block break-all text-xs!"*/}
+      {/*        type={fsResult.ok ? 'success' : 'danger'}*/}
+      {/*      >*/}
+      {/*        {fsResult.ok ? `fs:list ${fsResult.text}` : `fs:list 失败：${fsResult.text}`}*/}
+      {/*      </Typography.Text>*/}
+      {/*    )}*/}
+      {/*    {npxResult && (*/}
+      {/*      <Typography.Text*/}
+      {/*        className="block break-all text-xs!"*/}
+      {/*        type={npxResult.ok ? 'success' : 'danger'}*/}
+      {/*      >*/}
+      {/*        {npxResult.ok ? `npx ${npxResult.text}` : `npx 失败：${npxResult.text}`}*/}
+      {/*      </Typography.Text>*/}
+      {/*    )}*/}
+      {/*  </Card>*/}
+      {/*)}*/}
     </div>
   );
 }

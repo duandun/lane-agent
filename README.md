@@ -64,6 +64,8 @@ Windows 产物是 NSIS 安装包 `release/OpenCode Web Setup <版本>.exe`，未
 
 5173 被占用时静态服务会直接报错（不退回随机端口），避免页面 origin 变化导致本地服务的 CORS 失效。连接页底部的命令会按当前页面 origin 自动填好。
 
+连接页的项目目录在桌面端可以点「选择」打开系统文件夹选择器，也可以手动输入；Web 端不可修改，固定使用 `/Users/cr/opencode-workspace`。
+
 `electron:package` 在 macOS 上出 dmg + zip，未做代码签名（没有 Apple 证书），拷到别的机器首次打开要右键 → 打开。脚本里写死了 npmmirror 的 Electron 下载镜像；网络能直连 GitHub 的话删掉那两个环境变量即可。
 
 ## Node 通道
