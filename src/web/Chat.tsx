@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ComponentRef } from 'react';
 import { Alert, Badge, Button, Dropdown, Flex, Select, Tag, Tooltip, Typography } from 'antd';
 import { Sender } from '@ant-design/x';
 import {
@@ -85,8 +85,7 @@ export default function Chat({
   const [customModels, setCustomModels] = useState<CustomModel[]>(loadCustomModels);
   const [skills, setSkills] = useState<SkillInfo[]>([]);
   const [selectedSkill, setSelectedSkill] = useState<SkillInfo | null>(null);
-  const [openSkillPicker, setOpenSkillPicker] = useState(false);
-  const skillOpenRef = useRef(false);
+  const senderRef = useRef<ComponentRef<typeof Sender>>(null);
 
   const modelRef = useRef<ModelRef | null>(model);
   const appliedInitialModel = useRef(false);
@@ -284,6 +283,7 @@ export default function Chat({
         ) : (
           <div className={busy ? 'sender-glow' : 'sender-normal'}>
             <Sender
+              ref={senderRef}
               className={busy ? 'thinking' : undefined}
               value={draft}
               onChange={setDraft}
@@ -321,7 +321,11 @@ export default function Chat({
                     <SkillPicker
                       skills={skills}
                       selected={selectedSkill}
-                      onSelect={setSelectedSkill}
+                      onSelect={(skill) => {
+                        setSelectedSkill(skill);
+                        // 选中后 Sender 会从 textarea 换成 contenteditable，等重渲染完再聚焦。
+                        requestAnimationFrame(() => senderRef.current?.focus());
+                      }}
                       onRefresh={() => void refreshSkills()}
                     />
                   )}

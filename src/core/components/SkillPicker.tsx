@@ -32,19 +32,29 @@ export default function SkillPicker({
   const items: MenuProps['items'] = filtered.map((skill) => ({
     key: skill.id,
     label: (
-      <div className="w-[300px] min-w-0 py-0.5">
-        <Typography.Text strong className="font-mono text-[13px]">
-          {skill.name}
-        </Typography.Text>
-        {skill.description && (
+      <div className="flex w-full min-w-0 flex-col gap-1 py-0.5">
+        <div className="flex gap-2 items-center">
+          <AppstoreOutlined className="shrink-0 text-[12px] text-(--muted)" />
           <Tooltip
-            title={<div className="w-full line-clamp-5">{skill.description}</div>}
+            title={
+              skill.description ? (
+                <div className="w-full line-clamp-5">{skill.description}</div>
+              ) : undefined
+            }
             placement="topLeft"
             styles={{ root: { maxWidth: 'none' }, container: { width: 340 } }}
           >
-            <div className="w-full truncate text-xs text-(--muted)">{skill.description}</div>
+            <Typography.Text strong className="font-mono text-[14px]">
+              {skill.name}
+            </Typography.Text>
           </Tooltip>
-        )}
+        </div>
+
+        <div className="min-w-0 flex-1 ml-5">
+          {skill.description && (
+            <div className="w-full truncate text-xs text-(--muted)">{skill.description}</div>
+          )}
+        </div>
       </div>
     ),
   }));
@@ -61,6 +71,8 @@ export default function SkillPicker({
       trigger={['click']}
       placement="topLeft"
       open={open}
+      // 让菜单项内容可收缩，长描述才能在弹出框内截断而不是溢出。
+      styles={{ itemContent: { minWidth: 0 } }}
       onOpenChange={(next) => {
         setOpen(next);
         if (next) onRefresh?.();
@@ -77,7 +89,7 @@ export default function SkillPicker({
         },
       }}
       popupRender={(menu) => (
-        <div className="w-[340px] rounded-lg border border-(--line) bg-(--panel) p-2 shadow-xl">
+        <div className="w-[400px] rounded-lg border border-(--line) bg-(--panel) p-2 shadow-xl">
           <Input
             ref={inputRef}
             allowClear
@@ -85,8 +97,17 @@ export default function SkillPicker({
             placeholder="搜索 skill"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
+            onKeyDown={(event) => {
+              // 中文输入法确认候选词时也会发 Enter，不能当成选择。
+              if (event.key !== 'Enter' || event.nativeEvent.isComposing) return;
+              const first = filtered[0];
+              if (!first) return;
+              event.preventDefault();
+              onSelect(first);
+              setOpen(false);
+            }}
           />
-          <div className="mt-2 max-h-[320px] overflow-y-auto overscroll-contain">{menu}</div>
+          <div className="mt-2 max-h-[330px] overflow-y-auto overscroll-contain">{menu}</div>
         </div>
       )}
     >
