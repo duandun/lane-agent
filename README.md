@@ -37,6 +37,13 @@ bun dev
 | 密码 | 你上面设的 `OPENCODE_PASSWORD` |
 | 项目目录 | 服务器上的绝对路径，agent 就在这里干活 |
 
+生产环境是 https://ai.cr123.life （静态前端）。直接打开它时，服务端要把这个 origin 加进 CORS：
+
+```bash
+OPENCODE_PASSWORD=your-secret \
+  opencode serve --port 4096 --cors https://ai.cr123.life
+```
+
 ## Electron 桌面壳
 
 ```bash
@@ -60,7 +67,7 @@ Electron 里也是 http origin（默认 `http://localhost:5173`，被占用时�
 
 **2. CORS 必须显式放行前端 origin**
 
-默认不放行跨域。`--cors http://localhost:5173` 要精确到协议 + 主机 + 端口，不带路径和尾斜杠。多个 origin 就重复写 `--cors`。
+默认不放行跨域。`--cors` 的值必须是当前页面的 origin（连接页底部的命令已按当前域名填好），要精确到协议 + 主机 + 端口，不带路径和尾斜杠。多个 origin 就重复写 `--cors`。
 
 **3. `session.idle` 不是「跑完了」**
 

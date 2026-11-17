@@ -113,7 +113,7 @@ export default function Connect({
           先在终端启动服务
         </Typography.Text>
         <pre>{`OPENCODE_PASSWORD=your-secret \\
-  opencode serve --port 4096 --cors http://localhost:5173`}</pre>
+  opencode serve --port 4096 --cors ${window.location.origin}`}</pre>
       </Card>
     </div>
   )
