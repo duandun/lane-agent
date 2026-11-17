@@ -37,6 +37,21 @@ bun dev
 | 密码 | 你上面设的 `OPENCODE_PASSWORD` |
 | 项目目录 | 服务器上的绝对路径，agent 就在这里干活 |
 
+## Electron 桌面壳
+
+```bash
+bun run electron:dev      # Vite + Electron 窗口，热更新
+bun run electron:start    # 构建 dist 后用 Electron 打开
+bun run electron:package      # 构建并打包，产物在 release/
+bun run electron:package:win  # 同上，出 Windows x64 安装包（macOS 上可直接交叉构建）
+```
+
+Windows 产物是 NSIS 安装包 `release/OpenCode Web Setup <版本>.exe`，未签名，首次运行会被 SmartScreen 拦一下（更多信息 → 仍要运行）。
+
+Electron 里也是 http origin（默认 `http://localhost:5173`，被占用时退回随机端口），所以上面的 `--cors` 不用改。
+
+`electron:package` 在 macOS 上出 dmg + zip，未做代码签名（没有 Apple 证书），拷到别的机器首次打开要右键 → 打开。脚本里写死了 npmmirror 的 Electron 下载镜像；网络能直连 GitHub 的话删掉那两个环境变量即可。
+
 ## 三个容易踩的坑
 
 **1. 用户名固定是 `opencode`，不是可选项**

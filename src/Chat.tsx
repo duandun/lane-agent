@@ -7,7 +7,6 @@ import EagleCompanion, { type EagleState } from "./components/EagleCompanion"
 import Messages from "./components/Messages"
 import PermissionModal from "./components/PermissionModal"
 import { useChatSession, type ChatStatus, type ModelRef } from "./hooks/useChatSession"
-import { useSpeech } from "./hooks/useSpeech"
 import type { ThemeMode } from "./hooks/useThemeMode"
 import { makeClient, type Conn } from "./lib/client"
 import { loadCustomModels, type CustomModel } from "./lib/customModels"
@@ -27,21 +26,6 @@ const STATUS_META: Record<ChatStatus, { badge: "processing" | "success" | "error
   connecting: { badge: "processing", label: "连接中" },
   online: { badge: "success", label: "已连接" },
   offline: { badge: "error", label: "已断开" },
-}
-
-/** 把 markdown 变成适合朗读的短文本：去掉代码、链接和标记符号。 */
-function toSpeech(markdown: string): string {
-  const text = markdown
-    .replace(/```[\s\S]*?```/g, " ")
-    .replace(/`[^`]*`/g, " ")
-    .replace(/!\[[^\]]*\]\([^)]*\)/g, " ")
-    .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
-    .replace(/https?:\/\/\S+/g, " ")
-    .replace(/^#{1,6}\s+/gm, "")
-    .replace(/[*_>~#]+/g, "")
-    .replace(/\s+/g, " ")
-    .trim()
-  return text
 }
 
 /**
@@ -82,38 +66,6 @@ export default function Chat({
   const [modelsReady, setModelsReady] = useState(false)
   const [customOpen, setCustomOpen] = useState(false)
   const [customModels, setCustomModels] = useState<CustomModel[]>(loadCustomModels)
-
-  const {
-    enabled: voiceEnabled,
-    speaking: voiceSpeaking,
-    toggle: toggleVoice,
-    speak: speakReply,
-    stop: stopSpeech,
-  } = useSpeech()
-  const wasBusy = useRef(false)
-  const lastSpoken = useRef("")
-
-  // 一轮结束后朗读本轮全部正文；开始新一轮时立刻闭嘴。
-  useEffect(() => {
-    if (wasBusy.current && !busy && !error) {
-      const lastUser = blocks.map((block) => block.kind).lastIndexOf("user")
-      const text = toSpeech(
-        blocks
-          .slice(lastUser + 1)
-          .flatMap((block) => (block.kind === "text" ? [block.text] : []))
-          .join("\n"),
-      )
-      if (text && text !== lastSpoken.current) {
-        lastSpoken.current = text
-        speakReply(text)
-      }
-    }
-    wasBusy.current = busy
-  }, [blocks, busy, error, speakReply])
-
-  useEffect(() => {
-    if (busy) stopSpeech()
-  }, [busy, stopSpeech])
 
   const modelRef = useRef<ModelRef | null>(model)
   const appliedInitialModel = useRef(false)
@@ -182,7 +134,6 @@ export default function Chat({
 
   function companionState(): EagleState {
     if (status === "offline" || error) return "error"
-    if (voiceSpeaking) return "talking"
     if (status === "connecting") return "takeoff"
     if (queue.length > 0) return "waiting"
     if (activity === "talking") return "talking"
@@ -281,7 +232,7 @@ export default function Chat({
       </main>
 
       <footer className="composer">
-        <div className={busy ? "sender-glow" : undefined}>
+        <div className={busy ? "sender-glow" : "sender-normal"}>
           <Sender
             className={busy ? "thinking" : undefined}
             value={draft}
@@ -308,11 +259,7 @@ export default function Chat({
         </div>
       </footer>
 
-      <EagleCompanion
-        state={companionState()}
-        voiceEnabled={voiceEnabled}
-        onToggleVoice={toggleVoice}
-      />
+      <EagleCompanion state={companionState()} />
 
       <PermissionModal
         request={queue[0]}

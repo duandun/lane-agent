@@ -298,6 +298,11 @@ code,
   }
 }
 
+/* 输入框获得焦点时高亮边框 */
+.sender-normal:focus-within .ant-sender-main {
+  border-color: var(--accent);
+}
+
 /* 思考中：输入框背后的彩色光晕 */
 .sender-glow {
   position: relative;
