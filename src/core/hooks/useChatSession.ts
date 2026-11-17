@@ -310,7 +310,7 @@ export function useChatSession(conn: Conn, client: Client) {
     return () => controller.abort();
   }, [client, reload]);
 
-  async function send(text: string) {
+  async function send(text: string, skills: string[] = []) {
     const value = text.trim();
     if (!value || !sessionID || busy) return;
     setBusy(true);
@@ -318,7 +318,11 @@ export function useChatSession(conn: Conn, client: Client) {
     setError(null);
     setBlocks((current) => [...current, { id: `local:${Date.now()}`, kind: 'user', text: value }]);
     try {
-      await client.session.prompt({ sessionID, text: value });
+      await client.session.prompt({
+        sessionID,
+        text: value,
+        skills: skills.length ? skills.map((id) => ({ id })) : undefined,
+      });
     } catch (cause) {
       setBusy(false);
       setError(errorText(cause));

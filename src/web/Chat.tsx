@@ -1,14 +1,23 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Badge, Button, Dropdown, Flex, Select, Tag, Tooltip, Typography } from 'antd';
 import { Sender } from '@ant-design/x';
-import { LogoutOutlined, MoonOutlined, SunOutlined, DesktopOutlined } from '@ant-design/icons';
+import {
+  LogoutOutlined,
+  MoonOutlined,
+  SunOutlined,
+  DesktopOutlined,
+  AppstoreOutlined,
+} from '@ant-design/icons';
+import type { SkillInfo } from '@opencode/client';
 import CustomModelModal from '@core/components/CustomModelModal';
 import EagleCompanion, { type EagleState } from '@core/components/EagleCompanion';
 import Messages from '@core/components/Messages';
 import PermissionModal from '@core/components/PermissionModal';
 import QuestionPrompt from '@core/components/QuestionPrompt';
+import SkillPicker from '@core/components/SkillPicker';
 import { useChatSession, type ChatStatus, type ModelRef } from '@core/hooks/useChatSession';
 import type { ThemeMode } from '@core/hooks/useThemeMode';
+import { appBridge } from '@core/lib/bridge';
 import { makeClient, type Conn } from '@core/lib/client';
 import { loadCustomModels, type CustomModel } from '@core/lib/customModels';
 import { clearModel, loadModel, saveModel } from '@core/lib/modelPreference';
@@ -74,6 +83,10 @@ export default function Chat({
   const [modelsReady, setModelsReady] = useState(false);
   const [customOpen, setCustomOpen] = useState(false);
   const [customModels, setCustomModels] = useState<CustomModel[]>(loadCustomModels);
+  const [skills, setSkills] = useState<SkillInfo[]>([]);
+  const [selectedSkill, setSelectedSkill] = useState<SkillInfo | null>(null);
+  const [openSkillPicker, setOpenSkillPicker] = useState(false);
+  const skillOpenRef = useRef(false);
 
   const modelRef = useRef<ModelRef | null>(model);
   const appliedInitialModel = useRef(false);
@@ -137,6 +150,23 @@ export default function Chat({
     saveModel(ref);
     void switchModel(ref);
   }
+
+  // 桌面端才提供 skill 选择；Web 端直接跳过。会话创建前 skill 列表可能为空，所以等 sessionID。
+  const refreshSkills = useCallback(async () => {
+    if (!appBridge || !sessionID) return;
+    try {
+      const result = await client.skill.list({
+        location: conn.directory ? { directory: conn.directory } : undefined,
+      });
+      setSkills(result.data);
+    } catch {
+      // 服务端没有 skill API 时忽略。
+    }
+  }, [client, conn.directory, sessionID]);
+
+  useEffect(() => {
+    void refreshSkills();
+  }, [refreshSkills]);
 
   const meta = STATUS_META[status];
 
@@ -259,7 +289,9 @@ export default function Chat({
               onChange={setDraft}
               onSubmit={(text) => {
                 setDraft('');
-                void send(text);
+                const skillIDs = selectedSkill ? [selectedSkill.id] : [];
+                setSelectedSkill(null);
+                void send(text, skillIDs);
               }}
               loading={busy}
               onCancel={() => void stop()}
@@ -267,11 +299,34 @@ export default function Chat({
               placeholder={
                 sessionID ? '描述你要 agent 做的事，Enter 发送，Shift+Enter 换行' : '正在创建会话…'
               }
-              autoSize={{ minRows: 2, maxRows: 8 }}
+              autoSize={{ minRows: 2, maxRows: 2 }}
+              skill={
+                selectedSkill
+                  ? {
+                      title: selectedSkill.name,
+                      value: selectedSkill.id,
+                      closable: { onClose: () => setSelectedSkill(null) },
+                    }
+                  : undefined
+              }
               footer={
-                <Typography.Text type="secondary" className="text-xs!">
-                  Enter 发送 · Shift+Enter 换行
-                </Typography.Text>
+                <Flex
+                  align="center"
+                  gap={8}
+                  className={appBridge ? 'justify-between' : 'justify-end'}
+                >
+                  {appBridge && (
+                    <SkillPicker
+                      skills={skills}
+                      selected={selectedSkill}
+                      onSelect={setSelectedSkill}
+                      onRefresh={() => void refreshSkills()}
+                    />
+                  )}
+                  <Typography.Text type="secondary" className="text-xs!">
+                    Enter 发送 · Shift+Enter 换行
+                  </Typography.Text>
+                </Flex>
               }
             />
           </div>
