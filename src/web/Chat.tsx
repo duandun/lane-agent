@@ -289,9 +289,11 @@ export default function Chat({
               onChange={setDraft}
               onSubmit={(text) => {
                 setDraft('');
-                const skillIDs = selectedSkill ? [selectedSkill.id] : [];
+                const skillTags = selectedSkill
+                  ? [{ id: selectedSkill.id, name: selectedSkill.name }]
+                  : [];
                 setSelectedSkill(null);
-                void send(text, skillIDs);
+                void send(text, skillTags);
               }}
               loading={busy}
               onCancel={() => void stop()}

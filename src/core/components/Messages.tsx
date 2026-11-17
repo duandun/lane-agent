@@ -9,6 +9,7 @@ import {
   type PromptsItemType,
 } from '@ant-design/x';
 import {
+  AppstoreOutlined,
   BulbOutlined,
   CopyOutlined,
   ExperimentOutlined,
@@ -20,10 +21,10 @@ import {
 } from '@ant-design/icons';
 import Markdown from './Markdown';
 import Activity, { type ActivityBlock } from './Activity';
-import type { Block } from '../lib/blocks';
+import type { Block, SkillTag } from '../lib/blocks';
 
 type ViewItem =
-  | { key: string; role: 'user'; text: string }
+  | { key: string; role: 'user'; text: string; skills?: SkillTag[] }
   | { key: string; role: 'ai'; text: string }
   | { key: string; role: 'activity'; blocks: ActivityBlock[] }
   | { key: string; role: 'system'; text: string };
@@ -101,7 +102,11 @@ function toViewItems(blocks: Block[]): ViewItem[] {
       items.push({ key: block.id, role: 'system', text: block.text });
       continue;
     }
-    items.push({ key: block.id, role: block.kind === 'user' ? 'user' : 'ai', text: block.text });
+    if (block.kind === 'user') {
+      items.push({ key: block.id, role: 'user', text: block.text, skills: block.skills });
+      continue;
+    }
+    items.push({ key: block.id, role: 'ai', text: block.text });
   }
   return items;
 }
@@ -157,7 +162,28 @@ export default function Messages({
         return { key: item.key, role: 'system', content: item.text };
       }
       if (item.role === 'user') {
-        return { key: item.key, role: 'user', content: item.text };
+        return {
+          key: item.key,
+          role: 'user',
+          content: item.skills?.length ? (
+            <div className="flex flex-col items-end gap-2">
+              <div className="flex flex-wrap justify-end gap-1">
+                {item.skills.map((skill) => (
+                  <span
+                    key={skill.id}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-(--accent)/25 bg-(--accent)/10 px-2 py-1 text-[12px] font-medium leading-none text-(--accent)"
+                  >
+                    <AppstoreOutlined className="text-[10px]" />
+                    {skill.name}
+                  </span>
+                ))}
+              </div>
+              <span>{item.text}</span>
+            </div>
+          ) : (
+            item.text
+          ),
+        };
       }
 
       // 重新生成会丢弃该 prompt 之后的所有内容，所以只给最后一条回答展示，

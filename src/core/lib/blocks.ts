@@ -1,11 +1,13 @@
 import type { SessionMessageInfo } from '@opencode/client';
 
 export type Block =
-  | { id: string; kind: 'user'; text: string }
+  | { id: string; kind: 'user'; text: string; skills?: SkillTag[] }
   | { id: string; kind: 'text'; text: string }
   | { id: string; kind: 'reasoning'; text: string }
   | { id: string; kind: 'tool'; name: string; status: ToolStatus; detail: string }
   | { id: string; kind: 'notice'; text: string };
+
+export type SkillTag = { id: string; name: string };
 
 export type ToolStatus = 'running' | 'ok' | 'error';
 
@@ -64,7 +66,12 @@ export function blocksFromMessages(messages: SessionMessageInfo[]): Block[] {
   for (const message of messages) {
     if (message.type === 'user') {
       if (message.text.trim()) {
-        blocks.push({ id: `msg:${message.id}`, kind: 'user', text: message.text });
+        blocks.push({
+          id: `msg:${message.id}`,
+          kind: 'user',
+          text: message.text,
+          skills: message.skills?.map(({ id, name }) => ({ id, name })),
+        });
       }
       continue;
     }

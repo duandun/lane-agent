@@ -50,7 +50,10 @@ export default function SkillPicker({
   }));
 
   useEffect(() => {
-    if (open) inputRef.current?.focus();
+    if (!open) return;
+    // 弹出层经 Portal 在下一帧才挂载，等一帧再聚焦。
+    const frame = requestAnimationFrame(() => inputRef.current?.focus());
+    return () => cancelAnimationFrame(frame);
   }, [open]);
 
   return (
