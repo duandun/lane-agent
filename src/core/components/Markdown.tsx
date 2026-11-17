@@ -25,12 +25,12 @@ function Code({ children, lang, block, domNode, streamStatus, ...rest }: Markdow
   const language = codeLanguage(lang?.split(/\s+/)[0]);
   const text = String(children ?? '').replace(/\n$/, '');
   return (
-    <div className="code-block">
-      <div className="code-block-header">
+    <div className="my-2.5 overflow-hidden rounded-lg border border-(--line) bg-(--panel)">
+      <div className="flex min-h-[30px] items-center justify-between bg-(--panel-2) pl-3 pr-1 font-mono text-xs text-(--muted)">
         <span>{language}</span>
         <Actions.Copy text={text} />
       </div>
-      <div className="code-block-body">
+      <div className="overflow-x-auto text-xs [&_pre]:w-max [&_pre]:min-w-full">
         <SyntaxHighlighter
           language={language}
           codeTagProps={{ style: { background: 'transparent' } }}

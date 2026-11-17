@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Button, Flex, Input, InputNumber, Tag, Typography } from 'antd';
+import { Button, Input, InputNumber, Tag, Typography } from 'antd';
 import type { FormAnswer, FormField, FormInfo, FormValue } from '@opencode/client';
 
 type Answers = Record<string, FormValue | undefined>;
@@ -146,36 +146,36 @@ export default function QuestionPrompt({
       const typed = typeof value === 'string' && !optionValues.includes(value) ? value : '';
 
       return (
-        <Flex vertical gap={8}>
-          <Flex wrap gap={8}>
+        <div className="flex flex-col gap-2">
+          <div className="flex flex-wrap gap-2">
             {field.options.map((option) => (
               <Button
                 key={option.value}
-                size="small"
+                className="whitespace-normal! text-left! text-[15px]!"
                 type={value === option.value ? 'primary' : 'default'}
                 onClick={() => choose(field, option.value)}
               >
                 {option.label}
               </Button>
             ))}
-          </Flex>
+          </div>
           {field.custom && (
             <Input
-              size="small"
+              className="text-base!"
               value={typed}
               placeholder="或输入其他答案"
               onChange={(event) => set(field.key, event.target.value)}
               onPressEnter={() => submit()}
             />
           )}
-        </Flex>
+        </div>
       );
     }
 
     if (field.type === 'string') {
       return (
         <Input
-          size="small"
+          className="text-base!"
           value={typeof value === 'string' ? value : ''}
           placeholder={field.placeholder ?? '输入答案'}
           onChange={(event) => set(field.key, event.target.value)}
@@ -193,22 +193,22 @@ export default function QuestionPrompt({
         );
       };
       return (
-        <Flex vertical gap={8}>
-          <Flex wrap gap={8}>
+        <div className="flex flex-col gap-2">
+          <div className="flex flex-wrap gap-2">
             {field.options.map((option) => (
               <Button
                 key={option.value}
-                size="small"
+                className="whitespace-normal! text-left! text-[15px]!"
                 type={list.includes(option.value) ? 'primary' : 'default'}
                 onClick={() => toggle(option.value)}
               >
                 {option.label}
               </Button>
             ))}
-          </Flex>
+          </div>
           {field.custom && (
             <Input
-              size="small"
+              className="text-base!"
               value={custom[field.key] ?? ''}
               placeholder="其他（回车提交）"
               onChange={(event) =>
@@ -217,71 +217,74 @@ export default function QuestionPrompt({
               onPressEnter={() => submit()}
             />
           )}
-        </Flex>
+        </div>
       );
     }
 
     if (field.type === 'boolean') {
       return (
-        <Flex gap={8}>
+        <div className="flex gap-2">
           <Button
-            size="small"
+            className="whitespace-normal! text-left! text-[15px]!"
             type={value === true ? 'primary' : 'default'}
             onClick={() => choose(field, true)}
           >
             是
           </Button>
           <Button
-            size="small"
+            className="whitespace-normal! text-left! text-[15px]!"
             type={value === false ? 'primary' : 'default'}
             onClick={() => choose(field, false)}
           >
             否
           </Button>
-        </Flex>
+        </div>
       );
     }
 
     return (
       <InputNumber
-        size="small"
+        className="w-full! [&_input]:text-base!"
         value={typeof value === 'number' ? value : null}
         min={typeof field.minimum === 'number' ? field.minimum : undefined}
         max={typeof field.maximum === 'number' ? field.maximum : undefined}
         precision={field.type === 'integer' ? 0 : undefined}
         onChange={(next) => set(field.key, next === null ? undefined : next)}
         onPressEnter={() => submit()}
-        style={{ width: '100%' }}
       />
     );
   }
 
   return (
-    <div className="question-prompt">
-      <div className="question-head">
-        <Typography.Text strong>{form?.title ?? '需要你的回答'}</Typography.Text>
+    <div className="grid gap-3 rounded-[10px] border border-(--line) bg-(--panel) px-4 py-3.5">
+      <div className="flex items-center gap-2">
+        <Typography.Text strong className="text-base!">
+          {form?.title ?? '需要你的回答'}
+        </Typography.Text>
         {count > 1 && <Tag color="blue">{count} 个待回答</Tag>}
       </div>
 
-      <div className="question-fields">
+      <div className="grid gap-3">
         {form?.fields
           .filter((field) => visible(field, answers))
           .map((field) => (
-            <div key={field.key} className="question-field">
-              <div className="question-label">
-                <Typography.Text type="secondary">{field.title ?? field.key}</Typography.Text>
+            <div key={field.key} className="grid gap-2">
+              <div className="flex items-baseline gap-1">
+                <Typography.Text type="secondary" className="text-sm!">
+                  {field.title ?? field.key}
+                </Typography.Text>
                 {field.type !== 'external' && field.required && (
-                  <span className="question-required">*</span>
+                  <span className="text-(--err)">*</span>
                 )}
               </div>
               {field.description && (
-                <Typography.Text type="secondary" className="small">
+                <Typography.Text type="secondary" className="text-sm!">
                   {field.description}
                 </Typography.Text>
               )}
               {control(field)}
               {errors[field.key] && (
-                <Typography.Text type="danger" className="small">
+                <Typography.Text type="danger" className="text-sm!">
                   {errors[field.key]}
                 </Typography.Text>
               )}
@@ -289,11 +292,16 @@ export default function QuestionPrompt({
           ))}
       </div>
 
-      <div className="question-actions">
-        <Button size="small" onClick={onCancel} disabled={pending}>
+      <div className="flex justify-end gap-2">
+        <Button className="px-5! text-[15px]!" onClick={onCancel} disabled={pending}>
           取消
         </Button>
-        <Button size="small" type="primary" onClick={() => submit()} loading={pending}>
+        <Button
+          className="px-5! text-[15px]!"
+          type="primary"
+          onClick={() => submit()}
+          loading={pending}
+        >
           提交
         </Button>
       </div>

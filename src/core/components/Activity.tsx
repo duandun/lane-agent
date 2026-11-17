@@ -33,9 +33,8 @@ export default function Activity({ blocks, active }: { blocks: ActivityBlock[]; 
       status={active ? 'running' : failed ? 'error' : 'ok'}
       open={open}
       onToggle={() => setOpen((value) => !value)}
-      headClassName="group-head"
     >
-      <div className="activity">
+      <div className="ml-2.5 flex w-full animate-[process-in_180ms_ease-out] flex-col gap-0.5 border-l border-(--line) pl-2 motion-reduce:animate-none">
         {blocks.map((block) => (
           <ProcessRow key={block.id} block={block} />
         ))}
@@ -63,7 +62,13 @@ function ProcessRow({ block }: { block: ActivityBlock }) {
       onToggle={() => setOpen((value) => !value)}
     >
       {text && (
-        <div className={`process-body${reasoning ? ' process-markdown' : ' process-output'}`}>
+        <div
+          className={`mt-0.5 mx-1.5 mb-1.5 ml-[27px] animate-[process-in_180ms_ease-out] text-(--text) motion-reduce:animate-none ${
+            reasoning
+              ? '[&_.markdown]:text-[13px]! text-[13px] leading-[1.7] [&_.markdown]:leading-[1.7]!'
+              : 'max-h-[320px] overflow-auto whitespace-pre-wrap wrap-break-word rounded-md border border-(--line) bg-(--bg) p-2 font-mono text-xs leading-[1.6]'
+          }`}
+        >
           {reasoning ? <Markdown text={text} /> : text}
         </div>
       )}

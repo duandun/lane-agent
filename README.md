@@ -146,6 +146,8 @@ resources/opencode-cli/  打包时生成的内置 CLI（不提交）
 
 Web 和 Electron 共用 `core`；Electron 加载的是 `web` 构建出来的 `dist`。跨目录引用用 `@core/*` 等别名，Vite 的 `resolve.alias` 和 tsconfig 的 `paths` 两边都要配。
 
+样式用 Tailwind CSS v4（`@tailwindcss/vite`）。`src/core/styles.css` 只保留主题变量和 antd/全局样式覆盖，并通过 `@source '../'` 让 Tailwind 扫描 `src`；新组件优先写工具类，antd 组件上的尺寸用 `!` 覆盖它的内置样式。
+
 事件流是 UI 的唯一数据源：`session.text.delta` 增量出字，`session.tool.*` 画工具卡片，`permission.asked` 弹授权框，`execution.*` 收尾。每次运行结束后用 `message.list` 重新对齐一次，避免客户端状态和服务端真值漂移。
 
 ## UI 组件

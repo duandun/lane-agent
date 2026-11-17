@@ -123,8 +123,11 @@ export default function Connect({
   }
 
   return (
-    <div className="connect">
-      <Card className="connect-card" variant="borderless">
+    <div className="flex min-h-dvh flex-col items-center justify-center gap-4 px-4 py-8">
+      <Card
+        className="w-full max-w-[480px] border! border-(--line)! bg-(--panel)! [&_.ant-form]:mt-5! [&_.ant-form-item-label>label]:text-(--muted)! [&_.ant-welcome]:pb-2! [&_.ant-welcome]:pt-1!"
+        variant="borderless"
+      >
         <Welcome
           variant="borderless"
           icon={
@@ -179,7 +182,7 @@ export default function Connect({
 
           {error && (
             <Alert
-              className="connect-error"
+              className="mb-4"
               type="error"
               showIcon
               title={error}
@@ -193,18 +196,26 @@ export default function Connect({
         </Form>
       </Card>
 
-      <Card className="connect-hint" size="small" variant="borderless">
-        <Typography.Text type="secondary" className="small">
+      <Card
+        className="w-full max-w-[480px] border! border-(--line)! bg-(--panel)! [&_.ant-card-body]:grid! [&_.ant-card-body]:gap-2!"
+        size="small"
+        variant="borderless"
+      >
+        <Typography.Text type="secondary" className="text-xs!">
           先在终端启动服务
         </Typography.Text>
-        <pre>{`OPENCODE_PASSWORD=your-secret \\
+        <pre className="m-0 overflow-x-auto font-mono text-xs leading-[1.7] text-(--muted)">{`OPENCODE_PASSWORD=your-secret \\
   opencode serve --hostname 0.0.0.0 --port 4096 --cors https://ai.cr123.life`}</pre>
       </Card>
 
       {appBridge && (
-        <Card className="connect-hint" size="small" variant="borderless">
+        <Card
+          className="w-full max-w-[480px] border! border-(--line)! bg-(--panel)! [&_.ant-card-body]:grid! [&_.ant-card-body]:gap-2!"
+          size="small"
+          variant="borderless"
+        >
           <Flex align="center" justify="space-between" gap={8}>
-            <Typography.Text type="secondary" className="small">
+            <Typography.Text type="secondary" className="text-xs!">
               App 通道
             </Typography.Text>
             <Flex gap={8} wrap>
@@ -221,7 +232,7 @@ export default function Connect({
           </Flex>
           {bridgeResult && (
             <Typography.Text
-              className="bridge-result small"
+              className="block break-all text-xs!"
               type={bridgeResult.ok ? 'success' : 'danger'}
             >
               {bridgeResult.ok ? `正常：${bridgeResult.text}` : `失败：${bridgeResult.text}`}
@@ -229,7 +240,7 @@ export default function Connect({
           )}
           {fsResult && (
             <Typography.Text
-              className="bridge-result small"
+              className="block break-all text-xs!"
               type={fsResult.ok ? 'success' : 'danger'}
             >
               {fsResult.ok ? `fs:list ${fsResult.text}` : `fs:list 失败：${fsResult.text}`}
@@ -237,7 +248,7 @@ export default function Connect({
           )}
           {npxResult && (
             <Typography.Text
-              className="bridge-result small"
+              className="block break-all text-xs!"
               type={npxResult.ok ? 'success' : 'danger'}
             >
               {npxResult.ok ? `npx ${npxResult.text}` : `npx 失败：${npxResult.text}`}

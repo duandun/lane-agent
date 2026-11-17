@@ -36,20 +36,32 @@ export default function DisclosureRow({
   children?: ReactNode;
 }) {
   return (
-    <div className={`process-row${open ? ' is-open' : ''}`}>
+    <div className="rounded-md">
       <button
         type="button"
-        className={`process-head${headClassName ? ` ${headClassName}` : ''}`}
+        className={`flex min-h-[26px] w-full cursor-pointer items-center gap-2 rounded-md border-0 bg-transparent px-1.5 py-0.5 text-left text-[13px] text-(--muted) [font:inherit] hover:bg-white/4 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-(--accent) ${headClassName ?? ''}`}
         aria-expanded={open}
         onClick={onToggle}
       >
-        <span className="process-icon">{icon}</span>
-        <span className={`process-title${titleMono ? ' mono' : ''}`}>{title}</span>
+        <span className="inline-flex shrink-0 text-[13px] text-(--muted)">{icon}</span>
+        <span className={`shrink-0 text-(--text) ${titleMono ? 'font-mono' : ''}`}>{title}</span>
         {!open && preview && (
-          <span className={`process-preview${previewMono ? ' mono' : ''}`}>{preview}</span>
+          <span
+            className={`min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-xs text-(--muted) ${previewMono ? 'font-mono' : ''}`}
+          >
+            {preview}
+          </span>
         )}
         {status && (
-          <span className={`process-status ${status}`}>
+          <span
+            className={`ml-auto inline-flex shrink-0 text-xs ${
+              status === 'running'
+                ? 'text-(--accent)'
+                : status === 'ok'
+                  ? 'text-(--ok)'
+                  : 'text-(--err)'
+            }`}
+          >
             {status === 'running' ? (
               <LoadingOutlined spin />
             ) : status === 'ok' ? (
@@ -59,7 +71,11 @@ export default function DisclosureRow({
             )}
           </span>
         )}
-        <DownOutlined className="process-chevron" />
+        <DownOutlined
+          className={`shrink-0 text-[10px] text-(--muted) transition-transform duration-150 motion-reduce:transition-none ${
+            open ? 'rotate-0' : '-rotate-90'
+          }`}
+        />
       </button>
       {open && children}
     </div>

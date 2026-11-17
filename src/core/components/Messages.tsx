@@ -202,7 +202,7 @@ export default function Messages({
 
   if (blocks.length === 0 && !busy) {
     return (
-      <div className="empty">
+      <div className="empty flex min-h-0 w-full min-w-0 flex-1 flex-col items-center justify-center gap-2.5 overflow-y-auto px-0 pb-6 pt-2">
         <Welcome
           variant="borderless"
           icon={
@@ -230,11 +230,10 @@ export default function Messages({
 
   return (
     <Bubble.List
-      className="bubbles"
+      className="bubbles h-full min-h-0 flex-1"
       items={bubbleItems}
       role={ROLES}
       autoScroll
-      style={{ height: '100%' }}
     />
   );
 }

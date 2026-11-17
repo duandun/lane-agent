@@ -149,7 +149,7 @@ export default function CustomModelModal({
       width={460}
     >
       <Flex vertical gap={12}>
-        <Typography.Text type="secondary" className="small">
+        <Typography.Text type="secondary" className="text-xs!">
           当前模型：{current ? `${current.providerID}/${current.id}` : '未选择'}
         </Typography.Text>
         <Field label="Provider ID">
@@ -189,7 +189,7 @@ export default function CustomModelModal({
             autoComplete="off"
           />
         </Field>
-        <Typography.Text type="secondary" className="small">
+        <Typography.Text type="secondary" className="text-xs!">
           保存会合并写入 {directory || 'server 默认目录'}/opencode.json 并重新加载配置；Key 存在
           server 凭据库。
         </Typography.Text>

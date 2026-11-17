@@ -151,20 +151,24 @@ export default function Chat({
   }
 
   return (
-    <div className="app">
-      <header className="bar">
-        <Flex align="center" gap={10} className="bar-left">
+    <div className="grid h-dvh min-w-0 grid-rows-[auto_1fr_auto] bg-(--bg)">
+      <header className="flex items-center justify-between gap-4 overflow-hidden border-b border-(--line) bg-(--bar) px-5 py-2.5 text-[13px] backdrop-blur-[10px] max-sm:px-3 max-sm:py-2">
+        <Flex align="center" gap={10} className="min-w-0 flex-1 overflow-hidden">
           <Badge status={meta.badge} />
-          <Typography.Text strong className="brand">
+          <Typography.Text strong className="whitespace-nowrap">
             OpenCode Web
           </Typography.Text>
-          <Typography.Text type="secondary" ellipsis className="directory">
+          <Typography.Text
+            type="secondary"
+            ellipsis
+            className="max-w-[min(46vw,480px)] text-xs! max-sm:hidden"
+          >
             {conn.directory}
           </Typography.Text>
         </Flex>
-        <Flex align="center" gap={8} className="bar-right">
+        <Flex align="center" gap={8} className="shrink-0">
           <Select
-            className="model-select"
+            className="w-[200px]! max-sm:w-[130px]!"
             placeholder="选择模型"
             value={model ? `${model.providerID}/${model.id}` : undefined}
             options={modelSelectOptions}
@@ -177,12 +181,12 @@ export default function Chat({
             }}
             popupMatchSelectWidth={false}
           />
-          <Typography.Text type="secondary" className="small">
+          <Typography.Text type="secondary" className="text-xs!">
             {meta.label}
           </Typography.Text>
           {sessionID && (
             <Tooltip title="当前会话 ID">
-              <Tag variant="filled" color="blue" className="mono">
+              <Tag variant="filled" color="blue" className="font-mono">
                 {sessionID.slice(-8)}
               </Tag>
             </Tooltip>
@@ -218,10 +222,10 @@ export default function Chat({
         </Flex>
       </header>
 
-      <main className="chat-main">
+      <main className="mx-auto flex min-h-0 w-full min-w-0 max-w-[900px] flex-col px-4 pt-3 max-sm:px-2.5 max-sm:pt-2">
         {error && (
           <Alert
-            className="error-banner"
+            className="mb-2.5"
             type="error"
             showIcon
             closable={{ onClose: clearError }}
@@ -238,7 +242,7 @@ export default function Chat({
         />
       </main>
 
-      <footer className="composer">
+      <footer className="composer mx-auto w-full max-w-[900px] px-4 pb-[calc(14px+env(safe-area-inset-bottom))] pt-2.5 max-sm:px-2.5 max-sm:pb-[calc(10px+env(safe-area-inset-bottom))] max-sm:pt-2">
         {forms[0] ? (
           <QuestionPrompt
             form={forms[0]}
@@ -265,7 +269,7 @@ export default function Chat({
               }
               autoSize={{ minRows: 2, maxRows: 8 }}
               footer={
-                <Typography.Text type="secondary" className="sender-hint">
+                <Typography.Text type="secondary" className="text-xs!">
                   Enter 发送 · Shift+Enter 换行
                 </Typography.Text>
               }

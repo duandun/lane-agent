@@ -5,7 +5,7 @@ import { Flex, Typography } from 'antd';
 export default function Field({ label, children }: { label: ReactNode; children: ReactNode }) {
   return (
     <Flex vertical gap={6}>
-      <Typography.Text type="secondary" className="small">
+      <Typography.Text type="secondary" className="text-xs!">
         {label}
       </Typography.Text>
       {children}

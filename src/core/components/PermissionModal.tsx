@@ -41,11 +41,11 @@ export default function PermissionModal({
         </Typography.Paragraph>
         {request && <Typography.Text code>{request.action}</Typography.Text>}
         {!!request?.resources.length && (
-          <div className="resources">
+          <div className="grid max-h-[200px] gap-1.5 overflow-auto">
             {request.resources.map((resource) => (
               <Typography.Text
                 key={resource}
-                className="resource mono"
+                className="break-all rounded-lg border border-(--line) bg-(--bg) px-2.5 py-1.5 font-mono text-xs! text-(--muted)!"
                 ellipsis={{ tooltip: resource }}
               >
                 {resource}
