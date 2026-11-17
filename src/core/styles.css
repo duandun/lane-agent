@@ -118,6 +118,57 @@ code,
   word-break: break-all;
 }
 
+.question-prompt {
+  display: grid;
+  gap: 10px;
+  padding: 12px 14px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.question-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.question-fields {
+  display: grid;
+  gap: 10px;
+}
+
+.question-field {
+  display: grid;
+  gap: 6px;
+}
+
+.question-label {
+  display: flex;
+  gap: 4px;
+  align-items: baseline;
+}
+
+.question-required {
+  color: var(--err);
+}
+
+.question-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.question-prompt .ant-input-number {
+  width: 100%;
+}
+
+.question-prompt .ant-btn {
+  height: auto;
+  white-space: normal;
+  text-align: left;
+}
+
 /* ------------------------------------------------------------------- chat */
 
 .app {

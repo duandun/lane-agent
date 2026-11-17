@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, Avatar, Button, Card, Flex, Form, Input, Typography } from 'antd';
 import { Welcome } from '@ant-design/x';
 import { ApiOutlined, LockOutlined, FolderOpenOutlined, LinkOutlined } from '@ant-design/icons';
 import { appBridge } from '@core/lib/bridge';
-import { makeClient, type Conn } from '@core/lib/client';
+import { DEFAULT_CONN, makeClient, type Conn } from '@core/lib/client';
 import { errorText } from '@core/lib/error';
 
 /** 连接表单：先用 Basic Auth 校验服务端，通过后再保存 Conn。 */
@@ -23,6 +23,21 @@ export default function Connect({
   const [fsResult, setFsResult] = useState<{ ok: boolean; text: string } | null>(null);
   const [npxChecking, setNpxChecking] = useState(false);
   const [npxResult, setNpxResult] = useState<{ ok: boolean; text: string } | null>(null);
+
+  // Electron 端会启动内置 CLI 的本地服务；没有保存过其它地址时自动填上。
+  useEffect(() => {
+    if (!appBridge) return;
+    let alive = true;
+    void appBridge.localService().then((service) => {
+      if (!alive || !service) return;
+      const current = String(form.getFieldValue('baseUrl') ?? '');
+      if (current && current !== DEFAULT_CONN.baseUrl) return;
+      form.setFieldsValue({ baseUrl: service.url, password: service.password });
+    });
+    return () => {
+      alive = false;
+    };
+  }, [form]);
 
   async function checkBridge() {
     if (!appBridge) return;

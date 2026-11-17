@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { PermissionRequest } from '@opencode/client';
+import type { FormAnswer, FormInfo, PermissionRequest } from '@opencode/client';
 import type { Client, Conn } from '../lib/client';
 import { blocksFromMessages, patch, upsert, type Block, type ToolStatus } from '../lib/blocks';
 import { errorText } from '../lib/error';
@@ -34,6 +34,8 @@ export function useChatSession(conn: Conn, client: Client) {
   const [busy, setBusy] = useState(false);
   const [activity, setActivity] = useState<AgentActivity>('idle');
   const [queue, setQueue] = useState<PermissionRequest[]>([]);
+  const [forms, setForms] = useState<FormInfo[]>([]);
+  const [formPending, setFormPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const sessionRef = useRef<string | null>(null);
@@ -64,6 +66,12 @@ export function useChatSession(conn: Conn, client: Client) {
         setSessionID(session.id);
         setStatus('online');
         await reload(session.id);
+        try {
+          const pending = await client.session.form.list({ sessionID: session.id });
+          if (!cancelled && pending.length) setForms(pending);
+        } catch {
+          // 老版本服务端没有 form API 时忽略。
+        }
       } catch (cause) {
         if (cancelled) return;
         setStatus('offline');
@@ -253,6 +261,21 @@ export function useChatSession(conn: Conn, client: Client) {
               setQueue((current) => current.filter((item) => item.id !== event.data.requestID));
               break;
 
+            case 'form.created': {
+              const form = event.data.form as unknown as FormInfo;
+              if (form.sessionID !== sessionRef.current) break;
+              setActivity('thinking');
+              setForms((current) =>
+                current.some((item) => item.id === form.id) ? current : [...current, form]
+              );
+              break;
+            }
+
+            case 'form.replied':
+            case 'form.cancelled':
+              setForms((current) => current.filter((item) => item.id !== event.data.id));
+              break;
+
             // `session.idle` 只表示会话安静下来，并不稳定代表一轮结束；
             // 真正的结束信号是 execution.*，因此在这几个事件上收尾。
             case 'session.execution.succeeded':
@@ -349,6 +372,42 @@ export function useChatSession(conn: Conn, client: Client) {
     }
   }
 
+  async function replyForm(answer: FormAnswer) {
+    const form = forms[0];
+    if (!form) return;
+    setFormPending(true);
+    try {
+      await client.session.form.reply({
+        sessionID: form.sessionID,
+        formID: form.id,
+        answer,
+      });
+      setForms((current) => current.slice(1));
+    } catch (cause) {
+      setError(errorText(cause));
+    } finally {
+      setFormPending(false);
+    }
+  }
+
+  async function cancelForm() {
+    const form = forms[0];
+    if (!form) return;
+    setFormPending(true);
+    try {
+      await client.session.form.cancel({
+        sessionID: form.sessionID,
+        formID: form.id,
+        message: '用户取消',
+      });
+      setForms((current) => current.slice(1));
+    } catch (cause) {
+      setError(errorText(cause));
+    } finally {
+      setFormPending(false);
+    }
+  }
+
   const switchModel = useCallback(
     async (model: ModelRef) => {
       if (!sessionID) return;
@@ -368,11 +427,15 @@ export function useChatSession(conn: Conn, client: Client) {
     busy,
     activity,
     queue,
+    forms,
+    formPending,
     error,
     clearError: () => setError(null),
     send,
     stop,
     reply,
+    replyForm,
+    cancelForm,
     regenerate,
     switchModel,
   };

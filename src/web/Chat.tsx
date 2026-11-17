@@ -6,6 +6,7 @@ import CustomModelModal from '@core/components/CustomModelModal';
 import EagleCompanion, { type EagleState } from '@core/components/EagleCompanion';
 import Messages from '@core/components/Messages';
 import PermissionModal from '@core/components/PermissionModal';
+import QuestionPrompt from '@core/components/QuestionPrompt';
 import { useChatSession, type ChatStatus, type ModelRef } from '@core/hooks/useChatSession';
 import type { ThemeMode } from '@core/hooks/useThemeMode';
 import { makeClient, type Conn } from '@core/lib/client';
@@ -54,11 +55,15 @@ export default function Chat({
     busy,
     activity,
     queue,
+    forms,
+    formPending,
     error,
     clearError,
     send,
     stop,
     reply,
+    replyForm,
+    cancelForm,
     regenerate,
     switchModel,
   } = useChatSession(conn, client);
@@ -234,29 +239,39 @@ export default function Chat({
       </main>
 
       <footer className="composer">
-        <div className={busy ? 'sender-glow' : 'sender-normal'}>
-          <Sender
-            className={busy ? 'thinking' : undefined}
-            value={draft}
-            onChange={setDraft}
-            onSubmit={(text) => {
-              setDraft('');
-              void send(text);
-            }}
-            loading={busy}
-            onCancel={() => void stop()}
-            disabled={!sessionID}
-            placeholder={
-              sessionID ? '描述你要 agent 做的事，Enter 发送，Shift+Enter 换行' : '正在创建会话…'
-            }
-            autoSize={{ minRows: 2, maxRows: 8 }}
-            footer={
-              <Typography.Text type="secondary" className="sender-hint">
-                Enter 发送 · Shift+Enter 换行
-              </Typography.Text>
-            }
+        {forms[0] ? (
+          <QuestionPrompt
+            form={forms[0]}
+            count={forms.length}
+            pending={formPending}
+            onReply={(answer) => void replyForm(answer)}
+            onCancel={() => void cancelForm()}
           />
-        </div>
+        ) : (
+          <div className={busy ? 'sender-glow' : 'sender-normal'}>
+            <Sender
+              className={busy ? 'thinking' : undefined}
+              value={draft}
+              onChange={setDraft}
+              onSubmit={(text) => {
+                setDraft('');
+                void send(text);
+              }}
+              loading={busy}
+              onCancel={() => void stop()}
+              disabled={!sessionID}
+              placeholder={
+                sessionID ? '描述你要 agent 做的事，Enter 发送，Shift+Enter 换行' : '正在创建会话…'
+              }
+              autoSize={{ minRows: 2, maxRows: 8 }}
+              footer={
+                <Typography.Text type="secondary" className="sender-hint">
+                  Enter 发送 · Shift+Enter 换行
+                </Typography.Text>
+              }
+            />
+          </div>
+        )}
       </footer>
 
       <EagleCompanion state={companionState()} />

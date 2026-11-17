@@ -3,7 +3,9 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { extname, join, normalize, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { registerIpc } from './ipc';
+import { registerIpc } from './ipc/index.js';
+import { ensureLocalService } from './service.js';
+import { installAgentDesktopSkill } from './skill.js';
 
 const DIST = fileURLToPath(new URL('../dist', import.meta.url));
 const PRELOAD = fileURLToPath(new URL('./preload.cjs', import.meta.url));
@@ -92,8 +94,12 @@ async function createWindow() {
 
 app
   .whenReady()
-  .then(() => {
+  .then(async () => {
     registerIpc();
+    void ensureLocalService();
+    await installAgentDesktopSkill().catch((error) => {
+      console.error('agent-desktop skill 安装失败：', error);
+    });
     return createWindow();
   })
   .catch(fail);

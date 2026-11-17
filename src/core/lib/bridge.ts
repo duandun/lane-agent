@@ -18,9 +18,16 @@ export type ExecResult = {
   stderr: string;
 };
 
+export type LocalService = {
+  url: string;
+  username: string;
+  password: string;
+};
+
 export type AppBridge = {
   ping: () => Promise<string>;
   info: () => Promise<AppInfo>;
+  localService: () => Promise<LocalService | null>;
   fs: {
     list: (root: string, dir?: string) => Promise<FsEntry[]>;
     read: (root: string, path: string) => Promise<string>;

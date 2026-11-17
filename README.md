@@ -58,13 +58,11 @@ Windows 产物是 NSIS 安装包 `release/OpenCode Web Setup <版本>.exe`，未
 
 主进程用 TypeScript（`src/app/*.ts`），`electron:*` 脚本会先用 `tsc -p tsconfig.electron.json` 编译到 `dist-electron/` 再启动或打包；该目录不进 git。只编译主进程用 `bun run build:app`。
 
-生产环境把 dist 打进安装包，Electron 用固定的本地 HTTP 服务（`http://localhost:5173`）加载它——不能直接 `file://` 打开，否则 Origin 是 `null`，会被 opencode server 的 CORS 拒绝。所以桌面端离线时服务端也要放行这个 origin：
+生产环境把 dist 打进安装包，Electron 用固定的本地 HTTP 服务（`http://localhost:5173`）加载它。启动时还会用内置的 opencode CLI，通过 `@opencode/client/service` 的 `Service.ensure` 拉起本地 opencode 服务（`opencode serve --service`）；连接页会自动填入服务地址和生成的密码。agent 因此在本机执行，agent-desktop skill 和 CLI 都能直接用。
 
-```bash
-opencode serve --port 4096 --cors http://localhost:5173
-```
+内置 CLI 在打包前下载：`bun run bundle:cli`（默认当前平台，Linux/Windows 打包脚本会传 `OPENCODE_TARGET`）。它按目标平台从 `@opencode/cli-*@2.3.0` 取二进制，放到 `resources/opencode-cli/`（约 220–250MB），作为 extraResources 带进安装包；开发时没下载就退回 PATH 里的 `opencode`。
 
-5173 被占用时启动会直接报错（不退回随机端口），避免 Origin 变化导致 CORS 失效。连接页底部的命令会按当前页面 origin 自动填好。
+5173 被占用时静态服务会直接报错（不退回随机端口），避免页面 origin 变化导致本地服务的 CORS 失效。连接页底部的命令会按当前页面 origin 自动填好。
 
 `electron:package` 在 macOS 上出 dmg + zip，未做代码签名（没有 Apple 证书），拷到别的机器首次打开要右键 → 打开。脚本里写死了 npmmirror 的 Electron 下载镜像；网络能直连 GitHub 的话删掉那两个环境变量即可。
 
@@ -82,8 +80,19 @@ opencode serve --port 4096 --cors http://localhost:5173
 - `fs.list(root, dir?)`：列出目录，返回 `{ name, path, dir }`，`path` 相对 `root`。
 - `fs.read(root, path)` / `fs.write(root, path, content)`：读写 UTF-8 文本。
 - `exec.npx(root, args)`：在 `root` 里执行 `npx --yes <args>`，返回 `{ code, stdout, stderr }`；超时 5 分钟，stdout/stderr 各截断到 1MB。使用安装包内置的 npm（`resources/npm`），JS 跑在 Electron 自带的 Node 上，用户机器不需要装 Node/npm；包脚本里的 `node` 由临时 shim 指向 Electron。
+- `localService()`：返回本地 opencode 服务的 `{ url, username, password }`；Electron 启动时用内置 CLI 调 `Service.ensure`，连接页用它预填服务地址和密码。
 
-所有文件操作都限制在传入的 `root` 内（词法校验 + `realpath`，阻止 `../` 和软链接逃逸）。`exec.npx` 会执行任意包代码（包括 install 脚本），只对可信的包使用。打包时 `scripts/bundle-npm.mjs` 会把 `node_modules/npm` 复制到 `.npm-bundle/npm`，再由 electron-builder 作为 extraResources 带进安装包。
+所有文件操作都限制在传入的 `root` 内（词法校验 + `realpath`，阻止 `../` 和软链接逃逸）。`exec.npx` 会执行任意包代码（包括 install 脚本），只对可信的包使用。打包时 `scripts/bundle-runtime.mjs` 会把 npm 和 agent-desktop 复制到 `.npm-bundle/`，再由 electron-builder 作为 extraResources 带进安装包。
+
+## agent-desktop
+
+应用内置 agent-desktop CLI 和 skill，用户不需要预装：
+
+- 启动时把当前平台的二进制、helper 和 skill 安装到 `~/.config/opencode/skills/agent-desktop/`，带 `.installed` 标记；升级时自动重装，不覆盖用户自己放的同名 skill。
+- OpenCode 从全局 skills 目录自动发现它；首次安装后需要重启 `opencode serve`。
+- skill 里的命令已替换成安装后的绝对路径（`bin/agent-desktop`），不依赖 PATH；`references/` 和 CLI 的 `skills get` 都可用。
+- 真正操作 GUI 的是运行 opencode 的进程，macOS 上要给那个终端/应用授予辅助功能、屏幕录制权限；用 `agent-desktop status` 查看。
+- 桌面端启动的是本地 opencode 服务，所以 skill 和 agent-desktop CLI 天然在同一台机器；Web 端连远程服务器时，skill 仍需另外部署到服务器上。
 
 ## 三个容易踩的坑
 
@@ -116,14 +125,23 @@ src/
     Chat.tsx           聊天页（antdX Bubble.List / Sender / ThoughtChain / Prompts / Actions）
   app/                 Electron 端（TypeScript，编译到 dist-electron）
     main.ts            主进程：本地静态服务 + 打开窗口
+    service.ts         用内置 CLI 启动本地 opencode 服务
     ipc/
       index.ts         汇总注册 Node 能力
       health.ts        app:ping / app:info
+      local.ts         service:local 本地服务地址
       fs.ts            fs:list / fs:read / fs:write
       exec.ts          exec:npx
       paths.ts         root 路径校验
     preload.cts        contextBridge 暴露给渲染进程（编译为 preload.cjs）
+    skill.ts           把内置 agent-desktop CLI + skill 装到 OpenCode 全局目录
     build/icon.png     打包图标
+assets/
+  agent-desktop-skill/ 内置的 agent-desktop SKILL.md 和 references
+scripts/
+  bundle-runtime.mjs     把 npm / agent-desktop 复制到 .npm-bundle
+  bundle-opencode-cli.mjs 按目标平台下载 opencode CLI 到 resources/opencode-cli
+resources/opencode-cli/  打包时生成的内置 CLI（不提交）
 ```
 
 Web 和 Electron 共用 `core`；Electron 加载的是 `web` 构建出来的 `dist`。跨目录引用用 `@core/*` 等别名，Vite 的 `resolve.alias` 和 tsconfig 的 `paths` 两边都要配。

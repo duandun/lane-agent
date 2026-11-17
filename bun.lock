@@ -5,24 +5,25 @@
     "": {
       "name": "opencode-web-demo",
       "dependencies": {
+        "@opencode/client": "^2.3.0",
+      },
+      "devDependencies": {
         "@ant-design/icons": "^6.3.4",
         "@ant-design/x": "^2.10.0",
         "@ant-design/x-markdown": "^2.10.0",
-        "@opencode/client": "^2.3.0",
-        "antd": "^6.7.0",
-        "npm": "^12.2.2",
-        "react": "^19.0.0",
-        "react-dom": "^19.0.0",
-        "react-syntax-highlighter": "^16.1.2",
-      },
-      "devDependencies": {
         "@types/react": "^19.0.0",
         "@types/react-dom": "^19.0.0",
         "@types/react-syntax-highlighter": "^15.5.13",
         "@vitejs/plugin-react": "^5.0.0",
+        "agent-desktop": "^1.3.1",
+        "antd": "^6.7.0",
         "electron": "^45.3.3",
         "electron-builder": "^26.18.0",
+        "npm": "^12.2.2",
         "prettier": "^3.10.1",
+        "react": "^19.0.0",
+        "react-dom": "^19.0.0",
+        "react-syntax-highlighter": "^16.1.2",
         "typescript": "^5.6.0",
         "vite": "^8.3.8",
       },
@@ -402,6 +403,8 @@
     "abbrev": ["abbrev@4.0.0", "https://registry.npmmirror.com/abbrev/-/abbrev-4.0.0.tgz", {}, "sha512-a1wflyaL0tHtJSmLSOVybYhy22vRih4eduhhrkcjgrWGnRfrZtovJ2FRjxuTtkkj47O/baf0R86QU5OuYpz8fA=="],
 
     "agent-base": ["agent-base@7.1.4", "https://registry.npmmirror.com/agent-base/-/agent-base-7.1.4.tgz", {}, "sha512-MnA+YT8fwfJPgBx3m60MNqakm30XOkyIoH1y6huTQvC0PwZG7ki8NacLBcrPbNoo8vEZy7Jpuk7+jMO+CUovTQ=="],
+
+    "agent-desktop": ["agent-desktop@1.3.1", "https://registry.npmmirror.com/agent-desktop/-/agent-desktop-1.3.1.tgz", { "os": [ "linux", "win32", "darwin", ], "cpu": [ "x64", "arm64", ], "bin": { "agent-desktop": "bin/agent-desktop" } }, "sha512-5pBKkFkdB/VIAWRfqoA8lYp5/fenfxUHI15Pc4k8Nn2LmLxxo1PkAb0WLypknyOCczuIwuzFp/rZHGGawEV+hw=="],
 
     "ajv": ["ajv@8.20.0", "https://registry.npmmirror.com/ajv/-/ajv-8.20.0.tgz", { "dependencies": { "fast-deep-equal": "^3.1.3", "fast-uri": "^3.0.1", "json-schema-traverse": "^1.0.0", "require-from-string": "^2.0.2" } }, "sha512-Thbli+OlOj+iMPYFBVBfJ3OmCAnaSyNn4M1vz9T6Gka5Jt9ba/HIR56joy65tY6kx/FCF5VXNB819Y7/GUrBGA=="],
 

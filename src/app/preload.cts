@@ -13,4 +13,5 @@ contextBridge.exposeInMainWorld('appBridge', {
   exec: {
     npx: (root: string, args: string[]) => ipcRenderer.invoke('exec:npx', root, args),
   },
+  localService: () => ipcRenderer.invoke('service:local'),
 });

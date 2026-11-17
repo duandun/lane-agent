@@ -16,3 +16,5 @@ release
 .playwright-mcp
 dist-electron
 .npm-bundle
+resources/opencode-cli
+.cache/opencode-cli
