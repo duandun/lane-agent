@@ -63,8 +63,10 @@ code,
 
 .connect {
   min-height: 100dvh;
-  display: grid;
-  place-content: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
   gap: 16px;
   padding: 32px 16px;
 }
