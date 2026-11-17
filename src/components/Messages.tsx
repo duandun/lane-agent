@@ -1,5 +1,5 @@
-import { useMemo } from "react"
-import { Avatar, App as AntdApp } from "antd"
+import { useMemo } from 'react';
+import { Avatar, App as AntdApp } from 'antd';
 import {
   Actions,
   Bubble,
@@ -7,7 +7,7 @@ import {
   Welcome,
   type BubbleItemType,
   type PromptsItemType,
-} from "@ant-design/x"
+} from '@ant-design/x';
 import {
   BulbOutlined,
   CopyOutlined,
@@ -17,93 +17,93 @@ import {
   RobotOutlined,
   ThunderboltFilled,
   UserOutlined,
-} from "@ant-design/icons"
-import Markdown from "./Markdown"
-import Activity, { type ActivityBlock } from "./Activity"
-import type { Block } from "../lib/blocks"
+} from '@ant-design/icons';
+import Markdown from './Markdown';
+import Activity, { type ActivityBlock } from './Activity';
+import type { Block } from '../lib/blocks';
 
 type ViewItem =
-  | { key: string; role: "user"; text: string }
-  | { key: string; role: "ai"; text: string }
-  | { key: string; role: "activity"; blocks: ActivityBlock[] }
-  | { key: string; role: "system"; text: string }
+  | { key: string; role: 'user'; text: string }
+  | { key: string; role: 'ai'; text: string }
+  | { key: string; role: 'activity'; blocks: ActivityBlock[] }
+  | { key: string; role: 'system'; text: string };
 
 const ROLES = {
   user: {
-    placement: "end" as const,
-    variant: "filled" as const,
+    placement: 'end' as const,
+    variant: 'filled' as const,
     avatar: <Avatar size="small" icon={<UserOutlined />} />,
-    styles: { content: { background: "var(--user-bubble)" } },
+    styles: { content: { background: 'var(--user-bubble)' } },
   },
   ai: {
-    placement: "start" as const,
-    variant: "outlined" as const,
+    placement: 'start' as const,
+    variant: 'outlined' as const,
     avatar: (
       <Avatar
         size="small"
         icon={<RobotOutlined />}
-        style={{ background: "linear-gradient(135deg, #4f8cff, #7c5cff)" }}
+        style={{ background: 'linear-gradient(135deg, #4f8cff, #7c5cff)' }}
       />
     ),
   },
   activity: {
-    placement: "start" as const,
-    variant: "borderless" as const,
+    placement: 'start' as const,
+    variant: 'borderless' as const,
     avatar: (
       <Avatar
         size="small"
         icon={<ThunderboltFilled />}
-        style={{ background: "var(--activity-avatar)", color: "var(--activity-avatar-fg)" }}
+        style={{ background: 'var(--activity-avatar)', color: 'var(--activity-avatar-fg)' }}
       />
     ),
   },
-  system: { placement: "start" as const },
-}
+  system: { placement: 'start' as const },
+};
 
 const SUGGESTIONS: PromptsItemType[] = [
   {
-    key: "explain",
+    key: 'explain',
     icon: <FileSearchOutlined />,
-    label: "了解项目",
-    description: "介绍一下这个项目的结构、入口和关键模块",
+    label: '了解项目',
+    description: '介绍一下这个项目的结构、入口和关键模块',
   },
   {
-    key: "improve",
+    key: 'improve',
     icon: <BulbOutlined />,
-    label: "找点活干",
-    description: "看看这个项目还有哪些可以改进的地方",
+    label: '找点活干',
+    description: '看看这个项目还有哪些可以改进的地方',
   },
   {
-    key: "test",
+    key: 'test',
     icon: <ExperimentOutlined />,
-    label: "跑测试",
-    description: "运行测试，并修复失败的用例",
+    label: '跑测试',
+    description: '运行测试，并修复失败的用例',
   },
-]
+];
 
 /**
  * 把连续的 reasoning / tool block 合并成一个 activity 组，
  * 让每次运行只渲染一张活动卡片，而不是一叠单项卡片。
  */
 function toViewItems(blocks: Block[]): ViewItem[] {
-  const items: ViewItem[] = []
+  const items: ViewItem[] = [];
   for (const block of blocks) {
-    if (block.kind === "reasoning" || block.kind === "tool") {
-      const last = items[items.length - 1]
-      if (last?.role === "activity") {
-        last.blocks.push(block)
+    if (block.kind === 'reasoning' || block.kind === 'tool') {
+      const last = items[items.length - 1];
+      if (last?.role === 'activity') {
+        last.blocks.push(block);
       } else {
-        items.push({ key: `activity:${block.id}`, role: "activity", blocks: [block] })
+        items.push({ key: `activity:${block.id}`, role: 'activity', blocks: [block] });
       }
-      continue
+      continue;
     }
-    if (block.kind === "notice") {
-      items.push({ key: block.id, role: "system", text: block.text })
-      continue
+    if (block.kind === 'notice') {
+      items.push({ key: block.id, role: 'system', text: block.text });
+      continue;
     }
-    items.push({ key: block.id, role: block.kind === "user" ? "user" : "ai", text: block.text })
+    items.push({ key: block.id, role: block.kind === 'user' ? 'user' : 'ai', text: block.text });
   }
-  return items
+  return items;
 }
 
 /**
@@ -116,87 +116,89 @@ export default function Messages({
   onSuggestion,
   onRegenerate,
 }: {
-  blocks: Block[]
-  busy: boolean
-  directory: string
-  onSuggestion: (text: string) => void
-  onRegenerate: (messageID: string, text: string, userBlockID: string) => void
+  blocks: Block[];
+  busy: boolean;
+  directory: string;
+  onSuggestion: (text: string) => void;
+  onRegenerate: (messageID: string, text: string, userBlockID: string) => void;
 }) {
-  const { message } = AntdApp.useApp()
+  const { message } = AntdApp.useApp();
 
   const bubbleItems = useMemo<BubbleItemType[]>(() => {
     const copy = async (text: string) => {
       try {
-        await navigator.clipboard.writeText(text)
-        message.success("已复制")
+        await navigator.clipboard.writeText(text);
+        message.success('已复制');
       } catch {
-        message.error("复制失败")
+        message.error('复制失败');
       }
-    }
+    };
 
-    const lastTextID = [...blocks].reverse().find((block) => block.kind === "text")?.id
-    const views = toViewItems(blocks)
-    const lastView = views[views.length - 1]
-    const activityRunning = busy && lastView?.role === "activity"
+    const lastTextID = [...blocks].reverse().find((block) => block.kind === 'text')?.id;
+    const views = toViewItems(blocks);
+    const lastView = views[views.length - 1];
+    const activityRunning = busy && lastView?.role === 'activity';
     const lastAIIndex = views.reduce(
-      (last, view, index) => (view.role === "ai" ? index : last),
-      -1,
-    )
+      (last, view, index) => (view.role === 'ai' ? index : last),
+      -1
+    );
 
     const items: BubbleItemType[] = views.map((item, index) => {
-      if (item.role === "activity") {
+      if (item.role === 'activity') {
         return {
           key: item.key,
-          role: "activity",
-          content: <Activity blocks={item.blocks} active={activityRunning && item.key === lastView.key} />,
-        }
+          role: 'activity',
+          content: (
+            <Activity blocks={item.blocks} active={activityRunning && item.key === lastView.key} />
+          ),
+        };
       }
-      if (item.role === "system") {
-        return { key: item.key, role: "system", content: item.text }
+      if (item.role === 'system') {
+        return { key: item.key, role: 'system', content: item.text };
       }
-      if (item.role === "user") {
-        return { key: item.key, role: "user", content: item.text }
+      if (item.role === 'user') {
+        return { key: item.key, role: 'user', content: item.text };
       }
 
       // 重新生成会丢弃该 prompt 之后的所有内容，所以只给最后一条回答展示，
       // 且要求该 prompt 已持久化到服务端。
       const prompt =
         index === lastAIIndex
-          ? [...views.slice(0, index)].reverse().find((view) => view.role === "user")
-          : undefined
+          ? [...views.slice(0, index)].reverse().find((view) => view.role === 'user')
+          : undefined;
       const actions = [
-        ...(!busy && prompt?.key.startsWith("msg:")
+        ...(!busy && prompt?.key.startsWith('msg:')
           ? [
               {
-                key: "regenerate",
-                label: "重新生成",
+                key: 'regenerate',
+                label: '重新生成',
                 icon: <RedoOutlined />,
                 onItemClick: () => onRegenerate(prompt.key.slice(4), prompt.text, prompt.key),
               },
             ]
           : []),
         {
-          key: "copy",
-          label: "复制",
+          key: 'copy',
+          label: '复制',
           icon: <CopyOutlined />,
           onItemClick: () => void copy(item.text),
         },
-      ]
+      ];
 
       return {
         key: item.key,
-        role: "ai",
+        role: 'ai',
         content: <Markdown text={item.text} streaming={busy && item.key === lastTextID} />,
         footer: <Actions items={actions} />,
-      }
-    })
+      };
+    });
 
     if (busy) {
-      items.push({ key: "working", role: "ai", content: "", loading: true })
+      items.push({ key: 'working', role: 'ai', content: '', loading: true });
     }
 
-    return items
-  }, [blocks, busy, message, onRegenerate])
+    return items;
+  }, [blocks, busy, message, onRegenerate]);
 
   if (blocks.length === 0 && !busy) {
     return (
@@ -208,8 +210,8 @@ export default function Messages({
               size={48}
               icon={<ThunderboltFilled />}
               style={{
-                background: "linear-gradient(135deg, #4f8cff, #7c5cff)",
-                color: "#fff",
+                background: 'linear-gradient(135deg, #4f8cff, #7c5cff)',
+                color: '#fff',
               }}
             />
           }
@@ -220,10 +222,10 @@ export default function Messages({
           title="或者试试这些"
           items={SUGGESTIONS}
           vertical
-          onItemClick={({ data }) => onSuggestion(String(data.description ?? data.label ?? ""))}
+          onItemClick={({ data }) => onSuggestion(String(data.description ?? data.label ?? ''))}
         />
       </div>
-    )
+    );
   }
 
   return (
@@ -232,7 +234,7 @@ export default function Messages({
       items={bubbleItems}
       role={ROLES}
       autoScroll
-      style={{ height: "100%" }}
+      style={{ height: '100%' }}
     />
-  )
+  );
 }

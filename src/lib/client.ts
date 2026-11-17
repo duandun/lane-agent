@@ -1,4 +1,4 @@
-import { OpenCode } from "@opencode/client"
+import { OpenCode } from '@opencode/client';
 
 /**
  * 浏览器连接 OpenCode server 所需的全部信息。
@@ -8,33 +8,33 @@ import { OpenCode } from "@opencode/client"
  * `opencode serve` 启动的服务，并用 HTTP Basic 认证，用户名固定为 `opencode`。
  */
 export type Conn = {
-  baseUrl: string
-  password: string
-  directory: string
-}
+  baseUrl: string;
+  password: string;
+  directory: string;
+};
 
 export const DEFAULT_CONN: Conn = {
-  baseUrl: "http://127.0.0.1:4096",
-  password: "",
-  directory: "/Users/cr/opencode-workspace",
-}
+  baseUrl: 'http://127.0.0.1:4096',
+  password: '',
+  directory: '/Users/cr/opencode-workspace',
+};
 
-const USERNAME = "opencode"
+const USERNAME = 'opencode';
 
 function basicToken(password: string): string {
-  const bytes = new TextEncoder().encode(`${USERNAME}:${password}`)
-  let binary = ""
-  for (const byte of bytes) binary += String.fromCharCode(byte)
-  return btoa(binary)
+  const bytes = new TextEncoder().encode(`${USERNAME}:${password}`);
+  let binary = '';
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary);
 }
 
 export function makeClient(conn: Conn) {
   return OpenCode.make({
-    baseUrl: conn.baseUrl.replace(/\/+$/, ""),
+    baseUrl: conn.baseUrl.replace(/\/+$/, ''),
     headers: {
       authorization: `Basic ${basicToken(conn.password)}`,
     },
-  })
+  });
 }
 
-export type Client = ReturnType<typeof makeClient>
+export type Client = ReturnType<typeof makeClient>;

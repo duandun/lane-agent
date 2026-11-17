@@ -1,11 +1,11 @@
-import { useEffect, useState } from "react"
-import { App as AntdApp, Flex, Input, Modal, Typography } from "antd"
-import type { Client } from "../lib/client"
-import { saveCustomModel, type CustomModel } from "../lib/customModels"
-import { errorText } from "../lib/error"
-import Field from "./Field"
+import { useEffect, useState } from 'react';
+import { App as AntdApp, Flex, Input, Modal, Typography } from 'antd';
+import type { Client } from '../lib/client';
+import { saveCustomModel, type CustomModel } from '../lib/customModels';
+import { errorText } from '../lib/error';
+import Field from './Field';
 
-const PACKAGE = "@opencode/ai/providers/openai-compatible"
+const PACKAGE = '@opencode/ai/providers/openai-compatible';
 
 /**
  * 自定义 OpenAI 兼容供应商的编辑弹窗：合并写入项目的 opencode.json、
@@ -20,120 +20,125 @@ export default function CustomModelModal({
   onClose,
   onSaved,
 }: {
-  open: boolean
-  client: Client
-  directory: string
-  current: { providerID: string; id: string } | null
-  editing: CustomModel | null
-  onClose: () => void
-  onSaved: (model: CustomModel) => Promise<void>
+  open: boolean;
+  client: Client;
+  directory: string;
+  current: { providerID: string; id: string } | null;
+  editing: CustomModel | null;
+  onClose: () => void;
+  onSaved: (model: CustomModel) => Promise<void>;
 }) {
-  const { message } = AntdApp.useApp()
-  const [providerID, setProviderID] = useState("")
-  const [modelID, setModelID] = useState("")
-  const [name, setName] = useState("")
-  const [baseURL, setBaseURL] = useState("")
-  const [apiKey, setApiKey] = useState("")
-  const [saving, setSaving] = useState(false)
+  const { message } = AntdApp.useApp();
+  const [providerID, setProviderID] = useState('');
+  const [modelID, setModelID] = useState('');
+  const [name, setName] = useState('');
+  const [baseURL, setBaseURL] = useState('');
+  const [apiKey, setApiKey] = useState('');
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (!open) return
-    setProviderID(editing?.providerID ?? "")
-    setModelID(editing?.modelID ?? "")
-    setName(editing?.name ?? "")
-    setBaseURL(editing?.baseURL ?? "")
-    setApiKey("")
-  }, [open, editing])
+    if (!open) return;
+    setProviderID(editing?.providerID ?? '');
+    setModelID(editing?.modelID ?? '');
+    setName(editing?.name ?? '');
+    setBaseURL(editing?.baseURL ?? '');
+    setApiKey('');
+  }, [open, editing]);
 
   async function save() {
-    const pid = providerID.trim()
-    const mid = modelID.trim()
-    const url = baseURL.trim()
+    const pid = providerID.trim();
+    const mid = modelID.trim();
+    const url = baseURL.trim();
     if (!/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(pid)) {
-      message.error("Provider ID 只能包含字母、数字、. _ -")
-      return
+      message.error('Provider ID 只能包含字母、数字、. _ -');
+      return;
     }
     if (!mid) {
-      message.error("请填写模型 ID")
-      return
+      message.error('请填写模型 ID');
+      return;
     }
     if (!/^https?:\/\//.test(url)) {
-      message.error("接口地址必须以 http:// 或 https:// 开头")
-      return
+      message.error('接口地址必须以 http:// 或 https:// 开头');
+      return;
     }
 
-    setSaving(true)
+    setSaving(true);
     try {
-      const location = directory ? { directory } : undefined
+      const location = directory ? { directory } : undefined;
 
       // 合并进已有的项目配置，不覆盖其他设置。
-      let path = "opencode.json"
-      let config: Record<string, unknown> = {}
-      for (const candidate of ["opencode.json", "opencode.jsonc"]) {
+      let path = 'opencode.json';
+      let config: Record<string, unknown> = {};
+      for (const candidate of ['opencode.json', 'opencode.jsonc']) {
         try {
-          const bytes = await client.file.read({ location, path: candidate })
-          const text = new TextDecoder().decode(bytes)
+          const bytes = await client.file.read({ location, path: candidate });
+          const text = new TextDecoder().decode(bytes);
           try {
-            const parsed = JSON.parse(text || "{}")
-            if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-              throw new Error("根节点不是对象")
+            const parsed = JSON.parse(text || '{}');
+            if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+              throw new Error('根节点不是对象');
             }
-            config = parsed as Record<string, unknown>
+            config = parsed as Record<string, unknown>;
           } catch {
-            throw new Error(`${candidate} 解析失败（可能含注释），请手动编辑该文件`)
+            throw new Error(`${candidate} 解析失败（可能含注释），请手动编辑该文件`);
           }
-          path = candidate
-          break
+          path = candidate;
+          break;
         } catch (cause) {
-          if ((cause as Error)?.name === "FileNotFoundError") continue
-          throw cause
+          if ((cause as Error)?.name === 'FileNotFoundError') continue;
+          throw cause;
         }
       }
 
-      const providers = { ...((config.providers as Record<string, unknown> | undefined) ?? {}) }
+      const providers = { ...((config.providers as Record<string, unknown> | undefined) ?? {}) };
       providers[pid] = {
         name: name.trim() || pid,
-        env: [`${pid.replace(/[^A-Za-z0-9]+/g, "_").toUpperCase()}_API_KEY`],
+        env: [`${pid.replace(/[^A-Za-z0-9]+/g, '_').toUpperCase()}_API_KEY`],
         package: PACKAGE,
         settings: { baseURL: url },
         models: { [mid]: { name: mid } },
-      }
-      config.providers = providers
+      };
+      config.providers = providers;
       await client.file.write({
         location,
         path,
         payload: new TextEncoder().encode(`${JSON.stringify(config, null, 2)}\n`),
-      })
+      });
 
       if (apiKey.trim()) {
         await client.credential.create({
           integrationID: pid,
           label: pid,
-          value: { type: "key", key: apiKey.trim() },
+          value: { type: 'key', key: apiKey.trim() },
           activate: true,
-        })
+        });
       }
 
       await client.location.reload({
-        headers: directory ? { "x-opencode-directory": directory } : undefined,
-      })
+        headers: directory ? { 'x-opencode-directory': directory } : undefined,
+      });
 
-      const saved: CustomModel = { providerID: pid, modelID: mid, name: name.trim() || pid, baseURL: url }
-      saveCustomModel(saved)
-      message.success("自定义模型已保存")
-      setApiKey("")
-      onClose()
-      await onSaved(saved)
+      const saved: CustomModel = {
+        providerID: pid,
+        modelID: mid,
+        name: name.trim() || pid,
+        baseURL: url,
+      };
+      saveCustomModel(saved);
+      message.success('自定义模型已保存');
+      setApiKey('');
+      onClose();
+      await onSaved(saved);
     } catch (cause) {
-      message.error(errorText(cause))
+      message.error(errorText(cause));
     } finally {
-      setSaving(false)
+      setSaving(false);
     }
   }
 
   return (
     <Modal
-      title={editing ? "编辑自定义模型" : "自定义模型"}
+      title={editing ? '编辑自定义模型' : '自定义模型'}
       open={open}
       okText="保存"
       cancelText="取消"
@@ -145,7 +150,7 @@ export default function CustomModelModal({
     >
       <Flex vertical gap={12}>
         <Typography.Text type="secondary" className="small">
-          当前模型：{current ? `${current.providerID}/${current.id}` : "未选择"}
+          当前模型：{current ? `${current.providerID}/${current.id}` : '未选择'}
         </Typography.Text>
         <Field label="Provider ID">
           <Input
@@ -185,9 +190,10 @@ export default function CustomModelModal({
           />
         </Field>
         <Typography.Text type="secondary" className="small">
-          保存会合并写入 {directory || "server 默认目录"}/opencode.json 并重新加载配置；Key 存在 server 凭据库。
+          保存会合并写入 {directory || 'server 默认目录'}/opencode.json 并重新加载配置；Key 存在
+          server 凭据库。
         </Typography.Text>
       </Flex>
     </Modal>
-  )
+  );
 }

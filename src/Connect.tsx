@@ -1,42 +1,42 @@
-import { useState } from "react"
-import { Alert, Avatar, Button, Card, Form, Input, Typography } from "antd"
-import { Welcome } from "@ant-design/x"
-import { ApiOutlined, LockOutlined, FolderOpenOutlined, LinkOutlined } from "@ant-design/icons"
-import { makeClient, type Conn } from "./lib/client"
-import { errorText } from "./lib/error"
+import { useState } from 'react';
+import { Alert, Avatar, Button, Card, Form, Input, Typography } from 'antd';
+import { Welcome } from '@ant-design/x';
+import { ApiOutlined, LockOutlined, FolderOpenOutlined, LinkOutlined } from '@ant-design/icons';
+import { makeClient, type Conn } from './lib/client';
+import { errorText } from './lib/error';
 
 /** 连接表单：先用 Basic Auth 校验服务端，通过后再保存 Conn。 */
 export default function Connect({
   initial,
   onConnect,
 }: {
-  initial: Conn
-  onConnect: (conn: Conn) => void
+  initial: Conn;
+  onConnect: (conn: Conn) => void;
 }) {
-  const [form] = Form.useForm<Conn>()
-  const [pending, setPending] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [form] = Form.useForm<Conn>();
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function submit(values: Conn) {
     const next: Conn = {
       baseUrl: values.baseUrl.trim(),
-      password: values.password ?? "",
-      directory: (values.directory ?? "").trim(),
-    }
+      password: values.password ?? '',
+      directory: (values.directory ?? '').trim(),
+    };
 
-    setPending(true)
-    setError(null)
+    setPending(true);
+    setError(null);
     try {
-      const info = await makeClient(next).server.info()
+      const info = await makeClient(next).server.info();
       if (!next.directory) {
-        setError(`已连接 v${info.version}，但请填写项目目录（服务器上的绝对路径）`)
-        return
+        setError(`已连接 v${info.version}，但请填写项目目录（服务器上的绝对路径）`);
+        return;
       }
-      onConnect(next)
+      onConnect(next);
     } catch (cause) {
-      setError(`${errorText(cause)}（检查地址、OPENCODE_PASSWORD、CORS）`)
+      setError(`${errorText(cause)}（检查地址、OPENCODE_PASSWORD、CORS）`);
     } finally {
-      setPending(false)
+      setPending(false);
     }
   }
 
@@ -49,7 +49,7 @@ export default function Connect({
             <Avatar
               size={52}
               icon={<ApiOutlined />}
-              style={{ background: "linear-gradient(135deg, #4f8cff, #7c5cff)" }}
+              style={{ background: 'linear-gradient(135deg, #4f8cff, #7c5cff)' }}
             />
           }
           title="OpenCode Web"
@@ -66,7 +66,7 @@ export default function Connect({
           <Form.Item
             name="baseUrl"
             label="服务地址"
-            rules={[{ required: true, message: "请填写服务地址" }]}
+            rules={[{ required: true, message: '请填写服务地址' }]}
           >
             <Input
               prefix={<LinkOutlined />}
@@ -88,7 +88,11 @@ export default function Connect({
             label="项目目录（服务器上的绝对路径）"
             extra="agent 会在这个目录里读写文件、执行命令。"
           >
-            <Input prefix={<FolderOpenOutlined />} placeholder="/Users/cr/opencode-workspace" disabled />
+            <Input
+              prefix={<FolderOpenOutlined />}
+              placeholder="/Users/cr/opencode-workspace"
+              disabled
+            />
           </Form.Item>
 
           {error && (
@@ -115,5 +119,5 @@ export default function Connect({
   opencode serve --hostname 0.0.0.0 --port 4096 --cors https://ai.cr123.life`}</pre>
       </Card>
     </div>
-  )
+  );
 }

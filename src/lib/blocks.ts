@@ -1,56 +1,56 @@
-import type { SessionMessageInfo } from "@opencode/client"
+import type { SessionMessageInfo } from '@opencode/client';
 
 export type Block =
-  | { id: string; kind: "user"; text: string }
-  | { id: string; kind: "text"; text: string }
-  | { id: string; kind: "reasoning"; text: string }
-  | { id: string; kind: "tool"; name: string; status: ToolStatus; detail: string }
-  | { id: string; kind: "notice"; text: string }
+  | { id: string; kind: 'user'; text: string }
+  | { id: string; kind: 'text'; text: string }
+  | { id: string; kind: 'reasoning'; text: string }
+  | { id: string; kind: 'tool'; name: string; status: ToolStatus; detail: string }
+  | { id: string; kind: 'notice'; text: string };
 
-export type ToolStatus = "running" | "ok" | "error"
+export type ToolStatus = 'running' | 'ok' | 'error';
 
 /** 插入 block；同 id 已存在时合并。 */
 export function upsert(blocks: Block[], block: Block): Block[] {
-  const index = blocks.findIndex((b) => b.id === block.id)
-  if (index === -1) return [...blocks, block]
-  const next = blocks.slice()
-  next[index] = block
-  return next
+  const index = blocks.findIndex((b) => b.id === block.id);
+  if (index === -1) return [...blocks, block];
+  const next = blocks.slice();
+  next[index] = block;
+  return next;
 }
 
 export function patch(blocks: Block[], id: string, fn: (block: Block) => Block): Block[] {
-  const index = blocks.findIndex((b) => b.id === id)
-  if (index === -1) return blocks
-  const next = blocks.slice()
-  next[index] = fn(next[index])
-  return next
+  const index = blocks.findIndex((b) => b.id === id);
+  if (index === -1) return blocks;
+  const next = blocks.slice();
+  next[index] = fn(next[index]);
+  return next;
 }
 
 function toolStatus(status: string | undefined): ToolStatus {
-  if (status === "completed") return "ok"
-  if (status === "error") return "error"
-  return "running"
+  if (status === 'completed') return 'ok';
+  if (status === 'error') return 'error';
+  return 'running';
 }
 
 function contentToText(content: unknown): string {
-  if (!Array.isArray(content)) return ""
-  const parts: string[] = []
+  if (!Array.isArray(content)) return '';
+  const parts: string[] = [];
   for (const item of content) {
-    if (!item || typeof item !== "object") continue
-    if ("type" in item && item.type === "text" && typeof item.text === "string") {
-      parts.push(item.text)
+    if (!item || typeof item !== 'object') continue;
+    if ('type' in item && item.type === 'text' && typeof item.text === 'string') {
+      parts.push(item.text);
     }
   }
-  return parts.join("\n")
+  return parts.join('\n');
 }
 
 function toolDetail(state: unknown): string {
-  if (!state || typeof state !== "object") return ""
-  const value = state as Record<string, any>
-  if (value.status === "completed" || value.status === "error") {
-    return contentToText(value.content)
+  if (!state || typeof state !== 'object') return '';
+  const value = state as Record<string, any>;
+  if (value.status === 'completed' || value.status === 'error') {
+    return contentToText(value.content);
   }
-  return value.input ? JSON.stringify(value.input, null, 2) : ""
+  return value.input ? JSON.stringify(value.input, null, 2) : '';
 }
 
 /**
@@ -59,42 +59,42 @@ function toolDetail(state: unknown): string {
  * 实际持久化的内容对齐。
  */
 export function blocksFromMessages(messages: SessionMessageInfo[]): Block[] {
-  const blocks: Block[] = []
+  const blocks: Block[] = [];
 
   for (const message of messages) {
-    if (message.type === "user") {
+    if (message.type === 'user') {
       if (message.text.trim()) {
-        blocks.push({ id: `msg:${message.id}`, kind: "user", text: message.text })
+        blocks.push({ id: `msg:${message.id}`, kind: 'user', text: message.text });
       }
-      continue
+      continue;
     }
 
-    if (message.type !== "assistant") continue
+    if (message.type !== 'assistant') continue;
 
     message.content.forEach((part, index) => {
-      if (part.type === "text") {
-        if (!part.text.trim()) return
-        blocks.push({ id: `msg:${message.id}:t${index}`, kind: "text", text: part.text })
-        return
+      if (part.type === 'text') {
+        if (!part.text.trim()) return;
+        blocks.push({ id: `msg:${message.id}:t${index}`, kind: 'text', text: part.text });
+        return;
       }
 
-      if (part.type === "reasoning") {
-        if (!part.text.trim()) return
-        blocks.push({ id: `msg:${message.id}:r${index}`, kind: "reasoning", text: part.text })
-        return
+      if (part.type === 'reasoning') {
+        if (!part.text.trim()) return;
+        blocks.push({ id: `msg:${message.id}:r${index}`, kind: 'reasoning', text: part.text });
+        return;
       }
 
-      if (part.type === "tool") {
+      if (part.type === 'tool') {
         blocks.push({
           id: `tool:${part.id}`,
-          kind: "tool",
+          kind: 'tool',
           name: part.name,
           status: toolStatus(part.state?.status),
           detail: toolDetail(part.state),
-        })
+        });
       }
-    })
+    });
   }
 
-  return blocks
+  return blocks;
 }

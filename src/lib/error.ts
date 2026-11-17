@@ -1,4 +1,4 @@
 export function errorText(error: unknown): string {
-  if (error instanceof Error) return error.message
-  return String(error)
+  if (error instanceof Error) return error.message;
+  return String(error);
 }

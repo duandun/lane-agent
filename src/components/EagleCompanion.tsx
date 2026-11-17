@@ -1,64 +1,58 @@
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState } from 'react';
 
-const SIZE = 96
+const SIZE = 96;
 
 export type EagleState =
-  | "idle"
-  | "takeoff"
-  | "thinking"
-  | "talking"
-  | "soaring"
-  | "waiting"
-  | "error"
+  'idle' | 'takeoff' | 'thinking' | 'talking' | 'soaring' | 'waiting' | 'error';
 
-type Pos = { x: number; y: number }
+type Pos = { x: number; y: number };
 
 /** 可拖拽的卡通雄鹰伙伴，动作由 agent 状态驱动。 */
-export default function EagleCompanion({ state = "idle" }: { state?: EagleState }) {
+export default function EagleCompanion({ state = 'idle' }: { state?: EagleState }) {
   const [pos, setPos] = useState<Pos>(() => ({
     x: Math.max(0, window.innerWidth - SIZE - 24),
     y: Math.max(0, window.innerHeight - SIZE - 24),
-  }))
-  const [dragging, setDragging] = useState(false)
-  const offset = useRef<Pos | null>(null)
+  }));
+  const [dragging, setDragging] = useState(false);
+  const offset = useRef<Pos | null>(null);
 
   useEffect(() => {
     const clamp = () =>
       setPos((p) => ({
         x: Math.min(p.x, Math.max(0, window.innerWidth - SIZE)),
         y: Math.min(p.y, Math.max(0, window.innerHeight - SIZE)),
-      }))
-    window.addEventListener("resize", clamp)
-    return () => window.removeEventListener("resize", clamp)
-  }, [])
+      }));
+    window.addEventListener('resize', clamp);
+    return () => window.removeEventListener('resize', clamp);
+  }, []);
 
   function down(e: React.PointerEvent<HTMLDivElement>) {
-    e.preventDefault()
-    e.currentTarget.setPointerCapture(e.pointerId)
-    offset.current = { x: e.clientX - pos.x, y: e.clientY - pos.y }
-    setDragging(true)
+    e.preventDefault();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    offset.current = { x: e.clientX - pos.x, y: e.clientY - pos.y };
+    setDragging(true);
   }
 
   function move(e: React.PointerEvent<HTMLDivElement>) {
-    const start = offset.current
-    if (!start) return
+    const start = offset.current;
+    if (!start) return;
     setPos({
       x: Math.min(Math.max(0, e.clientX - start.x), window.innerWidth - SIZE),
       y: Math.min(Math.max(0, e.clientY - start.y), window.innerHeight - SIZE),
-    })
+    });
   }
 
   function up(e: React.PointerEvent<HTMLDivElement>) {
-    offset.current = null
-    setDragging(false)
+    offset.current = null;
+    setDragging(false);
     if (e.currentTarget.hasPointerCapture(e.pointerId)) {
-      e.currentTarget.releasePointerCapture(e.pointerId)
+      e.currentTarget.releasePointerCapture(e.pointerId);
     }
   }
 
   return (
     <div
-      className={`eagle state-${state}${dragging ? " dragging" : ""}`}
+      className={`eagle state-${state}${dragging ? ' dragging' : ''}`}
       style={{ left: pos.x, top: pos.y }}
       onPointerDown={down}
       onPointerMove={move}
@@ -69,7 +63,15 @@ export default function EagleCompanion({ state = "idle" }: { state?: EagleState 
       aria-label="鹰助手"
     >
       <svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
-        <ellipse className="eagle-shadow" cx="60" cy="114" rx="24" ry="4" fill="#000" opacity="0.12" />
+        <ellipse
+          className="eagle-shadow"
+          cx="60"
+          cy="114"
+          rx="24"
+          ry="4"
+          fill="#000"
+          opacity="0.12"
+        />
 
         <g className="eagle-figure">
           {/* 尾羽 */}
@@ -77,7 +79,13 @@ export default function EagleCompanion({ state = "idle" }: { state?: EagleState 
           <path d="M53 98 L60 113 L67 98" fill="none" stroke="#5b3a1e" strokeWidth="2" />
 
           {/* 爪子 */}
-          <g className="eagle-feet" stroke="#f2b233" strokeWidth="4" strokeLinecap="round" fill="none">
+          <g
+            className="eagle-feet"
+            stroke="#f2b233"
+            strokeWidth="4"
+            strokeLinecap="round"
+            fill="none"
+          >
             <path d="M50 98 L46 109 M50 98 L50 111 M50 98 L54 109" />
             <path d="M70 98 L66 109 M70 98 L70 111 M70 98 L74 109" />
           </g>
@@ -89,11 +97,23 @@ export default function EagleCompanion({ state = "idle" }: { state?: EagleState 
           {/* 翅膀 */}
           <g className="eagle-wing eagle-wing-l">
             <path d="M35 62 C19 67 15 89 24 99 C31 93 35 85 38 75 Z" fill="#6f4620" />
-            <path d="M30 76 C26 83 25 90 27 95" fill="none" stroke="#5b3a1e" strokeWidth="2" strokeLinecap="round" />
+            <path
+              d="M30 76 C26 83 25 90 27 95"
+              fill="none"
+              stroke="#5b3a1e"
+              strokeWidth="2"
+              strokeLinecap="round"
+            />
           </g>
           <g className="eagle-wing eagle-wing-r">
             <path d="M85 62 C101 67 105 89 96 99 C89 93 85 85 82 75 Z" fill="#6f4620" />
-            <path d="M90 76 C94 83 95 90 93 95" fill="none" stroke="#5b3a1e" strokeWidth="2" strokeLinecap="round" />
+            <path
+              d="M90 76 C94 83 95 90 93 95"
+              fill="none"
+              stroke="#5b3a1e"
+              strokeWidth="2"
+              strokeLinecap="round"
+            />
           </g>
 
           {/* 头 */}
@@ -102,8 +122,24 @@ export default function EagleCompanion({ state = "idle" }: { state?: EagleState 
             <circle cx="60" cy="43" r="29" fill="#f7f2e8" />
 
             <g className="eagle-eyes">
-              <ellipse cx="48" cy="41" rx="8" ry="9" fill="#fff" stroke="#e3dacb" strokeWidth="1.5" />
-              <ellipse cx="72" cy="41" rx="8" ry="9" fill="#fff" stroke="#e3dacb" strokeWidth="1.5" />
+              <ellipse
+                cx="48"
+                cy="41"
+                rx="8"
+                ry="9"
+                fill="#fff"
+                stroke="#e3dacb"
+                strokeWidth="1.5"
+              />
+              <ellipse
+                cx="72"
+                cy="41"
+                rx="8"
+                ry="9"
+                fill="#fff"
+                stroke="#e3dacb"
+                strokeWidth="1.5"
+              />
               <circle cx="49.5" cy="42" r="3.6" fill="#2c2118" />
               <circle cx="70.5" cy="42" r="3.6" fill="#2c2118" />
               <circle cx="50.6" cy="40.4" r="1.2" fill="#fff" />
@@ -115,7 +151,13 @@ export default function EagleCompanion({ state = "idle" }: { state?: EagleState 
 
             <g className="eagle-beak">
               <path d="M51 50 C53 59 67 59 69 50 C63 54 57 54 51 50 Z" fill="#f2b233" />
-              <path d="M55 56 Q60 62 65 56" fill="none" stroke="#cf8f17" strokeWidth="2.5" strokeLinecap="round" />
+              <path
+                d="M55 56 Q60 62 65 56"
+                fill="none"
+                stroke="#cf8f17"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+              />
             </g>
 
             <circle cx="36" cy="54" r="4" fill="#e8b48d" opacity="0.55" />
@@ -138,5 +180,5 @@ export default function EagleCompanion({ state = "idle" }: { state?: EagleState 
         </g>
       </svg>
     </div>
-  )
+  );
 }
