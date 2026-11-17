@@ -76,7 +76,14 @@ opencode serve --port 4096 --cors http://localhost:5173
 2. `src/app/preload.cts` 在 `contextBridge` 里把对应方法暴露到 `window.appBridge`（编译为 `preload.cjs`）。
 3. `src/core/lib/bridge.ts` 补类型；浏览器里 `window.appBridge` 是 `undefined`，用之前先判断。
 
-目前只有健康检查：`ping()` 返回 `pong`，`info()` 返回 platform / arch / Electron / Node / Chrome 版本。
+目前提供：
+
+- `ping()` / `info()`：健康检查。
+- `fs.list(root, dir?)`：列出目录，返回 `{ name, path, dir }`，`path` 相对 `root`。
+- `fs.read(root, path)` / `fs.write(root, path, content)`：读写 UTF-8 文本。
+- `exec.npx(root, args)`：在 `root` 里执行 `npx --yes <args>`，返回 `{ code, stdout, stderr }`；超时 5 分钟，stdout/stderr 各截断到 1MB。使用安装包内置的 npm（`resources/npm`），JS 跑在 Electron 自带的 Node 上，用户机器不需要装 Node/npm；包脚本里的 `node` 由临时 shim 指向 Electron。
+
+所有文件操作都限制在传入的 `root` 内（词法校验 + `realpath`，阻止 `../` 和软链接逃逸）。`exec.npx` 会执行任意包代码（包括 install 脚本），只对可信的包使用。打包时 `scripts/bundle-npm.mjs` 会把 `node_modules/npm` 复制到 `.npm-bundle/npm`，再由 electron-builder 作为 extraResources 带进安装包。
 
 ## 三个容易踩的坑
 

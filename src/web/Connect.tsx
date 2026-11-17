@@ -19,6 +19,10 @@ export default function Connect({
   const [error, setError] = useState<string | null>(null);
   const [bridgeChecking, setBridgeChecking] = useState(false);
   const [bridgeResult, setBridgeResult] = useState<{ ok: boolean; text: string } | null>(null);
+  const [fsChecking, setFsChecking] = useState(false);
+  const [fsResult, setFsResult] = useState<{ ok: boolean; text: string } | null>(null);
+  const [npxChecking, setNpxChecking] = useState(false);
+  const [npxResult, setNpxResult] = useState<{ ok: boolean; text: string } | null>(null);
 
   async function checkBridge() {
     if (!appBridge) return;
@@ -33,6 +37,50 @@ export default function Connect({
       setBridgeResult({ ok: false, text: errorText(cause) });
     } finally {
       setBridgeChecking(false);
+    }
+  }
+
+  async function listWorkspace() {
+    if (!appBridge) return;
+    const root = String(form.getFieldValue('directory') ?? '').trim();
+    if (!root) {
+      setFsResult({ ok: false, text: '项目目录为空' });
+      return;
+    }
+    setFsChecking(true);
+    try {
+      const entries = await appBridge.fs.list(root);
+      const names = entries.slice(0, 8).map((entry) => (entry.dir ? `${entry.name}/` : entry.name));
+      setFsResult({
+        ok: true,
+        text: `共 ${entries.length} 项${names.length ? `：${names.join('、')}${entries.length > names.length ? '…' : ''}` : ''}`,
+      });
+    } catch (cause) {
+      setFsResult({ ok: false, text: errorText(cause) });
+    } finally {
+      setFsChecking(false);
+    }
+  }
+
+  async function testNpx() {
+    if (!appBridge) return;
+    const root = String(form.getFieldValue('directory') ?? '').trim();
+    if (!root) {
+      setNpxResult({ ok: false, text: '项目目录为空' });
+      return;
+    }
+    setNpxChecking(true);
+    try {
+      const result = await appBridge.exec.npx(root, ['--version']);
+      const output = (result.stdout || result.stderr).trim().split('\n')[0] ?? '';
+      setNpxResult({
+        ok: result.code === 0,
+        text: `code ${result.code}${output ? ` · ${output}` : ''}`,
+      });
+    } catch (cause) {
+      setNpxResult({ ok: false, text: errorText(cause) });
+    } finally {
+      setNpxChecking(false);
     }
   }
 
@@ -144,9 +192,17 @@ export default function Connect({
             <Typography.Text type="secondary" className="small">
               App 通道
             </Typography.Text>
-            <Button size="small" loading={bridgeChecking} onClick={() => void checkBridge()}>
-              检测 IPC
-            </Button>
+            <Flex gap={8} wrap>
+              <Button size="small" loading={bridgeChecking} onClick={() => void checkBridge()}>
+                检测 IPC
+              </Button>
+              <Button size="small" loading={fsChecking} onClick={() => void listWorkspace()}>
+                列出文件
+              </Button>
+              <Button size="small" loading={npxChecking} onClick={() => void testNpx()}>
+                测试 npx
+              </Button>
+            </Flex>
           </Flex>
           {bridgeResult && (
             <Typography.Text
@@ -154,6 +210,22 @@ export default function Connect({
               type={bridgeResult.ok ? 'success' : 'danger'}
             >
               {bridgeResult.ok ? `正常：${bridgeResult.text}` : `失败：${bridgeResult.text}`}
+            </Typography.Text>
+          )}
+          {fsResult && (
+            <Typography.Text
+              className="bridge-result small"
+              type={fsResult.ok ? 'success' : 'danger'}
+            >
+              {fsResult.ok ? `fs:list ${fsResult.text}` : `fs:list 失败：${fsResult.text}`}
+            </Typography.Text>
+          )}
+          {npxResult && (
+            <Typography.Text
+              className="bridge-result small"
+              type={npxResult.ok ? 'success' : 'danger'}
+            >
+              {npxResult.ok ? `npx ${npxResult.text}` : `npx 失败：${npxResult.text}`}
             </Typography.Text>
           )}
         </Card>

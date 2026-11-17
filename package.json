@@ -15,9 +15,10 @@
     "format:check": "prettier --check .",
     "electron:dev": "tsc -p tsconfig.electron.json && (vite & VITE_PID=$!; trap 'kill $VITE_PID' EXIT; electron . --dev)",
     "electron:start": "vite build && tsc -p tsconfig.electron.json && electron .",
-    "electron:package": "vite build && tsc -p tsconfig.electron.json && ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ ELECTRON_BUILDER_BINARIES_MIRROR=https://npmmirror.com/mirrors/electron-builder-binaries/ electron-builder",
-    "electron:package:linux": "vite build && tsc -p tsconfig.electron.json && ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ ELECTRON_BUILDER_BINARIES_MIRROR=https://npmmirror.com/mirrors/electron-builder-binaries/ electron-builder --linux AppImage --x64",
-    "electron:package:win": "vite build && tsc -p tsconfig.electron.json && ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ ELECTRON_BUILDER_BINARIES_MIRROR=https://npmmirror.com/mirrors/electron-builder-binaries/ electron-builder --win --x64"
+    "electron:package": "vite build && tsc -p tsconfig.electron.json && node scripts/bundle-npm.mjs && ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ ELECTRON_BUILDER_BINARIES_MIRROR=https://npmmirror.com/mirrors/electron-builder-binaries/ electron-builder",
+    "electron:package:linux": "vite build && tsc -p tsconfig.electron.json && node scripts/bundle-npm.mjs && ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ ELECTRON_BUILDER_BINARIES_MIRROR=https://npmmirror.com/mirrors/electron-builder-binaries/ electron-builder --linux AppImage --x64",
+    "electron:package:win": "vite build && tsc -p tsconfig.electron.json && node scripts/bundle-npm.mjs && ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ ELECTRON_BUILDER_BINARIES_MIRROR=https://npmmirror.com/mirrors/electron-builder-binaries/ electron-builder --win --x64",
+    "bundle:npm": "node scripts/bundle-npm.mjs"
   },
   "build": {
     "appId": "com.opencode.web",
@@ -31,6 +32,15 @@
       "dist-electron/**/*",
       "!node_modules/**/*"
     ],
+    "extraResources": [
+      {
+        "from": ".npm-bundle",
+        "to": ".",
+        "filter": [
+          "npm/**/*"
+        ]
+      }
+    ],
     "linux": {
       "category": "Development",
       "syncDesktopName": true
@@ -42,6 +52,7 @@
     "@ant-design/x-markdown": "^2.10.0",
     "@opencode/client": "^2.3.0",
     "antd": "^6.7.0",
+    "npm": "^12.2.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-syntax-highlighter": "^16.1.2"
