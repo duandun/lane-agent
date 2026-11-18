@@ -60,7 +60,8 @@
   },
   "dependencies": {
     "@opencode/client": "^2.3.0",
-    "react-helmet-async": "^3.1.0"
+    "react-helmet-async": "^3.1.0",
+    "zustand": "^5.1.0"
   },
   "devDependencies": {
     "@ant-design/icons": "^6.3.4",

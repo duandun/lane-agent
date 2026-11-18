@@ -1,19 +1,7 @@
 import { useEffect, useState } from 'react';
+import { useAppStore } from '../lib/store';
 
-export type ThemeMode = 'auto' | 'light' | 'dark';
 export type ResolvedTheme = 'light' | 'dark';
-
-const STORAGE_KEY = 'opencode-web.theme';
-
-function loadMode(): ThemeMode {
-  try {
-    const value = localStorage.getItem(STORAGE_KEY);
-    return value === 'light' || value === 'dark' || value === 'auto' ? value : 'auto';
-  } catch {
-    // 隐私模式可能禁用 localStorage，退回跟随系统。
-    return 'auto';
-  }
-}
 
 function systemTheme(): ResolvedTheme {
   return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
@@ -24,7 +12,8 @@ function systemTheme(): ResolvedTheme {
  * 把解析结果写到 <html data-theme>，CSS 变量和 antd token 一起切换。
  */
 export function useThemeMode() {
-  const [mode, setMode] = useState<ThemeMode>(loadMode);
+  const mode = useAppStore((state) => state.themeMode);
+  const setMode = useAppStore((state) => state.setThemeMode);
   const [system, setSystem] = useState<ResolvedTheme>(systemTheme);
 
   useEffect(() => {
@@ -38,12 +27,7 @@ export function useThemeMode() {
 
   useEffect(() => {
     document.documentElement.dataset.theme = resolved;
-    try {
-      localStorage.setItem(STORAGE_KEY, mode);
-    } catch {
-      // 存不了也不影响当前会话。
-    }
-  }, [mode, resolved]);
+  }, [resolved]);
 
   return { mode, resolved, setMode };
 }

@@ -374,7 +374,7 @@ code {
 
 /* --------------------------------------------------------------- eagle */
 
-.eagle {
+.companion {
   position: fixed;
   width: 96px;
   height: 96px;
@@ -385,7 +385,7 @@ code {
   filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.18));
 }
 
-.eagle svg {
+.companion svg {
   display: block;
   width: 100%;
   height: 100%;
@@ -540,6 +540,163 @@ code {
 }
 .state-error .eagle-wing-r {
   transform: rotate(-10deg);
+}
+
+/* --------------------------------------------------------------- cat */
+
+.cat-figure {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: eagle-bob 3.2s ease-in-out infinite;
+}
+
+.cat-head {
+  transform-box: fill-box;
+  transform-origin: 50% 92%;
+}
+
+.cat-tail {
+  transform-box: fill-box;
+  transform-origin: 0% 100%;
+  animation: cat-tail-wag 2.8s ease-in-out infinite;
+}
+
+.cat-ear-l,
+.cat-ear-r,
+.cat-mouth,
+.cat-shadow,
+.cat-alert {
+  transform-box: fill-box;
+}
+.cat-ear-l,
+.cat-ear-r {
+  transform-origin: 50% 100%;
+}
+.cat-mouth {
+  transform-origin: 50% 0;
+}
+.cat-shadow,
+.cat-alert {
+  transform-origin: center;
+}
+
+.cat-eyes {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: eagle-blink 5.5s infinite;
+}
+
+.cat-thought,
+.cat-alert {
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.cat.dragging .cat-figure {
+  animation: none;
+}
+
+/* 静止 */
+.state-idle .cat-figure {
+  animation: eagle-bob 3.2s ease-in-out infinite;
+}
+
+/* 思考 */
+.state-thinking .cat-figure {
+  animation: eagle-bob 4s ease-in-out infinite;
+}
+.state-thinking .cat-head {
+  animation: eagle-think 2.6s ease-in-out infinite;
+}
+.state-thinking .cat-thought {
+  opacity: 1;
+}
+.state-thinking .cat-thought circle {
+  animation: eagle-dot 1.6s ease-in-out infinite;
+}
+.state-thinking .cat-thought circle:nth-child(2) {
+  animation-delay: 0.18s;
+}
+.state-thinking .cat-thought circle:nth-child(3) {
+  animation-delay: 0.36s;
+}
+
+/* 说话 */
+.state-talking .cat-figure {
+  animation: eagle-bob 1.4s ease-in-out infinite;
+}
+.state-talking .cat-head {
+  animation: eagle-nod 0.5s ease-in-out infinite alternate;
+}
+.state-talking .cat-mouth {
+  animation: eagle-talk 0.22s ease-in-out infinite alternate;
+}
+.state-talking .cat-tail {
+  animation: cat-tail-wag 0.9s ease-in-out infinite;
+}
+
+/* 起飞 */
+.state-takeoff .cat-figure {
+  animation: eagle-takeoff 0.9s ease-in-out infinite;
+}
+.state-takeoff .cat-tail {
+  animation: cat-tail-wag 0.35s ease-in-out infinite;
+}
+.state-takeoff .cat-shadow {
+  opacity: 0.05;
+  transform: scale(0.8);
+}
+
+/* 翱翔 */
+.state-soaring .cat-figure {
+  animation: cat-soar 2.6s ease-in-out infinite;
+}
+.state-soaring .cat-shadow {
+  opacity: 0.04;
+  transform: scale(0.65);
+}
+
+/* 等待授权 */
+.state-waiting .cat-figure {
+  animation: eagle-hover 1.6s ease-in-out infinite;
+}
+.state-waiting .cat-alert {
+  opacity: 1;
+  animation: eagle-alert 1.2s ease-in-out infinite;
+}
+
+/* 出错 / 断线 */
+.state-error .cat-figure {
+  animation: eagle-droop 4s ease-in-out infinite;
+}
+.state-error .cat-head {
+  animation: eagle-sad 4s ease-in-out infinite;
+}
+.state-error .cat-ear-l {
+  transform: rotate(-18deg);
+}
+.state-error .cat-ear-r {
+  transform: rotate(18deg);
+}
+
+@keyframes cat-tail-wag {
+  0%,
+  100% {
+    transform: rotate(-6deg);
+  }
+  50% {
+    transform: rotate(8deg);
+  }
+}
+
+@keyframes cat-soar {
+  0%,
+  100% {
+    transform: translate(-10px, -12px) rotate(-5deg) scale(1.02);
+  }
+  50% {
+    transform: translate(10px, -26px) rotate(5deg) scale(1.06);
+  }
 }
 
 @keyframes eagle-bob {
@@ -738,8 +895,8 @@ code {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .eagle,
-  .eagle * {
+  .companion,
+  .companion * {
     animation: none !important;
   }
 }

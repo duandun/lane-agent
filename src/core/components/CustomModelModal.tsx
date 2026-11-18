@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { App as AntdApp, Flex, Input, Modal, Typography } from 'antd';
 import type { Client } from '../lib/client';
-import { saveCustomModel, type CustomModel } from '../lib/customModels';
+import { useAppStore, type CustomModel } from '../lib/store';
 import { errorText } from '../lib/error';
 import Field from './Field';
 
@@ -29,6 +29,7 @@ export default function CustomModelModal({
   onSaved: (model: CustomModel) => Promise<void>;
 }) {
   const { message } = AntdApp.useApp();
+  const saveCustomModel = useAppStore((state) => state.saveCustomModel);
   const [providerID, setProviderID] = useState('');
   const [modelID, setModelID] = useState('');
   const [name, setName] = useState('');

@@ -5,18 +5,16 @@ import { LogoutOutlined, MoonOutlined, SunOutlined, DesktopOutlined } from '@ant
 import type { SkillInfo } from '@opencode/client';
 import AttachmentButton from '@core/components/AttachmentButton';
 import CustomModelModal from '@core/components/CustomModelModal';
-import EagleCompanion, { type EagleState } from '@core/components/EagleCompanion';
+import Companion, { type CompanionState } from '@core/components/companion';
 import Messages from '@core/components/Messages';
 import PermissionModal from '@core/components/PermissionModal';
 import QuestionPrompt from '@core/components/QuestionPrompt';
 import SkillPicker from '@core/components/SkillPicker';
 import { useAttachments } from '@core/hooks/useAttachments';
 import { useChatSession, type ChatStatus, type ModelRef } from '@core/hooks/useChatSession';
-import type { ThemeMode } from '@core/hooks/useThemeMode';
 import { appBridge } from '@core/lib/bridge';
 import { makeClient, type Conn } from '@core/lib/client';
-import { loadCustomModels, type CustomModel } from '@core/lib/customModels';
-import { clearModel, loadModel, saveModel } from '@core/lib/modelPreference';
+import { useAppStore, type CompanionKind } from '@core/lib/store';
 
 type ModelOption = { value: string; label: string };
 
@@ -41,17 +39,11 @@ const STATUS_META: Record<
  * 单个 OpenCode 会话的聊天外壳：会话与事件流由 useChatSession 负责，
  * 这里只处理模型选择、输入区和弹窗。
  */
-export default function Chat({
-  conn,
-  themeMode,
-  onThemeChange,
-  onDisconnect,
-}: {
-  conn: Conn;
-  themeMode: ThemeMode;
-  onThemeChange: (mode: ThemeMode) => void;
-  onDisconnect: () => void;
-}) {
+export default function Chat({ conn, onDisconnect }: { conn: Conn; onDisconnect: () => void }) {
+  const themeMode = useAppStore((state) => state.themeMode);
+  const setThemeMode = useAppStore((state) => state.setThemeMode);
+  const companion = useAppStore((state) => state.companion);
+  const setCompanion = useAppStore((state) => state.setCompanion);
   const client = useMemo(() => makeClient(conn), [conn]);
   const {
     sessionID,
@@ -74,14 +66,15 @@ export default function Chat({
   } = useChatSession(conn, client);
 
   const [draft, setDraft] = useState('');
-  const [model, setModel] = useState<ModelRef | null>(loadModel);
+  const model = useAppStore((state) => state.model);
+  const setModel = useAppStore((state) => state.setModel);
   // 已发送内容的最近 10 条，最新在前；上箭头依次回填。
   const historyRef = useRef<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [modelOptions, setModelOptions] = useState<ModelOption[]>([]);
   const [modelsReady, setModelsReady] = useState(false);
   const [customOpen, setCustomOpen] = useState(false);
-  const [customModels, setCustomModels] = useState<CustomModel[]>(loadCustomModels);
+  const customModels = useAppStore((state) => state.customModels);
   const [skills, setSkills] = useState<SkillInfo[]>([]);
   const [selectedSkill, setSelectedSkill] = useState<SkillInfo | null>(null);
   const senderRef = useRef<ComponentRef<typeof Sender>>(null);
@@ -149,7 +142,6 @@ export default function Chat({
     const valid = (ref: ModelRef) =>
       options.some((option) => option.value === `${ref.providerID}/${ref.id}`);
     if (selected && !valid(selected)) {
-      clearModel();
       selected = null;
       setModel(null);
     }
@@ -162,7 +154,7 @@ export default function Chat({
   }
 
   useEffect(() => {
-    reloadModels(loadModel()).catch(() => {
+    reloadModels(useAppStore.getState().model).catch(() => {
       // 模型列表属于可选 UI；拉取失败时仍使用服务端默认模型。
     });
   }, [client, conn.directory]);
@@ -186,7 +178,6 @@ export default function Chat({
     if (slash < 0) return;
     const ref = { providerID: value.slice(0, slash), id: value.slice(slash + 1) };
     setModel(ref);
-    saveModel(ref);
     void switchModel(ref);
   }
 
@@ -209,7 +200,7 @@ export default function Chat({
 
   const meta = STATUS_META[status];
 
-  function companionState(): EagleState {
+  function companionState(): CompanionState {
     if (status === 'offline' || error) return 'error';
     if (status === 'connecting') return 'takeoff';
     if (queue.length > 0) return 'waiting';
@@ -245,6 +236,15 @@ export default function Chat({
           </Tooltip>
         </Flex>
         <Flex align="center" gap={8} className="shrink-0">
+          <Select<CompanionKind>
+            value={companion}
+            onChange={setCompanion}
+            options={[
+              { value: 'eagle', label: '小鹰' },
+              { value: 'cat', label: '小猫' },
+            ]}
+            popupMatchSelectWidth={false}
+          />
           <Select
             className="w-[200px]! max-sm:w-[130px]!"
             placeholder="选择模型"
@@ -277,7 +277,7 @@ export default function Chat({
               selectedKeys: [themeMode],
               items: THEME_ITEMS,
               onClick: ({ key }) => {
-                if (key === 'auto' || key === 'light' || key === 'dark') onThemeChange(key);
+                if (key === 'auto' || key === 'light' || key === 'dark') setThemeMode(key);
               },
             }}
           >
@@ -378,9 +378,11 @@ export default function Chat({
                       />
                     )}
                   </Flex>
-                  <Typography.Text type="secondary" className="text-xs!">
-                    Enter 发送 · Shift+Enter 换行
-                  </Typography.Text>
+                  <Flex align="center" gap={8}>
+                    <Typography.Text type="secondary" className="text-xs!">
+                      Enter 发送 · Shift+Enter 换行
+                    </Typography.Text>
+                  </Flex>
                 </Flex>
               }
             />
@@ -388,7 +390,7 @@ export default function Chat({
         )}
       </footer>
 
-      <EagleCompanion state={companionState()} />
+      <Companion kind={companion} state={companionState()} />
 
       <PermissionModal
         request={queue[0]}
@@ -404,11 +406,9 @@ export default function Chat({
         editing={customModel}
         onClose={() => setCustomOpen(false)}
         onSaved={async (saved) => {
-          setCustomModels(loadCustomModels());
           await reloadModels(model);
           const ref = { providerID: saved.providerID, id: saved.modelID };
           setModel(ref);
-          saveModel(ref);
           await switchModel(ref);
         }}
       />
