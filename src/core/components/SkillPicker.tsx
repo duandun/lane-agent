@@ -42,6 +42,8 @@ export default function SkillPicker({
               ) : undefined
             }
             placement="topLeft"
+            // 列表里快速上下移动时不要让 Tooltip 跟着连续弹出。
+            mouseEnterDelay={0.35}
             styles={{ root: { maxWidth: 'none' }, container: { width: 340 } }}
           >
             <Typography.Text strong className="font-mono text-[14px]">
@@ -89,7 +91,7 @@ export default function SkillPicker({
         },
       }}
       popupRender={(menu) => (
-        <div className="w-[400px] rounded-lg border border-(--line) bg-(--panel) p-2 shadow-xl">
+        <div className="skill-picker-popup w-[400px] rounded-lg border border-(--line) bg-(--panel) p-2 shadow-xl">
           <Input
             ref={inputRef}
             allowClear

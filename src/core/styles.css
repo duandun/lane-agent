@@ -361,6 +361,11 @@ code {
   }
 }
 
+/* SkillPicker：选项 hover 立即切换，避免过渡期间相邻两项同时高亮造成闪烁。 */
+.skill-picker-popup .ant-dropdown-menu-item {
+  transition: none !important;
+}
+
 /* ---------------------------------------------------------------- scroll */
 
 .bubbles .ant-bubble-list-scroll-box {
