@@ -17,6 +17,8 @@
   --user-bubble: #1e3252;
   --activity-avatar: #2a303b;
   --activity-avatar-fg: #8fb4ff;
+  --ai-avatar: linear-gradient(135deg, #2017ef, #4f8cff);
+  --ai-avatar-fg: #fff;
   --mono: 'SF Mono', ui-monospace, Menlo, monospace;
   font-family: -apple-system, 'SF Pro Text', 'PingFang SC', 'Segoe UI', system-ui, sans-serif;
   color-scheme: dark;

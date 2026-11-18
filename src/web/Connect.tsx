@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Alert, Avatar, Button, Card, Flex, Form, Input, Typography } from 'antd';
+import { Alert, Button, Card, Flex, Form, Input, Typography } from 'antd';
 import { Welcome } from '@ant-design/x';
-import { ApiOutlined, LockOutlined, FolderOpenOutlined, LinkOutlined } from '@ant-design/icons';
+import { LockOutlined, FolderOpenOutlined, LinkOutlined } from '@ant-design/icons';
 import { appBridge } from '@core/lib/bridge';
 import { DEFAULT_CONN, makeClient, type Conn } from '@core/lib/client';
 import { errorText } from '@core/lib/error';
+import laneIcon from '@assets/favicon.svg';
 
 /** 连接表单：先用 Basic Auth 校验服务端，通过后再保存 Conn。 */
 export default function Connect({
@@ -141,13 +142,7 @@ export default function Connect({
       >
         <Welcome
           variant="borderless"
-          icon={
-            <Avatar
-              size={52}
-              icon={<ApiOutlined />}
-              style={{ background: 'linear-gradient(135deg, #4f8cff, #7c5cff)' }}
-            />
-          }
+          icon={<img src={laneIcon} alt="Lane" width={52} height={52} />}
           title="Lane"
           description={
             appBridge

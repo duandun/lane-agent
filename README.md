@@ -137,8 +137,9 @@ src/
       paths.ts         root 路径校验
     preload.cts        contextBridge 暴露给渲染进程（编译为 preload.cjs）
     skill.ts           把内置 agent-desktop CLI + skill 装到 OpenCode 全局目录
-    build/icon.png     打包图标
 assets/
+  favicon.svg          Lane 图标（网页 favicon 和页面内图标）
+  icon.png             打包图标
   agent-desktop-skill/ 内置的 agent-desktop SKILL.md 和 references
 scripts/
   bundle-runtime.mjs     把 npm / agent-desktop 复制到 .npm-bundle

@@ -3,6 +3,8 @@ import { App as AntdApp } from 'antd';
 import zhCN from 'antd/locale/zh_CN';
 import xZhCN from '@ant-design/x/locale/zh_CN';
 import { XProvider } from '@ant-design/x';
+import { Helmet, HelmetProvider } from 'react-helmet-async';
+import favicon from '@assets/favicon.svg';
 import EagleCompanion from '@core/components/EagleCompanion';
 import { useThemeMode } from '@core/hooks/useThemeMode';
 import { DEFAULT_CONN, type Conn } from '@core/lib/client';
@@ -32,31 +34,36 @@ export default function App() {
   const { mode, resolved, setMode } = useThemeMode();
 
   return (
-    <XProvider theme={resolved === 'dark' ? darkTheme : lightTheme} locale={locale}>
-      <AntdApp component={false}>
-        {conn ? (
-          <LazyChat
-            conn={conn}
-            themeMode={mode}
-            onThemeChange={setMode}
-            onDisconnect={() => {
-              localStorage.removeItem(STORAGE_KEY);
-              setConn(null);
-            }}
-          />
-        ) : (
-          <>
-            <LazyConnect
-              initial={loadConn() ?? DEFAULT_CONN}
-              onConnect={(next) => {
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-                setConn(next);
+    <HelmetProvider>
+      <Helmet>
+        <link rel="icon" type="image/svg+xml" href={favicon} />
+      </Helmet>
+      <XProvider theme={resolved === 'dark' ? darkTheme : lightTheme} locale={locale}>
+        <AntdApp component={false}>
+          {conn ? (
+            <LazyChat
+              conn={conn}
+              themeMode={mode}
+              onThemeChange={setMode}
+              onDisconnect={() => {
+                localStorage.removeItem(STORAGE_KEY);
+                setConn(null);
               }}
             />
-            <EagleCompanion />
-          </>
-        )}
-      </AntdApp>
-    </XProvider>
+          ) : (
+            <>
+              <LazyConnect
+                initial={loadConn() ?? DEFAULT_CONN}
+                onConnect={(next) => {
+                  localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+                  setConn(next);
+                }}
+              />
+              <EagleCompanion />
+            </>
+          )}
+        </AntdApp>
+      </XProvider>
+    </HelmetProvider>
   );
 }

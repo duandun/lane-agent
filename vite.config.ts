@@ -19,6 +19,7 @@ export default defineConfig({
       '@core': resolve('src/core'),
       '@web': resolve('src/web'),
       '@app': resolve('src/app'),
+      '@assets': resolve('src/assets'),
     },
   },
   build: {

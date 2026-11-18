@@ -1,7 +1,7 @@
 import type { SessionMessageInfo } from '@opencode/client';
 
 export type Block =
-  | { id: string; kind: 'user'; text: string; skills?: SkillTag[] }
+  | { id: string; kind: 'user'; text: string; skills?: SkillTag[]; files?: string[] }
   | { id: string; kind: 'text'; text: string }
   | { id: string; kind: 'reasoning'; text: string }
   | { id: string; kind: 'tool'; name: string; status: ToolStatus; detail: string }
@@ -65,12 +65,13 @@ export function blocksFromMessages(messages: SessionMessageInfo[]): Block[] {
 
   for (const message of messages) {
     if (message.type === 'user') {
-      if (message.text.trim()) {
+      if (message.text.trim() || message.files?.length) {
         blocks.push({
           id: `msg:${message.id}`,
           kind: 'user',
           text: message.text,
           skills: message.skills?.map(({ id, name }) => ({ id, name })),
+          files: message.files?.map((file) => file.name ?? '附件'),
         });
       }
       continue;

@@ -1,7 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ComponentRef } from 'react';
 import { Alert, Badge, Button, Dropdown, Flex, Select, Tag, Tooltip, Typography } from 'antd';
-import { Sender } from '@ant-design/x';
-import { LogoutOutlined, MoonOutlined, SunOutlined, DesktopOutlined } from '@ant-design/icons';
+import type { UploadFile } from 'antd';
+import { Sender, Attachments } from '@ant-design/x';
+import {
+  LogoutOutlined,
+  MoonOutlined,
+  SunOutlined,
+  DesktopOutlined,
+  PaperClipOutlined,
+} from '@ant-design/icons';
 import type { SkillInfo } from '@opencode/client';
 import CustomModelModal from '@core/components/CustomModelModal';
 import EagleCompanion, { type EagleState } from '@core/components/EagleCompanion';
@@ -17,6 +24,15 @@ import { loadCustomModels, type CustomModel } from '@core/lib/customModels';
 import { clearModel, loadModel, saveModel } from '@core/lib/modelPreference';
 
 type ModelOption = { value: string; label: string };
+
+function readDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
 
 const CUSTOM_MODEL_VALUE = '__custom_model__';
 
@@ -79,7 +95,31 @@ export default function Chat({
   const [customModels, setCustomModels] = useState<CustomModel[]>(loadCustomModels);
   const [skills, setSkills] = useState<SkillInfo[]>([]);
   const [selectedSkill, setSelectedSkill] = useState<SkillInfo | null>(null);
+  const [attachments, setAttachments] = useState<UploadFile[]>([]);
   const senderRef = useRef<ComponentRef<typeof Sender>>(null);
+  const attachmentsRef = useRef<ComponentRef<typeof Attachments>>(null);
+
+  async function submit(text: string) {
+    let files: { name: string; uri: string }[];
+    try {
+      files = (
+        await Promise.all(
+          attachments.map(async (file) => {
+            const origin = file.originFileObj;
+            return origin ? { name: file.name, uri: await readDataUrl(origin) } : null;
+          })
+        )
+      ).filter((file): file is { name: string; uri: string } => file !== null);
+    } catch (cause) {
+      console.error('读取附件失败：', cause);
+      return;
+    }
+    setDraft('');
+    const skillTags = selectedSkill ? [{ id: selectedSkill.id, name: selectedSkill.name }] : [];
+    setSelectedSkill(null);
+    setAttachments([]);
+    await send(text, skillTags, files);
+  }
 
   const modelRef = useRef<ModelRef | null>(model);
   const appliedInitialModel = useRef(false);
@@ -282,19 +322,12 @@ export default function Chat({
               className={busy ? 'thinking' : undefined}
               value={draft}
               onChange={setDraft}
-              onSubmit={(text) => {
-                setDraft('');
-                const skillTags = selectedSkill
-                  ? [{ id: selectedSkill.id, name: selectedSkill.name }]
-                  : [];
-                setSelectedSkill(null);
-                void send(text, skillTags);
-              }}
+              onSubmit={(text) => void submit(text)}
               loading={busy}
               onCancel={() => void stop()}
               disabled={!sessionID}
               placeholder={
-                sessionID ? '描述你要 agent 做的事，Enter 发送，Shift+Enter 换行' : '正在创建会话…'
+                sessionID ? '描述你要 Lane 做的事，Enter 发送，Shift+Enter 换行' : '正在创建会话…'
               }
               autoSize={{ minRows: 2, maxRows: 2 }}
               skill={
@@ -306,24 +339,42 @@ export default function Chat({
                     }
                   : undefined
               }
+              header={
+                <Attachments
+                  ref={attachmentsRef}
+                  beforeUpload={() => false}
+                  items={attachments}
+                  disabled={!sessionID || busy}
+                  onChange={({ fileList }) => setAttachments(fileList)}
+                  // 上传入口放在输入框左下角，这里只展示已选文件卡片。
+                  styles={{ placeholder: { display: 'none' } }}
+                />
+              }
               footer={
-                <Flex
-                  align="center"
-                  gap={8}
-                  className={appBridge ? 'justify-between' : 'justify-end'}
-                >
-                  {appBridge && (
-                    <SkillPicker
-                      skills={skills}
-                      selected={selectedSkill}
-                      onSelect={(skill) => {
-                        setSelectedSkill(skill);
-                        // 选中后 Sender 会从 textarea 换成 contenteditable，等重渲染完再聚焦。
-                        requestAnimationFrame(() => senderRef.current?.focus());
-                      }}
-                      onRefresh={() => void refreshSkills()}
-                    />
-                  )}
+                <Flex align="center" justify="space-between" gap={8}>
+                  <Flex align="center" gap={4}>
+                    <Tooltip title="上传附件">
+                      <Button
+                        type="text"
+                        size="small"
+                        icon={<PaperClipOutlined />}
+                        disabled={!sessionID || busy}
+                        onClick={() => attachmentsRef.current?.select({ multiple: true })}
+                      />
+                    </Tooltip>
+                    {appBridge && (
+                      <SkillPicker
+                        skills={skills}
+                        selected={selectedSkill}
+                        onSelect={(skill) => {
+                          setSelectedSkill(skill);
+                          // 选中后 Sender 会从 textarea 换成 contenteditable，等重渲染完再聚焦。
+                          requestAnimationFrame(() => senderRef.current?.focus());
+                        }}
+                        onRefresh={() => void refreshSkills()}
+                      />
+                    )}
+                  </Flex>
                   <Typography.Text type="secondary" className="text-xs!">
                     Enter 发送 · Shift+Enter 换行
                   </Typography.Text>

@@ -14,17 +14,19 @@ import {
   CopyOutlined,
   ExperimentOutlined,
   FileSearchOutlined,
+  PaperClipOutlined,
   RedoOutlined,
-  RobotOutlined,
   ThunderboltFilled,
   UserOutlined,
 } from '@ant-design/icons';
 import Markdown from './Markdown';
 import Activity, { type ActivityBlock } from './Activity';
 import type { Block, SkillTag } from '../lib/blocks';
+import laneIcon from '@assets/favicon.svg';
+import laneIconMark from '@assets/lane-agent-mark.svg';
 
 type ViewItem =
-  | { key: string; role: 'user'; text: string; skills?: SkillTag[] }
+  | { key: string; role: 'user'; text: string; skills?: SkillTag[]; files?: string[] }
   | { key: string; role: 'ai'; text: string }
   | { key: string; role: 'activity'; blocks: ActivityBlock[] }
   | { key: string; role: 'system'; text: string };
@@ -42,8 +44,16 @@ const ROLES = {
     avatar: (
       <Avatar
         size="small"
-        icon={<RobotOutlined />}
-        style={{ background: 'linear-gradient(135deg, #4f8cff, #7c5cff)' }}
+        icon={
+          <img
+            src={laneIconMark}
+            alt="lane"
+            width={32}
+            height={32}
+            className="brightness-0 invert"
+          />
+        }
+        style={{ background: 'var(--ai-avatar)', color: 'var(--ai-avatar-fg)' }}
       />
     ),
   },
@@ -103,7 +113,13 @@ function toViewItems(blocks: Block[]): ViewItem[] {
       continue;
     }
     if (block.kind === 'user') {
-      items.push({ key: block.id, role: 'user', text: block.text, skills: block.skills });
+      items.push({
+        key: block.id,
+        role: 'user',
+        text: block.text,
+        skills: block.skills,
+        files: block.files,
+      });
       continue;
     }
     items.push({ key: block.id, role: 'ai', text: block.text });
@@ -162,13 +178,14 @@ export default function Messages({
         return { key: item.key, role: 'system', content: item.text };
       }
       if (item.role === 'user') {
+        const hasMeta = item.skills?.length || item.files?.length;
         return {
           key: item.key,
           role: 'user',
-          content: item.skills?.length ? (
+          content: hasMeta ? (
             <div className="flex flex-col items-end gap-2">
               <div className="flex flex-wrap justify-end gap-1">
-                {item.skills.map((skill) => (
+                {item.skills?.map((skill) => (
                   <span
                     key={skill.id}
                     className="inline-flex items-center gap-1.5 rounded-full border border-(--accent)/25 bg-(--accent)/10 px-2 py-1 text-[12px] font-medium leading-none text-(--accent)"
@@ -177,8 +194,17 @@ export default function Messages({
                     {skill.name}
                   </span>
                 ))}
+                {item.files?.map((name, index) => (
+                  <span
+                    key={`file:${index}`}
+                    className="inline-flex max-w-[240px] items-center gap-1.5 rounded-full border border-(--line) bg-(--panel-2) px-2 py-1 text-[12px] leading-none text-(--muted)"
+                  >
+                    <PaperClipOutlined className="shrink-0 text-[10px]" />
+                    <span className="truncate">{name}</span>
+                  </span>
+                ))}
               </div>
-              <span>{item.text}</span>
+              {item.text && <span>{item.text}</span>}
             </div>
           ) : (
             item.text
@@ -231,17 +257,8 @@ export default function Messages({
       <div className="empty flex min-h-0 w-full min-w-0 flex-1 flex-col items-center justify-center gap-2.5 overflow-y-auto px-0 pb-6 pt-2">
         <Welcome
           variant="borderless"
-          icon={
-            <Avatar
-              size={48}
-              icon={<ThunderboltFilled />}
-              style={{
-                background: 'linear-gradient(135deg, #4f8cff, #7c5cff)',
-                color: '#fff',
-              }}
-            />
-          }
-          title="交给 agent 吧"
+          icon={<img src={laneIcon} alt="Lane" width={52} height={52} />}
+          title="交给 Lane 吧"
           description={`已连接 ${directory}，在下面描述你想做的事。`}
         />
         <Prompts
