@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ComponentRef } from 'react';
+import { useEffect, useMemo, useRef, useState, type ComponentRef } from 'react';
 import { Alert, Badge, Button, Dropdown, Flex, Select, Tag, Tooltip, Typography } from 'antd';
 import { Sender } from '@ant-design/x';
 import { LogoutOutlined, MoonOutlined, SunOutlined, DesktopOutlined } from '@ant-design/icons';
@@ -130,11 +130,10 @@ export default function Chat({
     }
   }
 
-  const modelRef = useRef<ModelRef | null>(model);
   const appliedInitialModel = useRef(false);
 
-  // 当前目录可用的模型，以及服务端默认模型。
-  const reloadModels = useCallback(async () => {
+  // 当前目录可用的模型，以及服务端默认模型；selected 是调用时的当前选择。
+  async function reloadModels(selected: ModelRef | null) {
     const location = conn.directory ? { directory: conn.directory } : undefined;
     const [list, current] = await Promise.all([
       client.model.list({ location, types: ['chat'] }),
@@ -149,32 +148,31 @@ export default function Chat({
     // 保存的模型如果已不在目录里，清掉偏好并退回服务端默认模型。
     const valid = (ref: ModelRef) =>
       options.some((option) => option.value === `${ref.providerID}/${ref.id}`);
-    if (modelRef.current && !valid(modelRef.current)) {
+    if (selected && !valid(selected)) {
       clearModel();
-      modelRef.current = null;
+      selected = null;
       setModel(null);
     }
-    if (!modelRef.current && current.data) {
+    if (!selected && current.data) {
       const ref = { providerID: current.data.providerID, id: current.data.id };
-      modelRef.current = ref;
       setModel(ref);
     }
 
     setModelsReady(true);
-  }, [client, conn.directory]);
+  }
 
   useEffect(() => {
-    reloadModels().catch(() => {
+    reloadModels(loadModel()).catch(() => {
       // 模型列表属于可选 UI；拉取失败时仍使用服务端默认模型。
     });
-  }, [reloadModels]);
+  }, [client, conn.directory]);
 
   // 会话创建后补一次模型切换，避免默认模型比会话晚返回。
   useEffect(() => {
     if (!sessionID || !model || !modelsReady || appliedInitialModel.current) return;
     appliedInitialModel.current = true;
     void switchModel(model);
-  }, [model, modelsReady, sessionID, switchModel]);
+  }, [model, modelsReady, sessionID]);
 
   const customModel = customModels.find((item) => item.providerID === model?.providerID) ?? null;
 
@@ -187,14 +185,13 @@ export default function Chat({
     const slash = value.indexOf('/');
     if (slash < 0) return;
     const ref = { providerID: value.slice(0, slash), id: value.slice(slash + 1) };
-    modelRef.current = ref;
     setModel(ref);
     saveModel(ref);
     void switchModel(ref);
   }
 
   // 桌面端才提供 skill 选择；Web 端直接跳过。会话创建前 skill 列表可能为空，所以等 sessionID。
-  const refreshSkills = useCallback(async () => {
+  async function refreshSkills() {
     if (!appBridge || !sessionID) return;
     try {
       const result = await client.skill.list({
@@ -204,11 +201,11 @@ export default function Chat({
     } catch {
       // 服务端没有 skill API 时忽略。
     }
-  }, [client, conn.directory, sessionID]);
+  }
 
   useEffect(() => {
     void refreshSkills();
-  }, [refreshSkills]);
+  }, [client, conn.directory, sessionID]);
 
   const meta = STATUS_META[status];
 
@@ -408,9 +405,8 @@ export default function Chat({
         onClose={() => setCustomOpen(false)}
         onSaved={async (saved) => {
           setCustomModels(loadCustomModels());
-          await reloadModels();
+          await reloadModels(model);
           const ref = { providerID: saved.providerID, id: saved.modelID };
-          modelRef.current = ref;
           setModel(ref);
           saveModel(ref);
           await switchModel(ref);

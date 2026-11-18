@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { FormAnswer, FormInfo, PermissionRequest } from '@opencode/client';
 import type { Client, Conn } from '../lib/client';
 import {
@@ -51,13 +51,10 @@ export function useChatSession(conn: Conn, client: Client) {
     sessionRef.current = sessionID;
   }, [sessionID]);
 
-  const reload = useCallback(
-    async (id: string) => {
-      const response = await client.message.list({ sessionID: id, order: 'asc', limit: 200 });
-      setBlocks(blocksFromMessages(response.data));
-    },
-    [client]
-  );
+  async function reload(id: string) {
+    const response = await client.message.list({ sessionID: id, order: 'asc', limit: 200 });
+    setBlocks(blocksFromMessages(response.data));
+  }
 
   // 在所选目录里创建会话。
   useEffect(() => {
@@ -90,7 +87,7 @@ export function useChatSession(conn: Conn, client: Client) {
     return () => {
       cancelled = true;
     };
-  }, [client, conn.directory, reload]);
+  }, [client, conn.directory]);
 
   // 连接建立前已经产生的授权请求。
   useEffect(() => {
@@ -315,7 +312,7 @@ export function useChatSession(conn: Conn, client: Client) {
 
     void subscribe();
     return () => controller.abort();
-  }, [client, reload]);
+  }, [client]);
 
   async function send(text: string, skills: SkillTag[] = []) {
     const value = text.trim();
@@ -341,26 +338,23 @@ export function useChatSession(conn: Conn, client: Client) {
 
   // 重新执行产生这条回答的 prompt。revert.stage 会让服务端从该 user 消息
   // 开始截断，因此新一轮会替换旧回答，而不是追加。
-  const regenerate = useCallback(
-    async (userMessageID: string, text: string, userBlockID: string) => {
-      if (!sessionID || busy) return;
-      setError(null);
-      setBusy(true);
-      setActivity('thinking');
-      setBlocks((current) => {
-        const index = current.findIndex((block) => block.id === userBlockID);
-        return index === -1 ? current : current.slice(0, index + 1);
-      });
-      try {
-        await client.session.revert.stage({ sessionID, messageID: userMessageID, files: false });
-        await client.session.prompt({ sessionID, text });
-      } catch (cause) {
-        setBusy(false);
-        setError(errorText(cause));
-      }
-    },
-    [busy, client, sessionID]
-  );
+  async function regenerate(userMessageID: string, text: string, userBlockID: string) {
+    if (!sessionID || busy) return;
+    setError(null);
+    setBusy(true);
+    setActivity('thinking');
+    setBlocks((current) => {
+      const index = current.findIndex((block) => block.id === userBlockID);
+      return index === -1 ? current : current.slice(0, index + 1);
+    });
+    try {
+      await client.session.revert.stage({ sessionID, messageID: userMessageID, files: false });
+      await client.session.prompt({ sessionID, text });
+    } catch (cause) {
+      setBusy(false);
+      setError(errorText(cause));
+    }
+  }
 
   async function stop() {
     if (!sessionID) return;
@@ -422,17 +416,14 @@ export function useChatSession(conn: Conn, client: Client) {
     }
   }
 
-  const switchModel = useCallback(
-    async (model: ModelRef) => {
-      if (!sessionID) return;
-      try {
-        await client.session.switchModel({ sessionID, model });
-      } catch (cause) {
-        setError(errorText(cause));
-      }
-    },
-    [client, sessionID]
-  );
+  async function switchModel(model: ModelRef) {
+    if (!sessionID) return;
+    try {
+      await client.session.switchModel({ sessionID, model });
+    } catch (cause) {
+      setError(errorText(cause));
+    }
+  }
 
   return {
     sessionID,
