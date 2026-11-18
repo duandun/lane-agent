@@ -14,7 +14,7 @@ import { errorText } from '../lib/error';
 export type ChatStatus = 'connecting' | 'online' | 'offline';
 
 /** 一轮执行中 agent 正在做什么，用来驱动伙伴动画。 */
-export type AgentActivity = 'idle' | 'thinking' | 'talking' | 'working';
+export type AgentActivity = 'idle' | 'thinking' | 'talking' | 'reading' | 'working';
 
 export type ModelRef = { providerID: string; id: string };
 
@@ -195,7 +195,7 @@ export function useChatSession(conn: Conn, client: Client) {
 
             case 'session.tool.input.started': {
               if (event.data.sessionID !== sessionRef.current) break;
-              setActivity('working');
+              setActivity(event.data.name === 'read' ? 'reading' : 'working');
               setBlocks((current) =>
                 upsert(current, {
                   id: `tool:${event.data.id}`,

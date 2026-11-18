@@ -205,6 +205,7 @@ export default function Chat({ conn, onDisconnect }: { conn: Conn; onDisconnect:
     if (status === 'connecting') return 'takeoff';
     if (queue.length > 0) return 'waiting';
     if (activity === 'talking') return 'talking';
+    if (activity === 'reading') return 'reading';
     if (activity === 'working') return 'soaring';
     if (activity === 'thinking') return 'thinking';
     return 'idle';

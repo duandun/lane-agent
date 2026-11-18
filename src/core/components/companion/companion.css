@@ -1,0 +1,564 @@
+/* --------------------------------------------------------------- eagle */
+
+.companion {
+  position: fixed;
+  width: 96px;
+  height: 96px;
+  z-index: 30;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+  filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.18));
+}
+
+.companion svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.eagle-figure {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: eagle-bob 3.2s ease-in-out infinite;
+}
+
+.eagle-head {
+  transform-box: fill-box;
+  transform-origin: 50% 92%;
+}
+
+.eagle-wing-l,
+.eagle-wing-r,
+.eagle-beak,
+.eagle-shadow,
+.eagle-alert {
+  transform-box: fill-box;
+}
+
+.eagle-wing-l {
+  transform-origin: 100% 0;
+}
+.eagle-wing-r {
+  transform-origin: 0 0;
+}
+.eagle-beak {
+  transform-origin: 50% 0;
+}
+.eagle-shadow,
+.eagle-alert {
+  transform-origin: center;
+}
+
+.eagle-eyes {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: eagle-blink 5.5s infinite;
+}
+
+.eagle-thought,
+.eagle-alert {
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.eagle.dragging .eagle-figure {
+  animation: none;
+}
+
+/* 静止 */
+.state-idle .eagle-figure {
+  animation: eagle-bob 3.2s ease-in-out infinite;
+}
+
+/* 思考 */
+.state-thinking .eagle-figure {
+  animation: eagle-bob 4s ease-in-out infinite;
+}
+.state-thinking .eagle-head {
+  animation: eagle-think 2.6s ease-in-out infinite;
+}
+.state-thinking .eagle-thought {
+  opacity: 1;
+}
+.state-thinking .eagle-thought circle {
+  animation: eagle-dot 1.6s ease-in-out infinite;
+}
+.state-thinking .eagle-thought circle:nth-child(2) {
+  animation-delay: 0.18s;
+}
+.state-thinking .eagle-thought circle:nth-child(3) {
+  animation-delay: 0.36s;
+}
+
+/* 说话 */
+.state-talking .eagle-figure {
+  animation: eagle-bob 1.4s ease-in-out infinite;
+}
+.state-talking .eagle-head {
+  animation: eagle-nod 0.5s ease-in-out infinite alternate;
+}
+.state-talking .eagle-beak {
+  animation: eagle-talk 0.22s ease-in-out infinite alternate;
+}
+.state-talking .eagle-wing-l {
+  animation: eagle-gesture-l 0.9s ease-in-out infinite alternate;
+}
+.state-talking .eagle-wing-r {
+  animation: eagle-gesture-r 0.9s ease-in-out infinite alternate;
+}
+
+/* 起飞 */
+.state-takeoff .eagle-figure {
+  animation: eagle-takeoff 0.9s ease-in-out infinite;
+}
+.state-takeoff .eagle-wing-l {
+  animation: eagle-flap-l 0.3s ease-in-out infinite alternate;
+}
+.state-takeoff .eagle-wing-r {
+  animation: eagle-flap-r 0.3s ease-in-out infinite alternate;
+}
+.state-takeoff .eagle-shadow {
+  opacity: 0.05;
+  transform: scale(0.8);
+}
+
+/* 翱翔 */
+.state-soaring .eagle-figure {
+  animation: eagle-soar 2.6s ease-in-out infinite;
+}
+.state-soaring .eagle-wing-l {
+  animation: eagle-soar-flap-l 1.1s ease-in-out infinite alternate;
+}
+.state-soaring .eagle-wing-r {
+  animation: eagle-soar-flap-r 1.1s ease-in-out infinite alternate;
+}
+.state-soaring .eagle-shadow {
+  opacity: 0.04;
+  transform: scale(0.65);
+}
+
+/* 等待授权 */
+.state-waiting .eagle-figure {
+  animation: eagle-hover 1.6s ease-in-out infinite;
+}
+.state-waiting .eagle-wing-l {
+  animation: eagle-wait-l 1.6s ease-in-out infinite alternate;
+}
+.state-waiting .eagle-wing-r {
+  animation: eagle-wait-r 1.6s ease-in-out infinite alternate;
+}
+.state-waiting .eagle-alert {
+  opacity: 1;
+  animation: eagle-alert 1.2s ease-in-out infinite;
+}
+
+/* 出错 / 断线 */
+.state-error .eagle-figure {
+  animation: eagle-droop 4s ease-in-out infinite;
+}
+.state-error .eagle-head {
+  animation: eagle-sad 4s ease-in-out infinite;
+}
+.state-error .eagle-wing-l {
+  transform: rotate(10deg);
+}
+.state-error .eagle-wing-r {
+  transform: rotate(-10deg);
+}
+
+/* --------------------------------------------------------------- cat */
+
+.cat-figure {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: eagle-bob 3.2s ease-in-out infinite;
+}
+
+.cat-head {
+  transform-box: fill-box;
+  transform-origin: 50% 92%;
+}
+
+.cat-tail {
+  transform-box: fill-box;
+  transform-origin: 0% 100%;
+  animation: cat-tail-wag 2.8s ease-in-out infinite;
+}
+
+.cat-ear-l,
+.cat-ear-r,
+.cat-mouth,
+.cat-shadow,
+.cat-alert {
+  transform-box: fill-box;
+}
+.cat-ear-l,
+.cat-ear-r {
+  transform-origin: 50% 100%;
+}
+.cat-mouth {
+  transform-origin: 50% 0;
+}
+.cat-shadow,
+.cat-alert {
+  transform-origin: center;
+}
+
+.cat-eyes {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: eagle-blink 5.5s infinite;
+}
+
+.cat-write,
+.cat-read,
+.cat-sparks,
+.cat-alert {
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.cat-pen {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+}
+
+.cat.dragging .cat-figure {
+  animation: none;
+}
+
+/* 静止 */
+.state-idle .cat-figure {
+  animation: eagle-bob 3.2s ease-in-out infinite;
+}
+
+/* 思考：星光闪烁 */
+.state-thinking .cat-figure {
+  animation: eagle-bob 4s ease-in-out infinite;
+}
+.state-thinking .cat-head {
+  animation: eagle-think 2.6s ease-in-out infinite;
+}
+.state-thinking .cat-tail {
+  animation: cat-tail-wag 1.4s ease-in-out infinite;
+}
+.state-thinking .cat-sparks {
+  opacity: 1;
+}
+.state-thinking .cat-sparks path {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: cat-twinkle 1.4s ease-in-out infinite;
+}
+.state-thinking .cat-sparks path:nth-child(2) {
+  animation-delay: 0.35s;
+}
+.state-thinking .cat-sparks path:nth-child(3) {
+  animation-delay: 0.7s;
+}
+
+/* 说话 */
+.state-talking .cat-figure {
+  animation: eagle-bob 1.4s ease-in-out infinite;
+}
+.state-talking .cat-head {
+  animation: eagle-nod 0.5s ease-in-out infinite alternate;
+}
+.state-talking .cat-mouth {
+  animation: eagle-talk 0.22s ease-in-out infinite alternate;
+}
+.state-talking .cat-tail {
+  animation: cat-tail-wag 0.9s ease-in-out infinite;
+}
+
+/* 起飞 */
+.state-takeoff .cat-figure {
+  animation: eagle-takeoff 0.9s ease-in-out infinite;
+}
+.state-takeoff .cat-tail {
+  animation: cat-tail-wag 0.35s ease-in-out infinite;
+}
+.state-takeoff .cat-shadow {
+  opacity: 0.05;
+  transform: scale(0.8);
+}
+
+/* 执行指令：写文件 */
+.state-soaring .cat-figure {
+  animation: eagle-bob 2.2s ease-in-out infinite;
+}
+.state-soaring .cat-write {
+  opacity: 1;
+}
+.state-soaring .cat-pen {
+  animation: cat-scribble 0.35s ease-in-out infinite alternate;
+}
+
+/* 读文件 */
+.state-reading .cat-figure {
+  animation: eagle-bob 4s ease-in-out infinite;
+}
+.state-reading .cat-head {
+  animation: eagle-nod 1.6s ease-in-out infinite alternate;
+}
+.state-reading .cat-read {
+  opacity: 1;
+}
+
+/* 等待授权 */
+.state-waiting .cat-figure {
+  animation: eagle-hover 1.6s ease-in-out infinite;
+}
+.state-waiting .cat-alert {
+  opacity: 1;
+  animation: eagle-alert 1.2s ease-in-out infinite;
+}
+
+/* 出错 / 断线 */
+.state-error .cat-figure {
+  animation: eagle-droop 4s ease-in-out infinite;
+}
+.state-error .cat-head {
+  animation: eagle-sad 4s ease-in-out infinite;
+}
+.state-error .cat-ear-l {
+  transform: rotate(-18deg);
+}
+.state-error .cat-ear-r {
+  transform: rotate(18deg);
+}
+
+@keyframes cat-tail-wag {
+  0%,
+  100% {
+    transform: rotate(-6deg);
+  }
+  50% {
+    transform: rotate(8deg);
+  }
+}
+
+@keyframes cat-twinkle {
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: scale(0.65);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+}
+
+@keyframes cat-scribble {
+  from {
+    transform: rotate(-5deg);
+  }
+  to {
+    transform: rotate(6deg);
+  }
+}
+
+@keyframes eagle-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+@keyframes eagle-think {
+  0%,
+  100% {
+    transform: rotate(-5deg);
+  }
+  50% {
+    transform: rotate(4deg);
+  }
+}
+
+@keyframes eagle-nod {
+  from {
+    transform: translateY(0) rotate(0deg);
+  }
+  to {
+    transform: translateY(1.5px) rotate(-1deg);
+  }
+}
+
+@keyframes eagle-talk {
+  from {
+    transform: scaleY(1);
+  }
+  to {
+    transform: scaleY(0.45);
+  }
+}
+
+@keyframes eagle-gesture-l {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(8deg);
+  }
+}
+
+@keyframes eagle-gesture-r {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(-8deg);
+  }
+}
+
+@keyframes eagle-flap-l {
+  from {
+    transform: rotate(12deg);
+  }
+  to {
+    transform: rotate(40deg);
+  }
+}
+
+@keyframes eagle-flap-r {
+  from {
+    transform: rotate(-12deg);
+  }
+  to {
+    transform: rotate(-40deg);
+  }
+}
+
+@keyframes eagle-takeoff {
+  0%,
+  100% {
+    transform: translateY(-6px);
+  }
+  50% {
+    transform: translateY(-18px);
+  }
+}
+
+@keyframes eagle-soar {
+  0% {
+    transform: translate(-12px, -14px) rotate(-8deg) scale(1.02);
+  }
+  50% {
+    transform: translate(12px, -30px) rotate(8deg) scale(1.08);
+  }
+  100% {
+    transform: translate(-12px, -14px) rotate(-8deg) scale(1.02);
+  }
+}
+
+@keyframes eagle-soar-flap-l {
+  from {
+    transform: rotate(18deg);
+  }
+  to {
+    transform: rotate(52deg);
+  }
+}
+
+@keyframes eagle-soar-flap-r {
+  from {
+    transform: rotate(-18deg);
+  }
+  to {
+    transform: rotate(-52deg);
+  }
+}
+
+@keyframes eagle-hover {
+  0%,
+  100% {
+    transform: translateY(-10px);
+  }
+  50% {
+    transform: translateY(-14px);
+  }
+}
+
+@keyframes eagle-wait-l {
+  from {
+    transform: rotate(6deg);
+  }
+  to {
+    transform: rotate(16deg);
+  }
+}
+
+@keyframes eagle-wait-r {
+  from {
+    transform: rotate(-6deg);
+  }
+  to {
+    transform: rotate(-16deg);
+  }
+}
+
+@keyframes eagle-droop {
+  0%,
+  100% {
+    transform: translateY(2px);
+  }
+  50% {
+    transform: translateY(3px);
+  }
+}
+
+@keyframes eagle-sad {
+  0%,
+  100% {
+    transform: rotate(7deg);
+  }
+  50% {
+    transform: rotate(9deg);
+  }
+}
+
+@keyframes eagle-dot {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-2px);
+  }
+}
+
+@keyframes eagle-alert {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.14);
+  }
+}
+
+@keyframes eagle-blink {
+  0%,
+  93%,
+  100% {
+    transform: scaleY(1);
+  }
+  96% {
+    transform: scaleY(0.2);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .companion,
+  .companion * {
+    animation: none !important;
+  }
+}

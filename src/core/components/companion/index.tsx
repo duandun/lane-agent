@@ -2,11 +2,12 @@ import { useEffect, useRef, useState } from 'react';
 import type { CompanionKind } from '@core/lib/store';
 import CatFigure from './Cat';
 import EagleFigure from './Eagle';
+import './companion.css';
 
 const SIZE = 96;
 
 export type CompanionState =
-  'idle' | 'takeoff' | 'thinking' | 'talking' | 'soaring' | 'waiting' | 'error';
+  'idle' | 'takeoff' | 'thinking' | 'talking' | 'reading' | 'soaring' | 'waiting' | 'error';
 
 type Pos = { x: number; y: number };
 
