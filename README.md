@@ -1,6 +1,6 @@
-# OpenCode Web
+# Lane
 
-浏览器端的 OpenCode agent 外壳。走「方案 A」：不改 OpenCode 源码，只用一个 Web 客户端连它自己的 HTTP API。
+浏览器端的 AI agent 外壳。走「方案 A」：不改 OpenCode 源码，只用一个 Web 客户端连它自己的 HTTP API。
 
 ```
 浏览器 (React + @opencode/client)
@@ -54,7 +54,7 @@ bun run electron:package:linux  # 同上，出 Linux x64 AppImage
 bun run electron:package:win  # 同上，出 Windows x64 安装包（macOS 上可直接交叉构建）
 ```
 
-Windows 产物是 NSIS 安装包 `release/OpenCode Web Setup <版本>.exe`，未签名，首次运行会被 SmartScreen 拦一下（更多信息 → 仍要运行）。
+Windows 产物是 NSIS 安装包 `release/Lane Setup <版本>.exe`，未签名，首次运行会被 SmartScreen 拦一下（更多信息 → 仍要运行）。
 
 主进程用 TypeScript（`src/app/*.ts`），`electron:*` 脚本会先用 `tsc -p tsconfig.electron.json` 编译到 `dist-electron/` 再启动或打包；该目录不进 git。只编译主进程用 `bun run build:app`。
 

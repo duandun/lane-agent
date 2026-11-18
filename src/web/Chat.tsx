@@ -1,13 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ComponentRef } from 'react';
 import { Alert, Badge, Button, Dropdown, Flex, Select, Tag, Tooltip, Typography } from 'antd';
 import { Sender } from '@ant-design/x';
-import {
-  LogoutOutlined,
-  MoonOutlined,
-  SunOutlined,
-  DesktopOutlined,
-  AppstoreOutlined,
-} from '@ant-design/icons';
+import { LogoutOutlined, MoonOutlined, SunOutlined, DesktopOutlined } from '@ant-design/icons';
 import type { SkillInfo } from '@opencode/client';
 import CustomModelModal from '@core/components/CustomModelModal';
 import EagleCompanion, { type EagleState } from '@core/components/EagleCompanion';
@@ -185,7 +179,7 @@ export default function Chat({
         <Flex align="center" gap={10} className="min-w-0 flex-1 overflow-hidden">
           <Badge status={meta.badge} />
           <Typography.Text strong className="whitespace-nowrap">
-            OpenCode Web
+            Lane
           </Typography.Text>
           <Typography.Text
             type="secondary"
@@ -209,6 +203,7 @@ export default function Chat({
               pickModel(value);
             }}
             popupMatchSelectWidth={false}
+            showSearch
           />
           <Typography.Text type="secondary" className="text-xs!">
             {meta.label}

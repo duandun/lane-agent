@@ -66,7 +66,7 @@ export function useChatSession(conn: Conn, client: Client) {
     async function createSession() {
       try {
         const session = await client.session.create({
-          title: 'Web session',
+          title: 'Lane',
           location: conn.directory ? { directory: conn.directory } : undefined,
         });
         if (cancelled) return;

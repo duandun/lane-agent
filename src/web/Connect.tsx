@@ -122,7 +122,7 @@ export default function Connect({
       }
       onConnect(next);
     } catch (cause) {
-      setError(`${errorText(cause)}（检查地址、OPENCODE_PASSWORD、CORS）`);
+      setError(`${errorText(cause)}${appBridge ? '' : '（检查地址、OPENCODE_PASSWORD、CORS）'}`);
     } finally {
       setPending(false);
     }
@@ -148,8 +148,12 @@ export default function Connect({
               style={{ background: 'linear-gradient(135deg, #4f8cff, #7c5cff)' }}
             />
           }
-          title="OpenCode Web"
-          description="浏览器端的 OpenCode agent 外壳。连接你自己启动的 opencode serve。"
+          title="Lane"
+          description={
+            appBridge
+              ? '桌面端 AI agent。服务由应用在本机启动。'
+              : '浏览器端的 AI agent 外壳。连接你自己启动的 opencode serve。'
+          }
         />
 
         <Form
@@ -163,6 +167,7 @@ export default function Connect({
             name="baseUrl"
             label="服务地址"
             rules={[{ required: true, message: '请填写服务地址' }]}
+            hidden={!!appBridge}
           >
             <Input
               prefix={<LinkOutlined />}
@@ -171,7 +176,7 @@ export default function Connect({
             />
           </Form.Item>
 
-          <Form.Item name="password" label="密码（OPENCODE_PASSWORD）">
+          <Form.Item name="password" label="密码（OPENCODE_PASSWORD）" hidden={!!appBridge}>
             <Input.Password
               prefix={<LockOutlined />}
               placeholder="留空表示服务器未设密码"
@@ -190,7 +195,7 @@ export default function Connect({
               disabled={!appBridge}
               suffix={
                 appBridge ? (
-                  <Button type="text" size="small" onClick={() => void pickDirectory()}>
+                  <Button variant="filled" size="small" onClick={() => void pickDirectory()}>
                     选择
                   </Button>
                 ) : undefined
@@ -214,17 +219,19 @@ export default function Connect({
         </Form>
       </Card>
 
-      <Card
-        className="w-full max-w-[480px] border! border-(--line)! bg-(--panel)! [&_.ant-card-body]:grid! [&_.ant-card-body]:gap-2!"
-        size="small"
-        variant="borderless"
-      >
-        <Typography.Text type="secondary" className="text-xs!">
-          先在终端启动服务
-        </Typography.Text>
-        <pre className="m-0 overflow-x-auto font-mono text-xs leading-[1.7] text-(--muted)">{`OPENCODE_PASSWORD=your-secret \\
+      {!appBridge && (
+        <Card
+          className="w-full max-w-[480px] border! border-(--line)! bg-(--panel)! [&_.ant-card-body]:grid! [&_.ant-card-body]:gap-2!"
+          size="small"
+          variant="borderless"
+        >
+          <Typography.Text type="secondary" className="text-xs!">
+            先在终端启动服务
+          </Typography.Text>
+          <pre className="m-0 overflow-x-auto font-mono text-xs leading-[1.7] text-(--muted)">{`OPENCODE_PASSWORD=your-secret \\
   opencode serve --hostname 0.0.0.0 --port 4096 --cors https://ai.cr123.life`}</pre>
-      </Card>
+        </Card>
+      )}
 
       {/*{appBridge && (*/}
       {/*  <Card*/}

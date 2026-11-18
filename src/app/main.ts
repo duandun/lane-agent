@@ -74,10 +74,7 @@ async function load(win: BrowserWindow, url: string, retries = 100): Promise<voi
 const dev = process.argv.includes('--dev');
 
 function fail(error: unknown) {
-  dialog.showErrorBox(
-    'OpenCode Web 启动失败',
-    error instanceof Error ? error.message : String(error)
-  );
+  dialog.showErrorBox('Lane 启动失败', error instanceof Error ? error.message : String(error));
   app.quit();
 }
 

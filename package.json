@@ -1,7 +1,7 @@
 {
   "name": "opencode-web-demo",
   "version": "0.1.0",
-  "description": "OpenCode Web 的 Electron 桌面壳",
+  "description": "Lane 的 Electron 桌面壳",
   "desktopName": "opencode-web.desktop",
   "private": true,
   "type": "module",
@@ -23,7 +23,7 @@
   },
   "build": {
     "appId": "com.opencode.web",
-    "productName": "OpenCode Web",
+    "productName": "Lane",
     "directories": {
       "output": "release",
       "buildResources": "src/app/build"
