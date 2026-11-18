@@ -1,10 +1,5 @@
 import type { ReactNode } from 'react';
-import {
-  CheckCircleFilled,
-  CloseCircleFilled,
-  DownOutlined,
-  LoadingOutlined,
-} from '@ant-design/icons';
+import { CheckCircleFilled, CloseCircleFilled, DownOutlined } from '@ant-design/icons';
 
 export type RowStatus = 'running' | 'ok' | 'error';
 
@@ -19,6 +14,7 @@ export default function DisclosureRow({
   preview,
   previewMono = false,
   status,
+  running = false,
   open,
   onToggle,
   headClassName,
@@ -30,6 +26,8 @@ export default function DisclosureRow({
   preview?: string;
   previewMono?: boolean;
   status?: RowStatus;
+  /** 文字从左到右高亮，用于处理中 / 思考 / 工具运行中。 */
+  running?: boolean;
   open: boolean;
   onToggle: () => void;
   headClassName?: string;
@@ -44,7 +42,11 @@ export default function DisclosureRow({
         onClick={onToggle}
       >
         <span className="inline-flex shrink-0 text-[13px] text-(--muted)">{icon}</span>
-        <span className={`shrink-0 text-(--text) ${titleMono ? 'font-mono' : ''}`}>{title}</span>
+        <span
+          className={`shrink-0 ${running ? 'text-shimmer' : 'text-(--text)'} ${titleMono ? 'font-mono' : ''}`}
+        >
+          {title}
+        </span>
         {!open && preview && (
           <span
             className={`min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-xs text-(--muted) ${previewMono ? 'font-mono' : ''}`}
@@ -62,13 +64,11 @@ export default function DisclosureRow({
                   : 'text-(--err)'
             }`}
           >
-            {status === 'running' ? (
-              <LoadingOutlined spin />
-            ) : status === 'ok' ? (
+            {status === 'ok' ? (
               <CheckCircleFilled />
-            ) : (
+            ) : status === 'error' ? (
               <CloseCircleFilled />
-            )}
+            ) : null}
           </span>
         )}
         <DownOutlined

@@ -31,12 +31,13 @@ export default function Activity({ blocks, active }: { blocks: ActivityBlock[]; 
       title={active ? '处理中…' : '已处理'}
       preview={summary}
       status={active ? 'running' : failed ? 'error' : 'ok'}
+      running={active}
       open={open}
       onToggle={() => setOpen((value) => !value)}
     >
       <div className="ml-2.5 flex w-full animate-[process-in_180ms_ease-out] flex-col gap-0.5 border-l border-(--line) pl-2 motion-reduce:animate-none">
         {blocks.map((block) => (
-          <ProcessRow key={block.id} block={block} />
+          <ProcessRow key={block.id} block={block} active={active} />
         ))}
       </div>
     </DisclosureRow>
@@ -44,7 +45,7 @@ export default function Activity({ blocks, active }: { blocks: ActivityBlock[]; 
 }
 
 /** 活动组内的一条思考或工具调用。 */
-function ProcessRow({ block }: { block: ActivityBlock }) {
+function ProcessRow({ block, active }: { block: ActivityBlock; active: boolean }) {
   const [open, setOpen] = useState(false);
   const reasoning = block.kind === 'reasoning';
   const text = reasoning ? block.text : block.detail;
@@ -58,6 +59,7 @@ function ProcessRow({ block }: { block: ActivityBlock }) {
       preview={preview}
       previewMono={!reasoning}
       status={reasoning ? undefined : block.status}
+      running={reasoning ? active : block.status === 'running'}
       open={open}
       onToggle={() => setOpen((value) => !value)}
     >
