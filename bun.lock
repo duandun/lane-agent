@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "opencode-web-demo",
+      "name": "lane",
       "dependencies": {
         "@opencode/client": "^2.3.0",
         "react-helmet-async": "^3.1.0",

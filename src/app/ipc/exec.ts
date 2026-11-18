@@ -28,7 +28,7 @@ let shimDir: Promise<string> | null = null;
  */
 function nodeShimDir(): Promise<string> {
   shimDir ??= (async () => {
-    const dir = join(app.getPath('temp'), 'opencode-web-node-shim');
+    const dir = join(app.getPath('temp'), 'lane-node-shim');
     await mkdir(dir, { recursive: true });
     const electron = process.execPath;
     if (process.platform === 'win32') {

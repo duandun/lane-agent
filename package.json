@@ -1,8 +1,8 @@
 {
-  "name": "opencode-web-demo",
+  "name": "lane-agent",
   "version": "0.1.0",
   "description": "Lane 的 Electron 桌面壳",
-  "desktopName": "opencode-web.desktop",
+  "desktopName": "lane.desktop",
   "private": true,
   "type": "module",
   "main": "dist-electron/main.js",
@@ -22,7 +22,7 @@
     "bundle:cli": "node scripts/bundle-opencode-cli.mjs"
   },
   "build": {
-    "appId": "com.opencode.web",
+    "appId": "com.lane.web",
     "productName": "Lane",
     "directories": {
       "output": "release",

@@ -7,7 +7,8 @@
     <script>
       // 在样式加载前定好主题，避免先闪一下暗色。
       try {
-        var saved = localStorage.getItem('opencode-web.theme');
+        var stored = JSON.parse(localStorage.getItem('lane.store') || 'null');
+        var saved = stored && stored.state && stored.state.themeMode;
         var mode = saved === 'light' || saved === 'dark' ? saved : 'auto';
         var dark =
           mode === 'dark' ||
