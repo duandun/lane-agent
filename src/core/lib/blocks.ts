@@ -4,7 +4,7 @@ export type Block =
   | { id: string; kind: 'user'; text: string; skills?: SkillTag[]; files?: string[] }
   | { id: string; kind: 'text'; text: string }
   | { id: string; kind: 'reasoning'; text: string }
-  | { id: string; kind: 'tool'; name: string; status: ToolStatus; detail: string }
+  | { id: string; kind: 'tool'; name: string; status: ToolStatus; detail: string; input?: unknown }
   | { id: string; kind: 'notice'; text: string };
 
 export type SkillTag = { id: string; name: string };
@@ -99,6 +99,7 @@ export function blocksFromMessages(messages: SessionMessageInfo[]): Block[] {
           name: part.name,
           status: toolStatus(part.state?.status),
           detail: toolDetail(part.state),
+          input: part.state?.input,
         });
       }
     });

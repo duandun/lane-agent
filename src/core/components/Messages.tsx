@@ -21,14 +21,19 @@ import {
 } from '@ant-design/icons';
 import Markdown from './Markdown';
 import Activity, { type ActivityBlock } from './Activity';
+import FileChange from './FileChange';
 import type { Block, SkillTag } from '../lib/blocks';
+import { toolFileDiff } from '../lib/diff';
 import laneIcon from '@assets/favicon.svg';
 import laneIconMark from '@assets/lane-agent-mark.svg';
+
+type ToolBlock = Extract<Block, { kind: 'tool' }>;
 
 type ViewItem =
   | { key: string; role: 'user'; text: string; skills?: SkillTag[]; files?: string[] }
   | { key: string; role: 'ai'; text: string }
   | { key: string; role: 'activity'; blocks: ActivityBlock[] }
+  | { key: string; role: 'change'; block: ToolBlock }
   | { key: string; role: 'system'; text: string };
 
 const ROLES = {
@@ -68,6 +73,25 @@ const ROLES = {
       />
     ),
   },
+  change: {
+    placement: 'start' as const,
+    variant: 'borderless' as const,
+    avatar: (
+      <Avatar
+        size="small"
+        icon={
+          <img
+            src={laneIconMark}
+            alt="lane"
+            width={32}
+            height={32}
+            className="brightness-0 invert"
+          />
+        }
+        style={{ background: 'var(--ai-avatar)', color: 'var(--ai-avatar-fg)' }}
+      />
+    ),
+  },
   system: { placement: 'start' as const },
 };
 
@@ -99,6 +123,11 @@ const SUGGESTIONS: PromptsItemType[] = [
 function toViewItems(blocks: Block[]): ViewItem[] {
   const items: ViewItem[] = [];
   for (const block of blocks) {
+    // 改文件的工具单独成卡片，方便直接看到 diff。
+    if (block.kind === 'tool' && toolFileDiff(block.name, block.input)) {
+      items.push({ key: block.id, role: 'change', block });
+      continue;
+    }
     if (block.kind === 'reasoning' || block.kind === 'tool') {
       const last = items[items.length - 1];
       if (last?.role === 'activity') {
@@ -172,6 +201,14 @@ export default function Messages({
           content: (
             <Activity blocks={item.blocks} active={activityRunning && item.key === lastView.key} />
           ),
+        };
+      }
+      if (item.role === 'change') {
+        const diff = toolFileDiff(item.block.name, item.block.input);
+        return {
+          key: item.key,
+          role: 'change',
+          content: diff ? <FileChange diff={diff} status={item.block.status} /> : item.block.detail,
         };
       }
       if (item.role === 'system') {

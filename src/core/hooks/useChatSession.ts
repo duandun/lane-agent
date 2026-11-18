@@ -213,7 +213,11 @@ export function useChatSession(conn: Conn, client: Client) {
               setBlocks((current) =>
                 patch(current, `tool:${event.data.id}`, (block) =>
                   block.kind === 'tool'
-                    ? { ...block, detail: JSON.stringify(event.data.input, null, 2) }
+                    ? {
+                        ...block,
+                        detail: JSON.stringify(event.data.input, null, 2),
+                        input: event.data.input,
+                      }
                     : block
                 )
               );
