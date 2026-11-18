@@ -43,11 +43,11 @@ export default function SkillPicker({
             }
             placement="topLeft"
             // 列表里快速上下移动时不要让 Tooltip 跟着连续弹出。
-            mouseEnterDelay={0.35}
+            mouseEnterDelay={0.5}
             styles={{ root: { maxWidth: 'none' }, container: { width: 340 } }}
           >
             <Typography.Text strong className="font-mono text-[14px]">
-              {skill.name}
+              {skill.name === 'agent-desktop' ? '电脑控制' : skill.name}
             </Typography.Text>
           </Tooltip>
         </div>
