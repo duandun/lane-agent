@@ -75,6 +75,9 @@ export default function Chat({
 
   const [draft, setDraft] = useState('');
   const [model, setModel] = useState<ModelRef | null>(loadModel);
+  // 已发送内容的最近 10 条，最新在前；上箭头依次回填。
+  const historyRef = useRef<string[]>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
   const [modelOptions, setModelOptions] = useState<ModelOption[]>([]);
   const [modelsReady, setModelsReady] = useState(false);
   const [customOpen, setCustomOpen] = useState(false);
@@ -88,6 +91,13 @@ export default function Chat({
   });
 
   async function submit(text: string) {
+    if (text.trim()) {
+      historyRef.current = [text, ...historyRef.current.filter((item) => item !== text)].slice(
+        0,
+        10
+      );
+    }
+    setHistoryIndex(-1);
     const skillTags = selectedSkill ? [{ id: selectedSkill.id, name: selectedSkill.name }] : [];
     let note = '';
     try {
@@ -100,6 +110,24 @@ export default function Chat({
     setSelectedSkill(null);
     attachments.clear();
     await send(text + note, skillTags);
+  }
+
+  // 光标在开头（或正在翻历史）时，上下箭头浏览已发送内容，避免干扰正常的光标移动。
+  function handleHistoryKey(event: React.KeyboardEvent) {
+    const items = historyRef.current;
+    if (!items.length) return;
+    const atStart = (event.currentTarget as HTMLTextAreaElement).selectionStart === 0;
+    if (event.key === 'ArrowUp' && (historyIndex >= 0 || atStart)) {
+      event.preventDefault();
+      const next = Math.min(historyIndex + 1, items.length - 1);
+      setHistoryIndex(next);
+      setDraft(items[next]);
+    } else if (event.key === 'ArrowDown' && historyIndex >= 0) {
+      event.preventDefault();
+      const next = historyIndex - 1;
+      setHistoryIndex(next);
+      setDraft(next < 0 ? '' : items[next]);
+    }
   }
 
   const modelRef = useRef<ModelRef | null>(model);
@@ -291,7 +319,10 @@ export default function Chat({
           blocks={blocks}
           busy={busy}
           directory={conn.directory}
-          onSuggestion={setDraft}
+          onSuggestion={(text) => {
+            setHistoryIndex(-1);
+            setDraft(text);
+          }}
           onRegenerate={regenerate}
         />
       </main>
@@ -312,6 +343,7 @@ export default function Chat({
               className={busy ? 'thinking' : undefined}
               value={draft}
               onChange={setDraft}
+              onKeyDown={handleHistoryKey}
               onSubmit={(text) => void submit(text)}
               loading={busy}
               onCancel={() => void stop()}

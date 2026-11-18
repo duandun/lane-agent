@@ -18,16 +18,24 @@ export default function SkillPicker({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const inputRef = useRef<InputRef>(null);
+  const sortedSkills = useMemo(() => {
+    const agentDesktopIndex = skills.findIndex((item) => item.name === 'agent-desktop');
+    if (agentDesktopIndex > -1) {
+      const agentDesktop = skills.splice(agentDesktopIndex, 1)[0];
+      skills.unshift(agentDesktop);
+    }
+    return skills;
+  }, [skills]);
 
   const filtered = useMemo(() => {
     const value = query.trim().toLowerCase();
-    if (!value) return skills;
-    return skills.filter(
+    if (!value) return sortedSkills;
+    return sortedSkills.filter(
       (skill) =>
         skill.name.toLowerCase().includes(value) ||
         (skill.description ?? '').toLowerCase().includes(value)
     );
-  }, [query, skills]);
+  }, [query, sortedSkills]);
 
   const items: MenuProps['items'] = filtered.map((skill) => ({
     key: skill.id,
@@ -47,7 +55,7 @@ export default function SkillPicker({
             styles={{ root: { maxWidth: 'none' }, container: { width: 340 } }}
           >
             <Typography.Text strong className="font-mono text-[14px]">
-              {skill.name === 'agent-desktop' ? '电脑控制' : skill.name}
+              {skill.name}
             </Typography.Text>
           </Tooltip>
         </div>
@@ -86,7 +94,7 @@ export default function SkillPicker({
         // antd 默认给下拉菜单加了 max-height + overflow，会和外层滚动容器嵌套。
         style: { width: '100%', background: 'transparent', maxHeight: 'none' },
         onClick: ({ key }) => {
-          onSelect(skills.find((skill) => skill.id === key) ?? null);
+          onSelect(sortedSkills.find((skill) => skill.id === key) ?? null);
           setOpen(false);
         },
       }}
