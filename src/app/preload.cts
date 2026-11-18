@@ -9,10 +9,13 @@ contextBridge.exposeInMainWorld('appBridge', {
     read: (root: string, path: string) => ipcRenderer.invoke('fs:read', root, path),
     write: (root: string, path: string, content: string) =>
       ipcRenderer.invoke('fs:write', root, path, content),
+    writeBytes: (root: string, path: string, data: Uint8Array) =>
+      ipcRenderer.invoke('fs:writeBytes', root, path, data),
   },
   exec: {
     npx: (root: string, args: string[]) => ipcRenderer.invoke('exec:npx', root, args),
   },
   localService: () => ipcRenderer.invoke('service:local'),
   selectDirectory: () => ipcRenderer.invoke('dialog:selectDirectory'),
+  openPath: (path: string) => ipcRenderer.invoke('shell:openPath', path),
 });

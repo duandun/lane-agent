@@ -27,4 +27,10 @@ export function registerFsIpc() {
     const base = await rootPath(root);
     await writeFile(await resolveWithin(base, path), content, 'utf8');
   });
+
+  // 上传的附件可能是二进制，单独走一条按字节写入的通道。
+  ipcMain.handle('fs:writeBytes', async (_event, root: string, path: string, data: Uint8Array) => {
+    const base = await rootPath(root);
+    await writeFile(await resolveWithin(base, path), Buffer.from(data));
+  });
 }

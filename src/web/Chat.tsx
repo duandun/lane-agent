@@ -1,21 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ComponentRef } from 'react';
 import { Alert, Badge, Button, Dropdown, Flex, Select, Tag, Tooltip, Typography } from 'antd';
-import type { UploadFile } from 'antd';
-import { Sender, Attachments } from '@ant-design/x';
-import {
-  LogoutOutlined,
-  MoonOutlined,
-  SunOutlined,
-  DesktopOutlined,
-  PaperClipOutlined,
-} from '@ant-design/icons';
+import { Sender } from '@ant-design/x';
+import { LogoutOutlined, MoonOutlined, SunOutlined, DesktopOutlined } from '@ant-design/icons';
 import type { SkillInfo } from '@opencode/client';
+import AttachmentButton from '@core/components/AttachmentButton';
 import CustomModelModal from '@core/components/CustomModelModal';
 import EagleCompanion, { type EagleState } from '@core/components/EagleCompanion';
 import Messages from '@core/components/Messages';
 import PermissionModal from '@core/components/PermissionModal';
 import QuestionPrompt from '@core/components/QuestionPrompt';
 import SkillPicker from '@core/components/SkillPicker';
+import { useAttachments } from '@core/hooks/useAttachments';
 import { useChatSession, type ChatStatus, type ModelRef } from '@core/hooks/useChatSession';
 import type { ThemeMode } from '@core/hooks/useThemeMode';
 import { appBridge } from '@core/lib/bridge';
@@ -24,15 +19,6 @@ import { loadCustomModels, type CustomModel } from '@core/lib/customModels';
 import { clearModel, loadModel, saveModel } from '@core/lib/modelPreference';
 
 type ModelOption = { value: string; label: string };
-
-function readDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result));
-    reader.onerror = () => reject(reader.error);
-    reader.readAsDataURL(file);
-  });
-}
 
 const CUSTOM_MODEL_VALUE = '__custom_model__';
 
@@ -95,30 +81,25 @@ export default function Chat({
   const [customModels, setCustomModels] = useState<CustomModel[]>(loadCustomModels);
   const [skills, setSkills] = useState<SkillInfo[]>([]);
   const [selectedSkill, setSelectedSkill] = useState<SkillInfo | null>(null);
-  const [attachments, setAttachments] = useState<UploadFile[]>([]);
   const senderRef = useRef<ComponentRef<typeof Sender>>(null);
-  const attachmentsRef = useRef<ComponentRef<typeof Attachments>>(null);
+  const attachments = useAttachments({
+    directory: conn.directory,
+    disabled: !sessionID || busy,
+  });
 
   async function submit(text: string) {
-    let files: { name: string; uri: string }[];
+    const skillTags = selectedSkill ? [{ id: selectedSkill.id, name: selectedSkill.name }] : [];
+    let note = '';
     try {
-      files = (
-        await Promise.all(
-          attachments.map(async (file) => {
-            const origin = file.originFileObj;
-            return origin ? { name: file.name, uri: await readDataUrl(origin) } : null;
-          })
-        )
-      ).filter((file): file is { name: string; uri: string } => file !== null);
+      note = await attachments.commit();
     } catch (cause) {
-      console.error('读取附件失败：', cause);
+      console.error('保存附件失败：', cause);
       return;
     }
     setDraft('');
-    const skillTags = selectedSkill ? [{ id: selectedSkill.id, name: selectedSkill.name }] : [];
     setSelectedSkill(null);
-    setAttachments([]);
-    await send(text, skillTags, files);
+    attachments.clear();
+    await send(text + note, skillTags);
   }
 
   const modelRef = useRef<ModelRef | null>(model);
@@ -221,13 +202,22 @@ export default function Chat({
           <Typography.Text strong className="whitespace-nowrap">
             Lane
           </Typography.Text>
-          <Typography.Text
-            type="secondary"
-            ellipsis
-            className="max-w-[min(46vw,480px)] text-xs! max-sm:hidden"
-          >
-            {conn.directory}
-          </Typography.Text>
+          <Tooltip title={appBridge && conn.directory ? '打开项目目录' : undefined}>
+            <Typography.Text
+              type="secondary"
+              ellipsis
+              className={`max-w-[min(46vw,480px)] text-xs! max-sm:hidden ${
+                appBridge && conn.directory ? 'cursor-pointer hover:underline' : ''
+              }`}
+              onClick={
+                appBridge && conn.directory
+                  ? () => void appBridge?.openPath(conn.directory)
+                  : undefined
+              }
+            >
+              {conn.directory}
+            </Typography.Text>
+          </Tooltip>
         </Flex>
         <Flex align="center" gap={8} className="shrink-0">
           <Select
@@ -339,29 +329,13 @@ export default function Chat({
                     }
                   : undefined
               }
-              header={
-                <Attachments
-                  ref={attachmentsRef}
-                  beforeUpload={() => false}
-                  items={attachments}
-                  disabled={!sessionID || busy}
-                  onChange={({ fileList }) => setAttachments(fileList)}
-                  // 上传入口放在输入框左下角，这里只展示已选文件卡片。
-                  styles={{ placeholder: { display: 'none' } }}
-                />
-              }
+              header={appBridge ? attachments.header : undefined}
               footer={
                 <Flex align="center" justify="space-between" gap={8}>
                   <Flex align="center" gap={4}>
-                    <Tooltip title="上传附件">
-                      <Button
-                        type="text"
-                        size="small"
-                        icon={<PaperClipOutlined />}
-                        disabled={!sessionID || busy}
-                        onClick={() => attachmentsRef.current?.select({ multiple: true })}
-                      />
-                    </Tooltip>
+                    {/*{appBridge && (*/}
+                    {/*  <AttachmentButton onClick={attachments.open} disabled={!sessionID || busy} />*/}
+                    {/*)}*/}
                     {appBridge && (
                       <SkillPicker
                         skills={skills}

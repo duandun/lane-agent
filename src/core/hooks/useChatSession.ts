@@ -317,34 +317,21 @@ export function useChatSession(conn: Conn, client: Client) {
     return () => controller.abort();
   }, [client, reload]);
 
-  async function send(
-    text: string,
-    skills: SkillTag[] = [],
-    files: { name: string; uri: string }[] = []
-  ) {
+  async function send(text: string, skills: SkillTag[] = []) {
     const value = text.trim();
-    if ((!value && !files.length) || !sessionID || busy) return;
+    if (!value || !sessionID || busy) return;
     setBusy(true);
     setActivity('thinking');
     setError(null);
     setBlocks((current) => [
       ...current,
-      {
-        id: `local:${Date.now()}`,
-        kind: 'user',
-        text: value,
-        skills,
-        files: files.map((file) => file.name),
-      },
+      { id: `local:${Date.now()}`, kind: 'user', text: value, skills },
     ]);
     try {
       await client.session.prompt({
         sessionID,
         text: value,
         skills: skills.length ? skills.map(({ id }) => ({ id })) : undefined,
-        files: files.length
-          ? files.map(({ uri, name }) => ({ uri, name, source: { type: 'inline' as const } }))
-          : undefined,
       });
     } catch (cause) {
       setBusy(false);

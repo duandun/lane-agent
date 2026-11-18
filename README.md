@@ -81,8 +81,10 @@ Windows 产物是 NSIS 安装包 `release/Lane Setup <版本>.exe`，未签名�
 - `ping()` / `info()`：健康检查。
 - `fs.list(root, dir?)`：列出目录，返回 `{ name, path, dir }`，`path` 相对 `root`。
 - `fs.read(root, path)` / `fs.write(root, path, content)`：读写 UTF-8 文本。
+- `fs.writeBytes(root, path, data)`：按字节写入，用于把上传的附件保存到工作目录。
 - `exec.npx(root, args)`：在 `root` 里执行 `npx --yes <args>`，返回 `{ code, stdout, stderr }`；超时 5 分钟，stdout/stderr 各截断到 1MB。使用安装包内置的 npm（`resources/npm`），JS 跑在 Electron 自带的 Node 上，用户机器不需要装 Node/npm；包脚本里的 `node` 由临时 shim 指向 Electron。
 - `localService()`：返回本地 opencode 服务的 `{ url, username, password }`；Electron 启动时用内置 CLI 调 `Service.ensure`，连接页用它预填服务地址和密码。
+- `openPath(path)`：用系统文件管理器打开路径；聊天页点击顶栏的项目目录时使用。
 
 所有文件操作都限制在传入的 `root` 内（词法校验 + `realpath`，阻止 `../` 和软链接逃逸）。`exec.npx` 会执行任意包代码（包括 install 脚本），只对可信的包使用。打包时 `scripts/bundle-runtime.mjs` 会把 npm 和 agent-desktop 复制到 `.npm-bundle/`，再由 electron-builder 作为 extraResources 带进安装包。
 
@@ -132,7 +134,7 @@ src/
       index.ts         汇总注册 Node 能力
       health.ts        app:ping / app:info
       local.ts         service:local 本地服务地址
-      fs.ts            fs:list / fs:read / fs:write
+      fs.ts            fs:list / fs:read / fs:write / fs:writeBytes
       exec.ts          exec:npx
       paths.ts         root 路径校验
     preload.cts        contextBridge 暴露给渲染进程（编译为 preload.cjs）
