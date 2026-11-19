@@ -95,9 +95,11 @@ export function wordDiff(oldLine: string, newLine: string): { del: Segment[]; ad
   };
 
   for (const change of diffWordsWithSpace(oldLine, newLine) ?? []) {
-    if (change.removed) push(del, change.value, true);
-    else if (change.added) push(add, change.value, true);
-    else {
+    if (change.removed) {
+      push(del, change.value, true);
+    } else if (change.added) {
+      push(add, change.value, true);
+    } else {
       push(del, change.value, false);
       push(add, change.value, false);
     }

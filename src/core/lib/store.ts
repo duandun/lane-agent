@@ -20,7 +20,8 @@ type AppState = {
   setThemeMode: (mode: ThemeMode) => void;
   setCompanion: (kind: CompanionKind) => void;
   setModel: (model: SavedModel | null) => void;
-  saveCustomModel: (model: CustomModel) => void;
+  saveCustomModel: (model: CustomModel, previous?: CustomModel) => void;
+  removeCustomModel: (model: CustomModel) => void;
 };
 
 /** 全局状态：连接、主题、智能伙伴、模型偏好和自定义模型，统一持久化。 */
@@ -37,12 +38,27 @@ export const useAppStore = create<AppState>()(
       setThemeMode: (themeMode) => set({ themeMode }),
       setCompanion: (companion) => set({ companion }),
       setModel: (model) => set({ model }),
-      saveCustomModel: (model) =>
+      // 一个 Provider 下可以有任意多个模型；编辑时把旧条目一并替换掉。
+      saveCustomModel: (model, previous) =>
         set((state) => ({
           customModels: [
-            ...state.customModels.filter((item) => item.providerID !== model.providerID),
+            ...state.customModels.filter(
+              (item) =>
+                !(item.providerID === model.providerID && item.modelID === model.modelID) &&
+                !(
+                  previous &&
+                  item.providerID === previous.providerID &&
+                  item.modelID === previous.modelID
+                )
+            ),
             model,
           ],
+        })),
+      removeCustomModel: (model) =>
+        set((state) => ({
+          customModels: state.customModels.filter(
+            (item) => !(item.providerID === model.providerID && item.modelID === model.modelID)
+          ),
         })),
     }),
     {

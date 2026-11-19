@@ -1,7 +1,25 @@
-import { useEffect, useMemo, useRef, useState, type ComponentRef } from 'react';
-import { Alert, Badge, Button, Dropdown, Flex, Select, Tag, Tooltip, Typography } from 'antd';
+import { useEffect, useMemo, useRef, useState, type ComponentRef, type ReactNode } from 'react';
+import {
+  Alert,
+  App as AntdApp,
+  Badge,
+  Button,
+  Dropdown,
+  Flex,
+  Select,
+  Tag,
+  Tooltip,
+  Typography,
+} from 'antd';
 import { Sender } from '@ant-design/x';
-import { LogoutOutlined, MoonOutlined, SunOutlined, DesktopOutlined } from '@ant-design/icons';
+import {
+  DeleteOutlined,
+  DesktopOutlined,
+  EditOutlined,
+  LogoutOutlined,
+  MoonOutlined,
+  SunOutlined,
+} from '@ant-design/icons';
 import type { SkillInfo } from '@opencode/client';
 import AttachmentButton from '@core/components/AttachmentButton';
 import CustomModelModal from '@core/components/CustomModelModal';
@@ -14,11 +32,13 @@ import { useAttachments } from '@core/hooks/useAttachments';
 import { useChatSession, type ChatStatus, type ModelRef } from '@core/hooks/useChatSession';
 import { appBridge } from '@core/lib/bridge';
 import { makeClient, type Conn } from '@core/lib/client';
-import { useAppStore, type CompanionKind } from '@core/lib/store';
+import { errorText } from '@core/lib/error';
+import { deleteProviderModel } from '@core/lib/opencodeConfig';
+import { useAppStore, type CompanionKind, type CustomModel } from '@core/lib/store';
 
 type ModelOption = { value: string; label: string };
 
-const CUSTOM_MODEL_VALUE = '__custom_model__';
+const CUSTOM_ADD_VALUE = '__custom_add__';
 
 const THEME_ITEMS = [
   { key: 'auto', label: '跟随系统', icon: <DesktopOutlined /> },
@@ -74,7 +94,10 @@ export default function Chat({ conn, onDisconnect }: { conn: Conn; onDisconnect:
   const [modelOptions, setModelOptions] = useState<ModelOption[]>([]);
   const [modelsReady, setModelsReady] = useState(false);
   const [customOpen, setCustomOpen] = useState(false);
+  const [editingModel, setEditingModel] = useState<CustomModel | null>(null);
   const customModels = useAppStore((state) => state.customModels);
+  const removeCustomModel = useAppStore((state) => state.removeCustomModel);
+  const { message } = AntdApp.useApp();
   const [skills, setSkills] = useState<SkillInfo[]>([]);
   const [selectedSkill, setSelectedSkill] = useState<SkillInfo | null>(null);
   const senderRef = useRef<ComponentRef<typeof Sender>>(null);
@@ -166,12 +189,66 @@ export default function Chat({ conn, onDisconnect }: { conn: Conn; onDisconnect:
     void switchModel(model);
   }, [model, modelsReady, sessionID]);
 
-  const customModel = customModels.find((item) => item.providerID === model?.providerID) ?? null;
-
   const modelSelectOptions = [
     ...modelOptions,
-    { value: CUSTOM_MODEL_VALUE, label: customModel ? '编辑自定义模型…' : '自定义模型…' },
+    { value: CUSTOM_ADD_VALUE, label: '新增自定义模型…' },
   ];
+
+  const currentCustomModel =
+    customModels.find(
+      (item) => item.providerID === model?.providerID && item.modelID === model?.id
+    ) ?? null;
+
+  async function deleteCustomModel(custom: CustomModel) {
+    if (currentCustomModel === custom) return;
+    try {
+      await deleteProviderModel(client, conn.directory, custom.providerID, custom.modelID);
+      removeCustomModel(custom);
+      message.success('自定义模型已删除');
+      await reloadModels(model);
+    } catch (cause) {
+      message.error(errorText(cause));
+    }
+  }
+
+  /** 自定义模型的选项在右侧附带编辑 / 删除按钮。 */
+  function renderModelOption(option: { value?: unknown; label?: ReactNode }): ReactNode {
+    const custom = customModels.find(
+      (item) => `${item.providerID}/${item.modelID}` === String(option.value)
+    );
+    if (!custom) return option.label;
+    const selected = custom === currentCustomModel;
+    return (
+      <Flex align="center" justify="space-between" gap={8}>
+        <span className="min-w-0 truncate">{option.label}</span>
+        <span
+          className="flex shrink-0 items-center"
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={(event) => event.stopPropagation()}
+        >
+          <Button
+            size="small"
+            type="text"
+            title="编辑"
+            icon={<EditOutlined />}
+            onClick={() => {
+              setEditingModel(custom);
+              setCustomOpen(true);
+            }}
+          />
+          <Button
+            size="small"
+            type="text"
+            danger
+            title={selected ? '当前模型不能删除' : '删除'}
+            disabled={selected}
+            icon={<DeleteOutlined />}
+            onClick={() => void deleteCustomModel(custom)}
+          />
+        </span>
+      </Flex>
+    );
+  }
 
   function pickModel(value: string) {
     const slash = value.indexOf('/');
@@ -251,8 +328,10 @@ export default function Chat({ conn, onDisconnect }: { conn: Conn; onDisconnect:
             placeholder="选择模型"
             value={model ? `${model.providerID}/${model.id}` : undefined}
             options={modelSelectOptions}
+            optionRender={renderModelOption}
             onChange={(value) => {
-              if (value === CUSTOM_MODEL_VALUE) {
+              if (value === CUSTOM_ADD_VALUE) {
+                setEditingModel(null);
                 setCustomOpen(true);
                 return;
               }
@@ -404,8 +483,11 @@ export default function Chat({ conn, onDisconnect }: { conn: Conn; onDisconnect:
         client={client}
         directory={conn.directory}
         current={model}
-        editing={customModel}
-        onClose={() => setCustomOpen(false)}
+        editing={editingModel}
+        onClose={() => {
+          setCustomOpen(false);
+          setEditingModel(null);
+        }}
         onSaved={async (saved) => {
           await reloadModels(model);
           const ref = { providerID: saved.providerID, id: saved.modelID };

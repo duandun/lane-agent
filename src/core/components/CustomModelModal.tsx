@@ -3,6 +3,7 @@ import { App as AntdApp, Flex, Input, Modal, Typography } from 'antd';
 import type { Client } from '../lib/client';
 import { useAppStore, type CustomModel } from '../lib/store';
 import { errorText } from '../lib/error';
+import { loadOpencodeConfig, saveOpencodeConfig, type ProviderConfig } from '../lib/opencodeConfig';
 import Field from './Field';
 
 const PACKAGE = '@opencode/ai/providers/openai-compatible';
@@ -65,46 +66,25 @@ export default function CustomModelModal({
 
     setSaving(true);
     try {
-      const location = directory ? { directory } : undefined;
-
-      // 合并进已有的项目配置，不覆盖其他设置。
-      let path = 'opencode.json';
-      let config: Record<string, unknown> = {};
-      for (const candidate of ['opencode.json', 'opencode.jsonc']) {
-        try {
-          const bytes = await client.file.read({ location, path: candidate });
-          const text = new TextDecoder().decode(bytes);
-          try {
-            const parsed = JSON.parse(text || '{}');
-            if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-              throw new Error('根节点不是对象');
-            }
-            config = parsed as Record<string, unknown>;
-          } catch {
-            throw new Error(`${candidate} 解析失败（可能含注释），请手动编辑该文件`);
-          }
-          path = candidate;
-          break;
-        } catch (cause) {
-          if ((cause as Error)?.name === 'FileNotFoundError') continue;
-          throw cause;
-        }
-      }
-
-      const providers = { ...((config.providers as Record<string, unknown> | undefined) ?? {}) };
+      const { path, config } = await loadOpencodeConfig(client, directory);
+      const providers = {
+        ...((config.providers as Record<string, ProviderConfig> | undefined) ?? {}),
+      };
+      const existing = providers[pid] ?? {};
+      const models = { ...existing.models };
+      // 编辑时改了模型 ID，就把旧模型从配置里挪走，避免留下失效条目。
+      if (editing && editing.modelID !== mid) delete models[editing.modelID];
+      models[mid] = { name: mid };
+      // 同一个 Provider 下可以有任意多个模型，保留已有的 models 和其它设置。
       providers[pid] = {
-        name: name.trim() || pid,
+        ...existing,
+        name: name.trim() || existing.name || pid,
         env: [`${pid.replace(/[^A-Za-z0-9]+/g, '_').toUpperCase()}_API_KEY`],
         package: PACKAGE,
-        settings: { baseURL: url },
-        models: { [mid]: { name: mid } },
+        settings: { ...existing.settings, baseURL: url },
+        models,
       };
       config.providers = providers;
-      await client.file.write({
-        location,
-        path,
-        payload: new TextEncoder().encode(`${JSON.stringify(config, null, 2)}\n`),
-      });
 
       if (apiKey.trim()) {
         await client.credential.create({
@@ -115,9 +95,7 @@ export default function CustomModelModal({
         });
       }
 
-      await client.location.reload({
-        headers: directory ? { 'x-opencode-directory': directory } : undefined,
-      });
+      await saveOpencodeConfig(client, directory, path, config);
 
       const saved: CustomModel = {
         providerID: pid,
@@ -125,7 +103,7 @@ export default function CustomModelModal({
         name: name.trim() || pid,
         baseURL: url,
       };
-      saveCustomModel(saved);
+      saveCustomModel(saved, editing ?? undefined);
       message.success('自定义模型已保存');
       setApiKey('');
       onClose();
