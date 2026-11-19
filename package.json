@@ -4,6 +4,7 @@
   "description": "Lane 的 Electron 桌面壳",
   "desktopName": "lane.desktop",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "main": "dist-electron/main.js",
   "scripts": {
