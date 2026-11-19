@@ -13,11 +13,13 @@ import {
 } from 'antd';
 import { Sender } from '@ant-design/x';
 import {
+  CheckOutlined,
   DeleteOutlined,
   DesktopOutlined,
   EditOutlined,
   LogoutOutlined,
   MoonOutlined,
+  PlusOutlined,
   SunOutlined,
 } from '@ant-design/icons';
 import type { SkillInfo } from '@opencode/client';
@@ -36,7 +38,12 @@ import { errorText } from '@core/lib/error';
 import { deleteProviderModel } from '@core/lib/opencodeConfig';
 import { useAppStore, type CompanionKind, type CustomModel } from '@core/lib/store';
 
-type ModelOption = { value: string; label: string };
+type ModelOption = {
+  value: string;
+  label: string;
+  providerID: string;
+  modelID: string;
+};
 
 const CUSTOM_ADD_VALUE = '__custom_add__';
 
@@ -157,7 +164,9 @@ export default function Chat({ conn, onDisconnect }: { conn: Conn; onDisconnect:
     ]);
     const options = list.data.map((item) => ({
       value: `${item.providerID}/${item.id}`,
-      label: `${item.name ?? item.id} · ${item.providerID}`,
+      label: item.name ?? item.id,
+      providerID: item.providerID,
+      modelID: item.id,
     }));
     setModelOptions(options);
 
@@ -191,7 +200,13 @@ export default function Chat({ conn, onDisconnect }: { conn: Conn; onDisconnect:
 
   const modelSelectOptions = [
     ...modelOptions,
-    { value: CUSTOM_ADD_VALUE, label: '新增自定义模型…' },
+    {
+      value: CUSTOM_ADD_VALUE,
+      label: '添加自定义模型',
+      providerID: '',
+      modelID: '',
+      className: 'model-add-option',
+    },
   ];
 
   const currentCustomModel =
@@ -211,42 +226,78 @@ export default function Chat({ conn, onDisconnect }: { conn: Conn; onDisconnect:
     }
   }
 
-  /** 自定义模型的选项在右侧附带编辑 / 删除按钮。 */
-  function renderModelOption(option: { value?: unknown; label?: ReactNode }): ReactNode {
+  /** 模型下拉的卡片式布局：状态点、名称、自定义标记、Provider。 */
+  function renderModelOption(option: {
+    value?: unknown;
+    label?: ReactNode;
+    data?: ModelOption;
+  }): ReactNode {
+    if (String(option.value) === CUSTOM_ADD_VALUE) {
+      return (
+        <span className="flex w-full items-center justify-center gap-1.5 text-[13px] text-(--muted)">
+          <PlusOutlined className="text-[11px]" />
+          添加自定义模型
+        </span>
+      );
+    }
+
+    // 自定义字段挂在 option.data 上，FlattenOptionData 不会把它们展开到顶层。
+    const { providerID = '', modelID = '' } = option.data ?? {};
+    const label = option.data?.label ?? option.label;
+    const selected = !!model && `${providerID}/${modelID}` === `${model.providerID}/${model.id}`;
     const custom = customModels.find(
-      (item) => `${item.providerID}/${item.modelID}` === String(option.value)
+      (item) => item.providerID === providerID && item.modelID === modelID
     );
-    if (!custom) return option.label;
-    const selected = custom === currentCustomModel;
+
     return (
-      <Flex align="center" justify="space-between" gap={8}>
-        <span className="min-w-0 truncate">{option.label}</span>
+      <div className="group flex w-full min-w-0 items-center gap-2.5">
         <span
-          className="flex shrink-0 items-center"
+          className={`h-2 w-2 shrink-0 rounded-full ${selected ? 'bg-(--ok)' : 'bg-(--line)'}`}
+        />
+        <span className="min-w-0 truncate text-[13px] text-(--text)">{label}</span>
+        {custom && (
+          <span className="shrink-0 rounded-full border border-(--accent)/30 bg-(--accent)/10 px-1.5 py-px text-[11px] leading-4 text-(--accent)">
+            自定义
+          </span>
+        )}
+        <span
+          className="ml-auto flex shrink-0 items-center gap-1"
           onMouseDown={(event) => event.preventDefault()}
           onClick={(event) => event.stopPropagation()}
         >
-          <Button
-            size="small"
-            type="text"
-            title="编辑"
-            icon={<EditOutlined />}
-            onClick={() => {
-              setEditingModel(custom);
-              setCustomOpen(true);
-            }}
-          />
-          <Button
-            size="small"
-            type="text"
-            danger
-            title={selected ? '当前模型不能删除' : '删除'}
-            disabled={selected}
-            icon={<DeleteOutlined />}
-            onClick={() => void deleteCustomModel(custom)}
-          />
+          {/* 自定义模型悬停时用编辑/删除按钮替换 provider ID。 */}
+          <span
+            className={`font-mono text-[11px] text-(--muted) ${selected ? 'hidden' : ''} ${
+              custom ? 'group-hover:hidden' : ''
+            }`}
+          >
+            {providerID}
+          </span>
+          {custom && (
+            <span className="hidden items-center group-hover:flex">
+              <Button
+                size="small"
+                type="text"
+                title="编辑"
+                icon={<EditOutlined />}
+                onClick={() => {
+                  setEditingModel(custom);
+                  setCustomOpen(true);
+                }}
+              />
+              <Button
+                size="small"
+                type="text"
+                danger
+                title={selected ? '当前模型不能删除' : '删除'}
+                disabled={selected}
+                icon={<DeleteOutlined />}
+                onClick={() => void deleteCustomModel(custom)}
+              />
+            </span>
+          )}
         </span>
-      </Flex>
+      </div>
     );
   }
 
@@ -325,10 +376,12 @@ export default function Chat({ conn, onDisconnect }: { conn: Conn; onDisconnect:
           />
           <Select
             className="w-[200px]! max-sm:w-[130px]!"
+            style={{ maxHeight: 'none' }}
             placeholder="选择模型"
             value={model ? `${model.providerID}/${model.id}` : undefined}
             options={modelSelectOptions}
             optionRender={renderModelOption}
+            classNames={{ popup: { root: 'model-picker' } }}
             onChange={(value) => {
               if (value === CUSTOM_ADD_VALUE) {
                 setEditingModel(null);
@@ -338,7 +391,12 @@ export default function Chat({ conn, onDisconnect }: { conn: Conn; onDisconnect:
               pickModel(value);
             }}
             popupMatchSelectWidth={false}
-            showSearch
+            showSearch={{
+              filterOption: (input, option) =>
+                `${option?.label ?? ''} ${option?.providerID ?? ''}`
+                  .toLowerCase()
+                  .includes(input.toLowerCase()),
+            }}
           />
           <Typography.Text type="secondary" className="text-xs!">
             {meta.label}

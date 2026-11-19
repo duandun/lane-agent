@@ -208,6 +208,69 @@ code {
   overflow-wrap: anywhere;
 }
 
+/* ------------------------------------------------------------ model picker */
+
+.model-picker {
+  width: 460px;
+  max-width: min(460px, 92vw);
+  padding: 6px 8px 8px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel);
+  box-shadow: 0 16px 40px rgb(0 0 0 / 0.16);
+}
+
+.model-picker .ant-select-item {
+  min-height: 44px;
+  margin: 6px 0;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+}
+
+/* 选项内容默认顶对齐，显式居中。 */
+.model-picker .ant-select-item-option {
+  display: flex;
+  align-items: center;
+}
+
+.model-picker .ant-select-item-option-content {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  min-height: 26px;
+}
+
+.model-picker .ant-select-item-option-active:not(.ant-select-item-option-selected) {
+  background: var(--panel-2) !important;
+}
+
+/* antd 的选中样式在样式表里后注入，必须用 important 覆盖。 */
+.model-picker .ant-select-item-option-selected,
+.model-picker .ant-select-item-option-selected:hover {
+  background: color-mix(in srgb, var(--accent) 9%, var(--panel)) !important;
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line)) !important;
+  color: var(--text) !important;
+}
+
+/* antd 自带的对勾槽位，换成行内自绘的对勾。 */
+.model-picker .ant-select-item-option-state {
+  display: none;
+}
+
+.model-picker .model-add-option {
+  justify-content: center;
+  border-style: dashed;
+}
+
+.model-picker .model-add-option:not(.ant-select-item-option-active) {
+  background: transparent;
+}
+
 /* --------------------------------------------------------------- markdown */
 
 .markdown {
