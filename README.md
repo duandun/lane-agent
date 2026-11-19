@@ -1,6 +1,8 @@
 # Lane
 
-浏览器端的 AI agent 外壳。走「方案 A」：不改 OpenCode 源码，只用一个 Web 客户端连它自己的 HTTP API。
+浏览器端 / Electron 的 AI agent 外壳。走「方案 A」：不改 OpenCode 源码，只用一个 Web 客户端连它自己的 HTTP API + SSE。
+
+仓库：<https://github.com/duandun/lane-agent>
 
 ```
 浏览器 (React + @opencode/client)
@@ -11,6 +13,16 @@ opencode serve  ← agent / 工具 / 权限 / 会话都在这里
         ▼
 你的项目目录
 ```
+
+## 功能
+
+- **聊天**：SSE 增量出字，推理过程和工具调用折叠成「已处理」，权限请求和问题表单用弹窗处理，支持停止和重新生成。
+- **文件改动卡片**：`edit` / `write` / `patch` 工具会在对话里展开成 git 风格的 diff——文件名、`+N −N`、词级高亮的增删行；diff 用 jsdiff 计算。
+- **模型选择**：卡片式下拉，显示状态点、模型名、自定义标记、provider ID 和选中对勾；自定义 OpenAI 兼容模型可以定义任意多个，同一行悬停可编辑 / 删除。
+- **输入框**：Enter 发送、Shift+Enter 换行，↑ / ↓ 浏览最近 10 条已发送内容。
+- **智能伙伴**：可拖拽的小鹰 / 小猫，按 agent 状态（思考、说话、执行、等待、报错）播放不同动画，顶栏可切换。
+- **主题**：跟随系统 / 浅色 / 深色。
+- **持久化**：连接、主题、伙伴、模型偏好和自定义模型统一存在 zustand store 的 `lane.store` 里。
 
 ## 启动
 
@@ -24,7 +36,7 @@ OPENCODE_PASSWORD=your-secret \
 终端 2 — 起前端：
 
 ```bash
-cd opencode-web-demo
+cd lane-agent
 bun install
 bun dev
 ```
@@ -43,6 +55,28 @@ bun dev
 OPENCODE_PASSWORD=your-secret \
   opencode serve --port 4096 --cors https://ai.cr123.life
 ```
+
+## 自定义模型
+
+「选择模型 → 添加自定义模型」会向项目目录的 `opencode.json` 合并写入一个 provider，并让服务端重新加载配置：
+
+```json
+{
+  "providers": {
+    "custom-deepseek": {
+      "name": "Custom DeepSeek",
+      "env": ["CUSTOM_DEEPSEEK_API_KEY"],
+      "package": "@opencode/ai/providers/openai-compatible",
+      "settings": { "baseURL": "https://api.deepseek.com/v1" },
+      "models": { "deepseek-chat": { "name": "deepseek-chat" } }
+    }
+  }
+}
+```
+
+- 同一个 provider 下可以放多个模型，编辑 / 删除会同步合并或移除对应条目；provider 没有模型后会整块删掉。
+- API Key 保存在服务端凭据库，不写进 `opencode.json`。
+- 模型列表来自服务端的 `GET /api/model?types=chat`，所以保存后必须让服务端重新加载配置才会出现。
 
 ## Electron 桌面壳
 
@@ -98,7 +132,7 @@ Windows 产物是 NSIS 安装包 `release/Lane Setup <版本>.exe`，未签名�
 - 真正操作 GUI 的是运行 opencode 的进程，macOS 上要给那个终端/应用授予辅助功能、屏幕录制权限；用 `agent-desktop status` 查看。
 - 桌面端启动的是本地 opencode 服务，所以 skill 和 agent-desktop CLI 天然在同一台机器；Web 端连远程服务器时，skill 仍需另外部署到服务器上。
 
-## 三个容易踩的坑
+## 四个容易踩的坑
 
 **1. 用户名固定是 `opencode`，不是可选项**
 
@@ -112,33 +146,46 @@ Windows 产物是 NSIS 安装包 `release/Lane Setup <版本>.exe`，未签名�
 
 这个事件表示会话安静下来，实测一次运行结束并不会稳定触发。真正的结束信号是 `session.execution.succeeded / failed / interrupted`，本项目的 busy 状态和消息回填都挂在这三个事件上。
 
+**4. 自定义模型必须写在 `opencode.json` 里**
+
+服务端只读项目目录的 `opencode.json` / `opencode.jsonc`。写到别的文件名不会报错，但 `/api/model` 里没有这个模型，前端自然看不到；写完还需要 `location.reload` 让服务端重新加载。
+
 ## 代码结构
 
 ```
 src/
   core/                web 和 app 共用的代码
-    components/        消息、Markdown、活动链、弹窗等通用组件
-    hooks/             会话事件流、主题
-    lib/               Basic Auth 客户端、block 映射、主题 token
-    styles.css         页面骨架样式
+    components/
+      Messages.tsx       消息流 + 活动折叠 + diff 卡片
+      FileChange.tsx     文件改动 diff 卡片
+      CustomModelModal.tsx 自定义模型编辑
+      SkillPicker.tsx    输入框左下角的 skill 选择
+      PermissionModal.tsx / QuestionPrompt.tsx  授权与问题表单
+      companion/         小鹰 / 小猫 SVG、拖拽外壳和 companion.css
+    hooks/
+      useChatSession.ts  会话、SSE 事件流、发送 / 停止 / 重新生成
+      useThemeMode.ts    主题模式与 data-theme
+      useAttachments.tsx 附件写入工作目录
+    lib/
+      client.ts          Basic Auth 客户端
+      store.ts           zustand store（连接 / 主题 / 伙伴 / 模型，persist 到 lane.store）
+      blocks.ts          消息 block 映射
+      diff.ts            jsdiff 包装 + 工具输入解析
+      opencodeConfig.ts  opencode.json 读写与 provider 删除
+      theme.ts / prism.ts / error.ts / bridge.ts
+    styles.css           页面骨架样式和全局覆盖
   web/                 Web 端
-    index.html         页面入口
-    main.tsx           React 挂载
-    App.tsx            连接态切换
-    Connect.tsx        连接页（antd Form / Card / Alert）
-    Chat.tsx           聊天页（antdX Bubble.List / Sender / ThoughtChain / Prompts / Actions）
+    index.html           页面入口（首屏主题引导）
+    main.tsx             React 挂载
+    App.tsx              连接态切换
+    Connect.tsx          连接页（antd Form / Card / Alert）
+    Chat.tsx             聊天页（antdX Bubble.List / Sender / Prompts / Actions，模型下拉）
   app/                 Electron 端（TypeScript，编译到 dist-electron）
-    main.ts            主进程：本地静态服务 + 打开窗口
-    service.ts         用内置 CLI 启动本地 opencode 服务
-    ipc/
-      index.ts         汇总注册 Node 能力
-      health.ts        app:ping / app:info
-      local.ts         service:local 本地服务地址
-      fs.ts            fs:list / fs:read / fs:write / fs:writeBytes
-      exec.ts          exec:npx
-      paths.ts         root 路径校验
-    preload.cts        contextBridge 暴露给渲染进程（编译为 preload.cjs）
-    skill.ts           把内置 agent-desktop CLI + skill 装到 OpenCode 全局目录
+    main.ts              主进程：本地静态服务 + 打开窗口
+    service.ts           用内置 CLI 启动本地 opencode 服务
+    ipc/                 Node 能力：health / local / fs / exec / paths
+    preload.cts          contextBridge 暴露给渲染进程（编译为 preload.cjs）
+    skill.ts             把内置 agent-desktop CLI + skill 装到 OpenCode 全局目录
 assets/
   favicon.svg          Lane 图标（网页 favicon 和页面内图标）
   icon.png             打包图标
@@ -151,25 +198,29 @@ resources/opencode-cli/  打包时生成的内置 CLI（不提交）
 
 Web 和 Electron 共用 `core`；Electron 加载的是 `web` 构建出来的 `dist`。跨目录引用用 `@core/*` 等别名，Vite 的 `resolve.alias` 和 tsconfig 的 `paths` 两边都要配。
 
-样式用 Tailwind CSS v4（`@tailwindcss/vite`）。`src/core/styles.css` 只保留主题变量和 antd/全局样式覆盖，并通过 `@source '../'` 让 Tailwind 扫描 `src`；新组件优先写工具类，antd 组件上的尺寸用 `!` 覆盖它的内置样式。
+样式用 Tailwind CSS v4（`@tailwindcss/vite`）。`src/core/styles.css` 放主题变量、antd 覆盖和页面骨架；智能伙伴的样式在 `src/core/components/companion/companion.css`。新组件优先写工具类，覆盖 antd 内置样式时用 `!`。
 
-事件流是 UI 的唯一数据源：`session.text.delta` 增量出字，`session.tool.*` 画工具卡片，`permission.asked` 弹授权框，`execution.*` 收尾。每次运行结束后用 `message.list` 重新对齐一次，避免客户端状态和服务端真值漂移。
+事件流是 UI 的唯一数据源：`session.text.delta` 增量出字，`session.tool.*` 画工具卡片并保留原始 input 供 diff 渲染，`permission.asked` 弹授权框，`execution.*` 收尾。每次运行结束后用 `message.list` 重新对齐一次，避免客户端状态和服务端真值漂移。
 
 ## UI 组件
 
-前端用 Ant Design X 组装：
+前端用 Ant Design + Ant Design X 组装：
 
-- `Bubble.List`：消息流。`user` / `ai` 两种 role 分别渲染用户和助手气泡，连续的思考与工具调用折叠成一个 `activity` role，系统提示走 `system`。
-- `ThoughtChain`：一次运行里的推理过程和工具调用，运行中自动展开，结束后自动收起，失败项保持展开。
-- `Sender`：输入框，回车发送、Shift+回车换行，运行中变成停止按钮。
+- `Bubble.List`：消息流。`user` / `ai` / `activity`（思考与工具折叠）/ `change`（文件改动卡片）/ `system` 五种 role。
+- `Activity` + `DisclosureRow`：一次运行里的推理和工具调用，运行中自动展开，结束后收起。
+- `FileChange`：文件改动的 diff 卡片，词级高亮 + 单侧整行着色。
+- `Sender`：输入框，回车发送、Shift+回车换行，运行中变成停止按钮；↑ / ↓ 浏览发送历史。
+- `Select` + `optionRender`：模型卡片下拉，自定义模型行悬停显示编辑 / 删除。
 - `Welcome` + `Prompts`：空会话的引导和快捷任务。
-- `Actions`：助手消息的复制按钮；弹窗、表单、状态灯用 antd。
+- `Actions`：助手消息的复制 / 重新生成按钮；弹窗、表单、状态灯用 antd。
 
 暗色主题在 `core/lib/theme.ts` 里用 antd token 表达，antdX 组件复用同一套 token。
 
 ## 已知边界
 
-- 每次打开页面都会新建一个 session，没有会话列表 / 历史切换。
+- 每次打开页面都会新建一个 session，没有会话列表 / 历史切换；输入历史也只存在当前页面内存里。
 - `message.list` 的 `limit` 上限是 200，传大了直接报 `Expected a value less than or equal to 200`。
 - 权限弹窗走 `permission.asked` 事件；如果服务器配置里权限全是 allow，就永远不会弹。
 - 局域网访问要三件事一起改：`opencode serve --hostname 0.0.0.0`、`vite --host`、以及把真实 origin 加进 `--cors`。
+- 自定义模型的「自定义」标记和编辑 / 删除按钮依赖本地 `customModels`（通过应用保存过的才会记录）；手工写进 `opencode.json` 的模型会出现在列表里，但没有这两个按钮。
+- 没有测试和 lint 脚本，类型检查用 `npx tsc -p tsconfig.json` 和 `npx tsc -p tsconfig.electron.json`。
