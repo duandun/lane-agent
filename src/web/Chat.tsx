@@ -13,7 +13,6 @@ import {
 } from 'antd';
 import { Sender } from '@ant-design/x';
 import {
-  CheckOutlined,
   DeleteOutlined,
   DesktopOutlined,
   EditOutlined,
@@ -23,6 +22,7 @@ import {
   SunOutlined,
 } from '@ant-design/icons';
 import type { SkillInfo } from '@opencode/client';
+import AgentPicker from '@core/components/AgentPicker';
 import AttachmentButton from '@core/components/AttachmentButton';
 import CustomModelModal from '@core/components/CustomModelModal';
 import Companion, { type CompanionState } from '@core/components/companion';
@@ -74,6 +74,7 @@ export default function Chat({ conn, onDisconnect }: { conn: Conn; onDisconnect:
   const client = useMemo(() => makeClient(conn), [conn]);
   const {
     sessionID,
+    agentID,
     blocks,
     status,
     busy,
@@ -90,6 +91,7 @@ export default function Chat({ conn, onDisconnect }: { conn: Conn; onDisconnect:
     cancelForm,
     regenerate,
     switchModel,
+    switchAgent,
   } = useChatSession(conn, client);
 
   const [draft, setDraft] = useState('');
@@ -260,11 +262,7 @@ export default function Chat({ conn, onDisconnect }: { conn: Conn; onDisconnect:
             自定义
           </span>
         )}
-        <span
-          className="ml-auto flex shrink-0 items-center gap-1"
-          onMouseDown={(event) => event.preventDefault()}
-          onClick={(event) => event.stopPropagation()}
-        >
+        <span className="ml-auto flex shrink-0 items-center gap-1">
           {/* 自定义模型悬停时用编辑/删除按钮替换 provider ID。 */}
           <span
             className={`font-mono text-[11px] text-(--muted) ${selected ? 'hidden' : ''} ${
@@ -274,7 +272,11 @@ export default function Chat({ conn, onDisconnect }: { conn: Conn; onDisconnect:
             {providerID}
           </span>
           {custom && (
-            <span className="hidden items-center group-hover:flex">
+            <span
+              className="hidden items-center group-hover:flex"
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={(event) => event.stopPropagation()}
+            >
               <Button
                 size="small"
                 type="text"
@@ -373,6 +375,13 @@ export default function Chat({ conn, onDisconnect }: { conn: Conn; onDisconnect:
               { value: 'cat', label: '小猫' },
             ]}
             popupMatchSelectWidth={false}
+          />
+          <AgentPicker
+            client={client}
+            directory={conn.directory}
+            agentID={agentID}
+            modelOptions={modelOptions.map((item) => ({ value: item.value, label: item.label }))}
+            onSwitch={(id) => void switchAgent(id)}
           />
           <Select
             className="w-[200px]! max-sm:w-[130px]!"

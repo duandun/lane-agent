@@ -62,6 +62,68 @@ export async function saveOpencodeConfig(
   });
 }
 
+/** opencode.json 里的 agent 配置，只声明用到的字段。 */
+export type AgentConfig = {
+  model?: string | { providerID: string; model: string; variant?: string };
+  system?: string;
+  description?: string;
+  mode?: string;
+  [key: string]: unknown;
+};
+
+/** 合并写入一个自定义 agent；编辑时如果改了 id，把旧条目挪走。 */
+export async function saveAgentConfig(
+  client: Client,
+  directory: string,
+  agent: { id: string; description: string; system: string; model: string },
+  previousID?: string
+) {
+  const { path, config } = await loadOpencodeConfig(client, directory);
+  const agents = { ...((config.agents as Record<string, AgentConfig> | undefined) ?? {}) };
+  if (previousID && previousID !== agent.id) delete agents[previousID];
+
+  const entry: AgentConfig = { ...(agents[agent.id] ?? {}), mode: 'primary' };
+  if (agent.description) entry.description = agent.description;
+  else delete entry.description;
+  if (agent.system) entry.system = agent.system;
+  else delete entry.system;
+  if (agent.model) entry.model = agent.model;
+  else delete entry.model;
+  agents[agent.id] = entry;
+  config.agents = agents;
+
+  await saveOpencodeConfig(client, directory, path, config);
+}
+
+/** 首次连接目录时把内置默认角色合并进 opencode.json；已存在的同名角色不覆盖。 */
+export async function seedDefaultAgents(
+  client: Client,
+  directory: string,
+  agents: { id: string; description: string; system: string }[]
+) {
+  const { path, config } = await loadOpencodeConfig(client, directory);
+  const current = { ...((config.agents as Record<string, AgentConfig> | undefined) ?? {}) };
+  const missing = agents.filter((agent) => !current[agent.id]);
+  if (!missing.length) return;
+
+  for (const agent of missing) {
+    current[agent.id] = { mode: 'primary', description: agent.description, system: agent.system };
+  }
+  config.agents = current;
+  await saveOpencodeConfig(client, directory, path, config);
+}
+
+/** 从项目配置里删掉一个自定义 agent；是默认角色时一并清掉 default_agent。 */
+export async function deleteAgentConfig(client: Client, directory: string, agentID: string) {
+  const { path, config } = await loadOpencodeConfig(client, directory);
+  const agents = { ...((config.agents as Record<string, AgentConfig> | undefined) ?? {}) };
+  delete agents[agentID];
+  if (Object.keys(agents).length) config.agents = agents;
+  else delete config.agents;
+  if (config.default_agent === agentID) delete config.default_agent;
+  await saveOpencodeConfig(client, directory, path, config);
+}
+
 /** 从项目配置里删掉一个自定义模型；Provider 下没有模型了就一并移除。 */
 export async function deleteProviderModel(
   client: Client,

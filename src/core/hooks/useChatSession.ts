@@ -36,6 +36,7 @@ function textOf(content: unknown): string {
  */
 export function useChatSession(conn: Conn, client: Client) {
   const [sessionID, setSessionID] = useState<string | null>(null);
+  const [agentID, setAgentID] = useState<string | null>(null);
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [status, setStatus] = useState<ChatStatus>('connecting');
   const [busy, setBusy] = useState(false);
@@ -68,6 +69,7 @@ export function useChatSession(conn: Conn, client: Client) {
         });
         if (cancelled) return;
         setSessionID(session.id);
+        setAgentID(session.agent ?? null);
         setStatus('online');
         await reload(session.id);
         try {
@@ -120,6 +122,11 @@ export function useChatSession(conn: Conn, client: Client) {
           switch (event.type) {
             case 'server.connected':
               setStatus('online');
+              break;
+
+            case 'session.agent.selected':
+              if (event.data.sessionID !== sessionRef.current) break;
+              setAgentID(event.data.agent);
               break;
 
             case 'session.execution.started':
@@ -429,8 +436,19 @@ export function useChatSession(conn: Conn, client: Client) {
     }
   }
 
+  async function switchAgent(agent: string) {
+    if (!sessionID) return;
+    try {
+      await client.session.switchAgent({ sessionID, agent });
+      setAgentID(agent);
+    } catch (cause) {
+      setError(errorText(cause));
+    }
+  }
+
   return {
     sessionID,
+    agentID,
     blocks,
     status,
     busy,
@@ -447,5 +465,6 @@ export function useChatSession(conn: Conn, client: Client) {
     cancelForm,
     regenerate,
     switchModel,
+    switchAgent,
   };
 }
