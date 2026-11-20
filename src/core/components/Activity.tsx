@@ -44,6 +44,15 @@ export default function Activity({ blocks, active }: { blocks: ActivityBlock[]; 
   );
 }
 
+function formatDuration(ms: number): string {
+  const seconds = Math.max(0, ms) / 1000;
+  if (seconds < 1) return `${Math.round(ms)}ms`;
+  if (seconds < 60) return `${seconds.toFixed(1)}s`;
+  const minutes = Math.floor(seconds / 60);
+  const rest = Math.round(seconds % 60);
+  return rest ? `${minutes}m${rest}s` : `${minutes}m`;
+}
+
 /** 活动组内的一条思考或工具调用。 */
 function ProcessRow({ block, active }: { block: ActivityBlock; active: boolean }) {
   const [open, setOpen] = useState(false);
@@ -54,7 +63,13 @@ function ProcessRow({ block, active }: { block: ActivityBlock; active: boolean }
   return (
     <DisclosureRow
       icon={reasoning ? <BulbOutlined /> : <CodeOutlined />}
-      title={reasoning ? '思考' : block.name}
+      title={
+        reasoning
+          ? block.duration != null
+            ? `思考 ${formatDuration(block.duration)}`
+            : '思考'
+          : block.name
+      }
       titleMono={!reasoning}
       preview={preview}
       previewMono={!reasoning}

@@ -3,7 +3,7 @@ import type { SessionMessageInfo } from '@opencode/client';
 export type Block =
   | { id: string; kind: 'user'; text: string; skills?: SkillTag[]; files?: string[] }
   | { id: string; kind: 'text'; text: string }
-  | { id: string; kind: 'reasoning'; text: string }
+  | { id: string; kind: 'reasoning'; text: string; duration?: number }
   | { id: string; kind: 'tool'; name: string; status: ToolStatus; detail: string; input?: unknown }
   | { id: string; kind: 'notice'; text: string };
 
@@ -88,7 +88,13 @@ export function blocksFromMessages(messages: SessionMessageInfo[]): Block[] {
 
       if (part.type === 'reasoning') {
         if (!part.text.trim()) return;
-        blocks.push({ id: `msg:${message.id}:r${index}`, kind: 'reasoning', text: part.text });
+        const time = part.time;
+        blocks.push({
+          id: `msg:${message.id}:r${index}`,
+          kind: 'reasoning',
+          text: part.text,
+          duration: time?.completed ? time.completed - time.created : undefined,
+        });
         return;
       }
 
