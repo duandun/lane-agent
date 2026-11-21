@@ -67,6 +67,7 @@ export default function SessionList({
       okText: '删除',
       okButtonProps: { danger: true },
       cancelText: '取消',
+      centered: true,
       onOk: () => onDelete(session.id),
     });
   }
@@ -162,6 +163,7 @@ export default function SessionList({
       <Modal
         title="重命名会话"
         open={!!renaming}
+        centered
         okText="保存"
         cancelText="取消"
         confirmLoading={saving}
