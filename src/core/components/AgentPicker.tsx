@@ -1,6 +1,6 @@
-import { useEffect, useState, type ReactNode } from 'react';
-import { App as AntdApp, Button, Select } from 'antd';
-import { DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons';
+import { useEffect, useState } from 'react';
+import { Pencil2Icon, PlusIcon, TrashIcon } from '@radix-ui/react-icons';
+import { Callout, Flex, IconButton, Text } from '@radix-ui/themes';
 import type { AgentInfo } from '@opencode/client';
 import type { Client } from '../lib/client';
 import { DEFAULT_AGENTS, type DefaultAgent } from '../lib/defaultAgents';
@@ -8,15 +8,7 @@ import { errorText } from '../lib/error';
 import { deleteAgentConfig, saveAgentConfig, seedDefaultAgents } from '../lib/opencodeConfig';
 import { useAppStore, type CustomAgent } from '../lib/store';
 import CustomAgentModal from './CustomAgentModal';
-
-const AGENT_ADD_VALUE = '__agent_add__';
-
-type AgentOption = {
-  value: string;
-  label: string;
-  description?: string;
-  className?: string;
-};
+import OptionPicker, { type PickerOption } from './OptionPicker';
 
 /**
  * 角色选择器：拉取服务端 agent 列表、合并内置默认角色模板，
@@ -35,7 +27,7 @@ export default function AgentPicker({
   modelOptions: { value: string; label: string }[];
   onSwitch: (agentID: string) => void;
 }) {
-  const { message } = AntdApp.useApp();
+  const [error, setError] = useState<string | null>(null);
   const customAgents = useAppStore((state) => state.customAgents);
   const saveCustomAgent = useAppStore((state) => state.saveCustomAgent);
   const removeCustomAgent = useAppStore((state) => state.removeCustomAgent);
@@ -80,6 +72,7 @@ export default function AgentPicker({
     };
   }, [client, directory]);
 
+  type AgentOption = { value: string; label: string; description?: string };
   const options: AgentOption[] = [
     ...agentOptions.map((item) => ({
       value: item.id,
@@ -92,7 +85,6 @@ export default function AgentPicker({
       label: a.name,
       description: a.description,
     })),
-    { value: AGENT_ADD_VALUE, label: '添加新角色', className: 'model-add-option' },
   ];
 
   /** 默认角色第一次选中时才写入项目配置，之后按自定义角色管理。 */
@@ -100,11 +92,11 @@ export default function AgentPicker({
     try {
       await saveAgentConfig(client, directory, agent);
       saveCustomAgent(agent);
-      message.success(`已选择角色「${agent.name}」`);
+      setError(null);
       await reloadAgents();
       onSwitch(agent.id);
     } catch (cause) {
-      message.error(errorText(cause));
+      setError(errorText(cause));
     }
   }
 
@@ -113,94 +105,85 @@ export default function AgentPicker({
     try {
       await deleteAgentConfig(client, directory, custom.id);
       removeCustomAgent(custom.id);
-      message.success('角色已删除');
+      setError(null);
       await reloadAgents();
     } catch (cause) {
-      message.error(errorText(cause));
+      setError(errorText(cause));
     }
   }
 
-  function renderOption(option: {
-    value?: unknown;
-    label?: ReactNode;
-    data?: { description?: string; className?: string };
-  }): ReactNode {
-    if (String(option.value) === AGENT_ADD_VALUE) {
-      return (
-        <span className="flex w-full items-center justify-center gap-1.5 text-[13px] text-(--muted)">
-          <PlusOutlined className="text-[11px]" />
-          添加角色
-        </span>
-      );
-    }
-
-    const id = String(option.value);
-    const description = option.data?.description;
-    const selected = agentID === id;
-    const custom = customAgents.find((item) => item.id === id);
-
-    return (
-      <div className="group flex w-full min-w-0 items-center gap-2.5">
-        <span
-          className={`h-2 w-2 shrink-0 rounded-full ${selected ? 'bg-(--ok)' : 'bg-(--line)'}`}
-        />
-        <span className="min-w-0 shrink-0 text-[13px] text-(--text)">{option.label}</span>
-        <span className="ml-auto flex min-w-0 shrink items-center gap-1">
-          {/* 非选中显示描述；自定义角色悬停时换成编辑/删除按钮。 */}
+  const pickerOptions: PickerOption[] = options.map((option) => {
+    const selected = agentID === option.value;
+    const custom = customAgents.find((item) => item.id === option.value);
+    return {
+      value: option.value,
+      search: `${option.label} ${option.description ?? ''}`,
+      content: () => (
+        <Flex align="center" gap="2" className="min-w-0 flex-1">
           <span
-            className={`truncate text-[11px] text-(--muted) ${selected ? 'hidden' : ''} ${
-              custom ? 'group-hover:hidden' : ''
-            }`}
-          >
-            {description}
-          </span>
-          {custom && (
-            <span
-              className="hidden shrink-0 items-center group-hover:flex"
-              onMouseDown={(event) => event.preventDefault()}
-              onClick={(event) => event.stopPropagation()}
-            >
-              <Button
-                size="small"
-                type="text"
-                title="编辑"
-                icon={<EditOutlined />}
-                onClick={() => {
-                  setEditing(custom);
-                  setModalOpen(true);
-                }}
-              />
-              <Button
-                size="small"
-                type="text"
-                danger
-                title={selected ? '当前角色不能删除' : '删除'}
-                disabled={selected}
-                icon={<DeleteOutlined />}
-                onClick={() => void deleteCustom(custom)}
-              />
-            </span>
+            className={`size-2 shrink-0 rounded-full ${selected ? 'bg-(--ok)' : 'bg-(--line)'}`}
+          />
+          <Text size="2" className="shrink-0">
+            {option.label}
+          </Text>
+          {!selected && option.description && (
+            <Text size="1" color="gray" truncate className="min-w-0">
+              {option.description}
+            </Text>
           )}
-        </span>
-      </div>
-    );
-  }
+        </Flex>
+      ),
+      actions: custom ? (
+        <>
+          <IconButton
+            size="1"
+            variant="ghost"
+            color="gray"
+            aria-label="编辑"
+            title="编辑"
+            onClick={() => {
+              setEditing(custom);
+              setModalOpen(true);
+            }}
+          >
+            <Pencil2Icon />
+          </IconButton>
+          <IconButton
+            size="1"
+            variant="ghost"
+            color="red"
+            aria-label="删除"
+            title={selected ? '当前角色不能删除' : '删除'}
+            disabled={selected}
+            onClick={() => void deleteCustom(custom)}
+          >
+            <TrashIcon />
+          </IconButton>
+        </>
+      ) : undefined,
+    };
+  });
+
+  const current = options.find((option) => option.value === agentID);
 
   return (
     <>
-      <Select
-        className="max-w-[150px]!"
-        placeholder="选择角色"
-        value={agentID ?? undefined}
-        options={options}
-        optionRender={renderOption}
-        classNames={{ popup: { root: 'model-picker' } }}
-        onChange={(value) => {
-          if (value === AGENT_ADD_VALUE) {
-            setEditing(null);
-            setModalOpen(true);
-            return;
-          }
+      <OptionPicker
+        value={agentID}
+        trigger={current?.label ?? '选择角色'}
+        triggerClassName="max-w-[150px] max-sm:max-w-[110px]"
+        placeholder="搜索角色"
+        options={pickerOptions}
+        width={320}
+        notice={
+          error ? (
+            <Callout.Root color="red" size="1">
+              <Callout.Text>{error}</Callout.Text>
+            </Callout.Root>
+          ) : undefined
+        }
+        onSelect={(value) => {
+          setError(null);
           const def = DEFAULT_AGENTS.find((a) => a.id === value);
           if (def && !agentOptions.some((o) => o.id === value)) {
             void materializeDefaultAgent(def);
@@ -208,12 +191,11 @@ export default function AgentPicker({
           }
           onSwitch(value);
         }}
-        popupMatchSelectWidth={false}
-        showSearch={{
-          filterOption: (input, option) =>
-            `${option?.label ?? ''} ${option?.description ?? ''}`
-              .toLowerCase()
-              .includes(input.toLowerCase()),
+        addLabel="添加角色"
+        addIcon={<PlusIcon />}
+        onAdd={() => {
+          setEditing(null);
+          setModalOpen(true);
         }}
       />
 

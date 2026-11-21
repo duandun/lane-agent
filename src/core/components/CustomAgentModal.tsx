@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { App as AntdApp, Flex, Input, Modal, Select, Typography } from 'antd';
+import { Button, Callout, Dialog, Flex, Select, Text, TextArea, TextField } from '@radix-ui/themes';
 import type { Client } from '../lib/client';
 import { useAppStore, type CustomAgent } from '../lib/store';
 import { errorText } from '../lib/error';
@@ -29,13 +29,13 @@ export default function CustomAgentModal({
   onClose: () => void;
   onSaved: (agent: CustomAgent) => Promise<void>;
 }) {
-  const { message } = AntdApp.useApp();
   const saveCustomAgent = useAppStore((state) => state.saveCustomAgent);
   const [id, setID] = useState('');
   const [description, setDescription] = useState('');
   const [system, setSystem] = useState('');
   const [model, setModel] = useState(DEFAULT_MODEL);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -43,20 +43,22 @@ export default function CustomAgentModal({
     setDescription(editing?.description ?? '');
     setSystem(editing?.system ?? '');
     setModel(editing?.model || DEFAULT_MODEL);
+    setError(null);
   }, [open, editing]);
 
   async function save() {
     const agentID = id.trim();
     if (!/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(agentID)) {
-      message.error('Agent ID 只能包含字母、数字、. _ -');
+      setError('Agent ID 只能包含字母、数字、. _ -');
       return;
     }
     if (!system.trim()) {
-      message.error('请填写角色提示词');
+      setError('请填写角色提示词');
       return;
     }
 
     setSaving(true);
+    setError(null);
     try {
       const saved: CustomAgent = {
         id: agentID,
@@ -66,70 +68,84 @@ export default function CustomAgentModal({
       };
       await saveAgentConfig(client, directory, saved, editing?.id);
       saveCustomAgent(saved, editing?.id);
-      message.success('角色已保存');
       onClose();
       await onSaved(saved);
     } catch (cause) {
-      message.error(errorText(cause));
+      setError(errorText(cause));
     } finally {
       setSaving(false);
     }
   }
 
   return (
-    <Modal
-      title={editing ? '编辑角色' : '新增角色'}
+    <Dialog.Root
       open={open}
-      okText="保存"
-      cancelText="取消"
-      confirmLoading={saving}
-      okButtonProps={{ disabled: !id.trim() || !system.trim() }}
-      onCancel={onClose}
-      onOk={() => void save()}
-      width={520}
+      onOpenChange={(next) => {
+        if (!next) onClose();
+      }}
     >
-      <Flex vertical gap={12}>
-        <Field label="角色名称">
-          <Input
-            value={id}
-            onChange={(event) => setID(event.target.value)}
-            placeholder="code-reviewer"
-            disabled={!!editing}
-          />
-        </Field>
-        <Field label="描述（可选，用于下拉里展示）">
-          <Input
-            value={description}
-            onChange={(event) => setDescription(event.target.value)}
-            placeholder="只做代码审查"
-          />
-        </Field>
-        <Field label="角色提示词">
-          <Input.TextArea
-            value={system}
-            onChange={(event) => setSystem(event.target.value)}
-            placeholder="你是资深代码审查员，输出简洁、只挑关键问题……"
-            autoSize={{ minRows: 4, maxRows: 8 }}
-          />
-        </Field>
-        <Field label="模型（可选）">
-          <Select
-            value={model}
-            onChange={setModel}
-            options={[
-              { value: DEFAULT_MODEL, label: '跟随默认模型' },
-              ...modelOptions.map((item) => ({ value: item.value, label: item.label })),
-            ]}
-            showSearch
-            optionFilterProp="label"
-            popupMatchSelectWidth={false}
-          />
-        </Field>
-        <Typography.Text type="secondary" className="text-xs!">
-          保存会合并写入 {directory || 'server 默认目录'}/opencode.json 并重新加载配置；角色切换在
-          顶部角色下拉里进行。
-        </Typography.Text>
-      </Flex>
-    </Modal>
+      <Dialog.Content maxWidth="520px" aria-describedby={undefined}>
+        <Dialog.Title>{editing ? '编辑角色' : '新增角色'}</Dialog.Title>
+        <Flex direction="column" gap="3" mt="3">
+          <Field label="角色名称">
+            <TextField.Root
+              value={id}
+              onChange={(event) => setID(event.target.value)}
+              placeholder="code-reviewer"
+              disabled={!!editing}
+            />
+          </Field>
+          <Field label="描述（可选，用于下拉里展示）">
+            <TextField.Root
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              placeholder="只做代码审查"
+            />
+          </Field>
+          <Field label="角色提示词">
+            <TextArea
+              value={system}
+              onChange={(event) => setSystem(event.target.value)}
+              placeholder="你是资深代码审查员，输出简洁、只挑关键问题……"
+              rows={4}
+            />
+          </Field>
+          <Field label="模型（可选）">
+            <Select.Root value={model} onValueChange={setModel}>
+              <Select.Trigger />
+              <Select.Content>
+                <Select.Item value={DEFAULT_MODEL}>跟随默认模型</Select.Item>
+                {modelOptions.map((item) => (
+                  <Select.Item key={item.value} value={item.value}>
+                    {item.label}
+                  </Select.Item>
+                ))}
+              </Select.Content>
+            </Select.Root>
+          </Field>
+          <Text size="1" color="gray">
+            保存会合并写入 {directory || 'server 默认目录'}/opencode.json 并重新加载配置；角色切换在
+            顶部角色下拉里进行。
+          </Text>
+          {error && (
+            <Callout.Root color="red" size="1">
+              <Callout.Text>{error}</Callout.Text>
+            </Callout.Root>
+          )}
+        </Flex>
+        <Flex justify="end" gap="2" mt="4">
+          <Button variant="soft" color="gray" onClick={onClose}>
+            取消
+          </Button>
+          <Button
+            loading={saving}
+            disabled={!id.trim() || !system.trim()}
+            onClick={() => void save()}
+          >
+            保存
+          </Button>
+        </Flex>
+      </Dialog.Content>
+    </Dialog.Root>
   );
 }

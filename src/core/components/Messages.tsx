@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
-import { Avatar, App as AntdApp } from 'antd';
+import { useMemo, useRef, useState } from 'react';
+import { Avatar, Flex, IconButton, Text, Tooltip } from '@radix-ui/themes';
 import {
   Actions,
   Bubble,
@@ -9,16 +9,16 @@ import {
   type PromptsItemType,
 } from '@ant-design/x';
 import {
-  AppstoreOutlined,
-  BulbOutlined,
-  CopyOutlined,
-  ExperimentOutlined,
-  FileSearchOutlined,
-  PaperClipOutlined,
-  RedoOutlined,
-  ThunderboltFilled,
-  UserOutlined,
-} from '@ant-design/icons';
+  CheckCircledIcon,
+  CopyIcon,
+  FileIcon,
+  GridIcon,
+  LightningBoltIcon,
+  PersonIcon,
+  ReaderIcon,
+  ReloadIcon,
+  RocketIcon,
+} from '@radix-ui/react-icons';
 import Markdown from './Markdown';
 import Activity, { type ActivityBlock } from './Activity';
 import FileChange from './FileChange';
@@ -40,7 +40,7 @@ const ROLES = {
   user: {
     placement: 'end' as const,
     variant: 'filled' as const,
-    avatar: <Avatar size="small" icon={<UserOutlined />} />,
+    avatar: <Avatar size="1" fallback={<PersonIcon />} />,
     styles: { content: { background: 'var(--user-bubble)' } },
   },
   ai: {
@@ -48,16 +48,10 @@ const ROLES = {
     variant: 'outlined' as const,
     avatar: (
       <Avatar
-        size="small"
-        icon={
-          <img
-            src={laneIconMark}
-            alt="lane"
-            width={32}
-            height={32}
-            className="brightness-0 invert"
-          />
-        }
+        size="1"
+        src={laneIconMark}
+        fallback="L"
+        className="[&_img]:brightness-0 [&_img]:invert"
         style={{ background: 'var(--ai-avatar)', color: 'var(--ai-avatar-fg)' }}
       />
     ),
@@ -67,8 +61,8 @@ const ROLES = {
     variant: 'borderless' as const,
     avatar: (
       <Avatar
-        size="small"
-        icon={<ThunderboltFilled />}
+        size="1"
+        fallback={<LightningBoltIcon />}
         style={{ background: 'var(--activity-avatar)', color: 'var(--activity-avatar-fg)' }}
       />
     ),
@@ -78,16 +72,10 @@ const ROLES = {
     variant: 'borderless' as const,
     avatar: (
       <Avatar
-        size="small"
-        icon={
-          <img
-            src={laneIconMark}
-            alt="lane"
-            width={32}
-            height={32}
-            className="brightness-0 invert"
-          />
-        }
+        size="1"
+        src={laneIconMark}
+        fallback="L"
+        className="[&_img]:brightness-0 [&_img]:invert"
         style={{ background: 'var(--ai-avatar)', color: 'var(--ai-avatar-fg)' }}
       />
     ),
@@ -98,19 +86,19 @@ const ROLES = {
 const SUGGESTIONS: PromptsItemType[] = [
   {
     key: 'explain',
-    icon: <FileSearchOutlined />,
+    icon: <ReaderIcon />,
     label: '了解项目',
     description: '介绍一下这个项目的结构、入口和关键模块',
   },
   {
     key: 'improve',
-    icon: <BulbOutlined />,
+    icon: <RocketIcon />,
     label: '找点活干',
     description: '看看这个项目还有哪些可以改进的地方',
   },
   {
     key: 'test',
-    icon: <ExperimentOutlined />,
+    icon: <CheckCircledIcon />,
     label: '跑测试',
     description: '运行测试，并修复失败的用例',
   },
@@ -172,18 +160,7 @@ export default function Messages({
   onSuggestion: (text: string) => void;
   onRegenerate: (messageID: string, text: string, userBlockID: string) => void;
 }) {
-  const { message } = AntdApp.useApp();
-
   const bubbleItems = useMemo<BubbleItemType[]>(() => {
-    const copy = async (text: string) => {
-      try {
-        await navigator.clipboard.writeText(text);
-        message.success('已复制');
-      } catch {
-        message.error('复制失败');
-      }
-    };
-
     const lastTextID = [...blocks].reverse().find((block) => block.kind === 'text')?.id;
     const views = toViewItems(blocks);
     const lastView = views[views.length - 1];
@@ -227,7 +204,7 @@ export default function Messages({
                     key={skill.id}
                     className="inline-flex items-center gap-1.5 rounded-full border border-(--accent)/25 bg-(--accent)/10 px-2 py-1 text-[12px] font-medium leading-none text-(--accent)"
                   >
-                    <AppstoreOutlined className="text-[10px]" />
+                    <GridIcon className="text-[10px]" />
                     {skill.name}
                   </span>
                 ))}
@@ -236,7 +213,7 @@ export default function Messages({
                     key={`file:${index}`}
                     className="inline-flex max-w-[240px] items-center gap-1.5 rounded-full border border-(--line) bg-(--panel-2) px-2 py-1 text-[12px] leading-none text-(--muted)"
                   >
-                    <PaperClipOutlined className="shrink-0 text-[10px]" />
+                    <FileIcon className="shrink-0 text-[10px]" />
                     <span className="truncate">{name}</span>
                   </span>
                 ))}
@@ -261,24 +238,23 @@ export default function Messages({
               {
                 key: 'regenerate',
                 label: '重新生成',
-                icon: <RedoOutlined />,
+                icon: <ReloadIcon />,
                 onItemClick: () => onRegenerate(prompt.key.slice(4), prompt.text, prompt.key),
               },
             ]
           : []),
-        {
-          key: 'copy',
-          label: '复制',
-          icon: <CopyOutlined />,
-          onItemClick: () => void copy(item.text),
-        },
       ];
 
       return {
         key: item.key,
         role: 'ai',
         content: <Markdown text={item.text} streaming={busy && item.key === lastTextID} />,
-        footer: <Actions items={actions} />,
+        footer: (
+          <Flex align="center" gap="1">
+            {actions.length > 0 && <Actions items={actions} />}
+            <Actions.Copy text={item.text} />
+          </Flex>
+        ),
       };
     });
 
@@ -287,7 +263,7 @@ export default function Messages({
     }
 
     return items;
-  }, [blocks, busy, message, onRegenerate]);
+  }, [blocks, busy, onRegenerate]);
 
   if (blocks.length === 0 && !busy) {
     return (

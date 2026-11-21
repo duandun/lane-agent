@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { App as AntdApp, Flex, Input, Modal, Typography } from 'antd';
+import { Button, Callout, Dialog, Flex, Text, TextField } from '@radix-ui/themes';
 import type { Client } from '../lib/client';
 import { useAppStore, type CustomModel } from '../lib/store';
 import { errorText } from '../lib/error';
@@ -29,7 +29,6 @@ export default function CustomModelModal({
   onClose: () => void;
   onSaved: (model: CustomModel) => Promise<void>;
 }) {
-  const { message } = AntdApp.useApp();
   const saveCustomModel = useAppStore((state) => state.saveCustomModel);
   const [providerID, setProviderID] = useState('');
   const [modelID, setModelID] = useState('');
@@ -37,6 +36,7 @@ export default function CustomModelModal({
   const [baseURL, setBaseURL] = useState('');
   const [apiKey, setApiKey] = useState('');
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -45,6 +45,7 @@ export default function CustomModelModal({
     setName(editing?.name ?? '');
     setBaseURL(editing?.baseURL ?? '');
     setApiKey('');
+    setError(null);
   }, [open, editing]);
 
   async function save() {
@@ -52,19 +53,20 @@ export default function CustomModelModal({
     const mid = modelID.trim();
     const url = baseURL.trim();
     if (!/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(pid)) {
-      message.error('Provider ID 只能包含字母、数字、. _ -');
+      setError('Provider ID 只能包含字母、数字、. _ -');
       return;
     }
     if (!mid) {
-      message.error('请填写模型 ID');
+      setError('请填写模型 ID');
       return;
     }
     if (!/^https?:\/\//.test(url)) {
-      message.error('接口地址必须以 http:// 或 https:// 开头');
+      setError('接口地址必须以 http:// 或 https:// 开头');
       return;
     }
 
     setSaving(true);
+    setError(null);
     try {
       const { path, config } = await loadOpencodeConfig(client, directory);
       const providers = {
@@ -104,75 +106,90 @@ export default function CustomModelModal({
         baseURL: url,
       };
       saveCustomModel(saved, editing ?? undefined);
-      message.success('自定义模型已保存');
       setApiKey('');
       onClose();
       await onSaved(saved);
     } catch (cause) {
-      message.error(errorText(cause));
+      setError(errorText(cause));
     } finally {
       setSaving(false);
     }
   }
 
   return (
-    <Modal
-      title={editing ? '编辑自定义模型' : '自定义模型'}
+    <Dialog.Root
       open={open}
-      okText="保存"
-      cancelText="取消"
-      confirmLoading={saving}
-      okButtonProps={{ disabled: !providerID.trim() || !modelID.trim() || !baseURL.trim() }}
-      onCancel={onClose}
-      onOk={() => void save()}
-      width={460}
+      onOpenChange={(next) => {
+        if (!next) onClose();
+      }}
     >
-      <Flex vertical gap={12}>
-        <Typography.Text type="secondary" className="text-xs!">
-          当前模型：{current ? `${current.providerID}/${current.id}` : '未选择'}
-        </Typography.Text>
-        <Field label="Provider ID">
-          <Input
-            value={providerID}
-            onChange={(event) => setProviderID(event.target.value)}
-            placeholder="custom-deepseek"
-            disabled={!!editing}
-          />
-        </Field>
-        <Field label="模型 ID">
-          <Input
-            value={modelID}
-            onChange={(event) => setModelID(event.target.value)}
-            placeholder="deepseek-chat"
-          />
-        </Field>
-        <Field label="显示名称">
-          <Input
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            placeholder="可选，默认使用 Provider ID"
-          />
-        </Field>
-        <Field label="接口地址">
-          <Input
-            value={baseURL}
-            onChange={(event) => setBaseURL(event.target.value)}
-            placeholder="https://api.deepseek.com/v1"
-          />
-        </Field>
-        <Field label="API Key（留空表示沿用已保存的 Key）">
-          <Input.Password
-            value={apiKey}
-            onChange={(event) => setApiKey(event.target.value)}
-            placeholder="sk-..."
-            autoComplete="off"
-          />
-        </Field>
-        <Typography.Text type="secondary" className="text-xs!">
-          保存会合并写入 {directory || 'server 默认目录'}/opencode.json 并重新加载配置；Key 存在
-          server 凭据库。
-        </Typography.Text>
-      </Flex>
-    </Modal>
+      <Dialog.Content maxWidth="460px" aria-describedby={undefined}>
+        <Dialog.Title>{editing ? '编辑自定义模型' : '自定义模型'}</Dialog.Title>
+        <Flex direction="column" gap="3" mt="3">
+          <Text size="1" color="gray">
+            当前模型：{current ? `${current.providerID}/${current.id}` : '未选择'}
+          </Text>
+          <Field label="Provider ID">
+            <TextField.Root
+              value={providerID}
+              onChange={(event) => setProviderID(event.target.value)}
+              placeholder="custom-deepseek"
+              disabled={!!editing}
+            />
+          </Field>
+          <Field label="模型 ID">
+            <TextField.Root
+              value={modelID}
+              onChange={(event) => setModelID(event.target.value)}
+              placeholder="deepseek-chat"
+            />
+          </Field>
+          <Field label="显示名称">
+            <TextField.Root
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              placeholder="可选，默认使用 Provider ID"
+            />
+          </Field>
+          <Field label="接口地址">
+            <TextField.Root
+              value={baseURL}
+              onChange={(event) => setBaseURL(event.target.value)}
+              placeholder="https://api.deepseek.com/v1"
+            />
+          </Field>
+          <Field label="API Key（留空表示沿用已保存的 Key）">
+            <TextField.Root
+              type="password"
+              value={apiKey}
+              onChange={(event) => setApiKey(event.target.value)}
+              placeholder="sk-..."
+              autoComplete="off"
+            />
+          </Field>
+          <Text size="1" color="gray">
+            保存会合并写入 {directory || 'server 默认目录'}/opencode.json 并重新加载配置；Key 存在
+            server 凭据库。
+          </Text>
+          {error && (
+            <Callout.Root color="red" size="1">
+              <Callout.Text>{error}</Callout.Text>
+            </Callout.Root>
+          )}
+        </Flex>
+        <Flex justify="end" gap="2" mt="4">
+          <Button variant="soft" color="gray" onClick={onClose}>
+            取消
+          </Button>
+          <Button
+            loading={saving}
+            disabled={!providerID.trim() || !modelID.trim() || !baseURL.trim()}
+            onClick={() => void save()}
+          >
+            保存
+          </Button>
+        </Flex>
+      </Dialog.Content>
+    </Dialog.Root>
   );
 }

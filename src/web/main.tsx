@@ -1,3 +1,4 @@
+import '@radix-ui/themes/styles.css';
 import '@core/styles.css';
 import { createRoot } from 'react-dom/client';
 import App from './App';

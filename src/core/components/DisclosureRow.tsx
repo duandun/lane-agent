@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { CheckCircleFilled, CloseCircleFilled, DownOutlined } from '@ant-design/icons';
+import { CheckCircledIcon, ChevronDownIcon, CrossCircledIcon } from '@radix-ui/react-icons';
 
 export type RowStatus = 'running' | 'ok' | 'error';
 
@@ -65,13 +65,13 @@ export default function DisclosureRow({
             }`}
           >
             {status === 'ok' ? (
-              <CheckCircleFilled />
+              <CheckCircledIcon />
             ) : status === 'error' ? (
-              <CloseCircleFilled />
+              <CrossCircledIcon />
             ) : null}
           </span>
         )}
-        <DownOutlined
+        <ChevronDownIcon
           className={`shrink-0 text-[10px] text-(--muted) transition-transform duration-150 motion-reduce:transition-none ${
             open ? 'rotate-0' : '-rotate-90'
           }`}

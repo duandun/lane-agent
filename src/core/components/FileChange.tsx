@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { CheckCircleFilled, CloseCircleFilled, FileTextOutlined } from '@ant-design/icons';
+import { CheckCircledIcon, CrossCircledIcon, FileTextIcon } from '@radix-ui/react-icons';
 import type { ToolStatus } from '../lib/blocks';
 import { wordDiff, type FileDiff, type Segment } from '../lib/diff';
 
@@ -13,13 +13,13 @@ export default function FileChange({ diff, status }: { diff: FileDiff; status: T
   return (
     <div className="min-w-0 overflow-hidden rounded-xl border border-(--line) bg-(--panel)">
       <div className="flex items-center gap-2 border-b border-(--line) px-3.5 py-2.5 text-[13px]">
-        <FileTextOutlined className="shrink-0 text-(--muted)" />
+        <FileTextIcon className="shrink-0 text-(--muted)" />
         <span className="min-w-0 flex-1 truncate font-mono text-(--text)" title={diff.path}>
           {name}
         </span>
         <span className="ml-auto flex shrink-0 items-center gap-2 font-mono text-xs">
-          {status === 'ok' && <CheckCircleFilled className="text-(--ok)" />}
-          {status === 'error' && <CloseCircleFilled className="text-(--err)" />}
+          {status === 'ok' && <CheckCircledIcon className="text-(--ok)" />}
+          {status === 'error' && <CrossCircledIcon className="text-(--err)" />}
           {status === 'running' && <span className="text-(--accent)">运行中</span>}
           <span className="text-[#2ea043]">+{diff.added}</span>
           {diff.removed > 0 && <span className="text-[#f85149]">−{diff.removed}</span>}

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Button, Input, InputNumber, Tag, Typography } from 'antd';
+import { Badge, Button, Flex, Link, Text, TextField } from '@radix-ui/themes';
 import type { FormAnswer, FormField, FormInfo, FormValue } from '@opencode/client';
 
 type Answers = Record<string, FormValue | undefined>;
@@ -135,9 +135,9 @@ export default function QuestionPrompt({
 
     if (field.type === 'external') {
       return (
-        <Typography.Link href={field.url} target="_blank" rel="noreferrer">
+        <Link href={field.url} target="_blank" rel="noreferrer">
           {field.title ?? field.url}
-        </Typography.Link>
+        </Link>
       );
     }
 
@@ -146,40 +146,44 @@ export default function QuestionPrompt({
       const typed = typeof value === 'string' && !optionValues.includes(value) ? value : '';
 
       return (
-        <div className="flex flex-col gap-2">
-          <div className="flex flex-wrap gap-2">
+        <Flex direction="column" gap="2">
+          <Flex wrap="wrap" gap="2">
             {field.options.map((option) => (
               <Button
                 key={option.value}
-                className="whitespace-normal! text-left! text-[15px]!"
-                type={value === option.value ? 'primary' : 'default'}
+                variant={value === option.value ? 'solid' : 'soft'}
+                color={value === option.value ? 'blue' : 'gray'}
+                size="2"
+                style={{ height: 'auto', paddingBlock: 6, whiteSpace: 'normal', textAlign: 'left' }}
                 onClick={() => choose(field, option.value)}
               >
                 {option.label}
               </Button>
             ))}
-          </div>
+          </Flex>
           {field.custom && (
-            <Input
-              className="text-base!"
+            <TextField.Root
               value={typed}
               placeholder="或输入其他答案"
               onChange={(event) => set(field.key, event.target.value)}
-              onPressEnter={() => submit()}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') submit();
+              }}
             />
           )}
-        </div>
+        </Flex>
       );
     }
 
     if (field.type === 'string') {
       return (
-        <Input
-          className="text-base!"
+        <TextField.Root
           value={typeof value === 'string' ? value : ''}
           placeholder={field.placeholder ?? '输入答案'}
           onChange={(event) => set(field.key, event.target.value)}
-          onPressEnter={() => submit()}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') submit();
+          }}
         />
       );
     }
@@ -193,118 +197,129 @@ export default function QuestionPrompt({
         );
       };
       return (
-        <div className="flex flex-col gap-2">
-          <div className="flex flex-wrap gap-2">
+        <Flex direction="column" gap="2">
+          <Flex wrap="wrap" gap="2">
             {field.options.map((option) => (
               <Button
                 key={option.value}
-                className="whitespace-normal! text-left! text-[15px]!"
-                type={list.includes(option.value) ? 'primary' : 'default'}
+                variant={list.includes(option.value) ? 'solid' : 'soft'}
+                color={list.includes(option.value) ? 'blue' : 'gray'}
+                size="2"
+                style={{ height: 'auto', paddingBlock: 6, whiteSpace: 'normal', textAlign: 'left' }}
                 onClick={() => toggle(option.value)}
               >
                 {option.label}
               </Button>
             ))}
-          </div>
+          </Flex>
           {field.custom && (
-            <Input
-              className="text-base!"
+            <TextField.Root
               value={custom[field.key] ?? ''}
               placeholder="其他（回车提交）"
               onChange={(event) =>
                 setCustom((current) => ({ ...current, [field.key]: event.target.value }))
               }
-              onPressEnter={() => submit()}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') submit();
+              }}
             />
           )}
-        </div>
+        </Flex>
       );
     }
 
     if (field.type === 'boolean') {
       return (
-        <div className="flex gap-2">
+        <Flex gap="2">
           <Button
-            className="whitespace-normal! text-left! text-[15px]!"
-            type={value === true ? 'primary' : 'default'}
+            variant={value === true ? 'solid' : 'soft'}
+            color={value === true ? 'blue' : 'gray'}
+            size="2"
             onClick={() => choose(field, true)}
           >
             是
           </Button>
           <Button
-            className="whitespace-normal! text-left! text-[15px]!"
-            type={value === false ? 'primary' : 'default'}
+            variant={value === false ? 'solid' : 'soft'}
+            color={value === false ? 'blue' : 'gray'}
+            size="2"
             onClick={() => choose(field, false)}
           >
             否
           </Button>
-        </div>
+        </Flex>
       );
     }
 
     return (
-      <InputNumber
-        className="w-full! [&_input]:text-base!"
-        value={typeof value === 'number' ? value : null}
+      <TextField.Root
+        type="number"
+        value={typeof value === 'number' ? String(value) : ''}
         min={typeof field.minimum === 'number' ? field.minimum : undefined}
         max={typeof field.maximum === 'number' ? field.maximum : undefined}
-        precision={field.type === 'integer' ? 0 : undefined}
-        onChange={(next) => set(field.key, next === null ? undefined : next)}
-        onPressEnter={() => submit()}
+        step={field.type === 'integer' ? 1 : 'any'}
+        onChange={(event) => {
+          const next = event.target.value === '' ? undefined : Number(event.target.value);
+          set(field.key, next !== undefined && Number.isNaN(next) ? undefined : next);
+        }}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') submit();
+        }}
       />
     );
   }
 
   return (
-    <div className="grid gap-3 rounded-[10px] border border-(--line) bg-(--panel) px-4 py-3.5">
-      <div className="flex items-center gap-2">
-        <Typography.Text strong className="text-base!">
+    <Flex
+      direction="column"
+      gap="3"
+      className="rounded-[10px] border border-(--line) bg-(--panel) px-4 py-3.5"
+    >
+      <Flex align="center" gap="2">
+        <Text size="3" weight="bold">
           {form?.title ?? '需要你的回答'}
-        </Typography.Text>
-        {count > 1 && <Tag color="blue">{count} 个待回答</Tag>}
-      </div>
+        </Text>
+        {count > 1 && <Badge color="blue">{count} 个待回答</Badge>}
+      </Flex>
 
-      <div className="grid gap-3">
+      <Flex direction="column" gap="3">
         {form?.fields
           .filter((field) => visible(field, answers))
           .map((field) => (
-            <div key={field.key} className="grid gap-2">
-              <div className="flex items-baseline gap-1">
-                <Typography.Text type="secondary" className="text-sm!">
+            <Flex key={field.key} direction="column" gap="2">
+              <Flex align="baseline" gap="1">
+                <Text size="2" color="gray">
                   {field.title ?? field.key}
-                </Typography.Text>
+                </Text>
                 {field.type !== 'external' && field.required && (
-                  <span className="text-(--err)">*</span>
+                  <Text size="2" color="red">
+                    *
+                  </Text>
                 )}
-              </div>
+              </Flex>
               {field.description && (
-                <Typography.Text type="secondary" className="text-sm!">
+                <Text size="2" color="gray">
                   {field.description}
-                </Typography.Text>
+                </Text>
               )}
               {control(field)}
               {errors[field.key] && (
-                <Typography.Text type="danger" className="text-sm!">
+                <Text size="1" color="red">
                   {errors[field.key]}
-                </Typography.Text>
+                </Text>
               )}
-            </div>
+            </Flex>
           ))}
-      </div>
+      </Flex>
 
-      <div className="flex justify-end gap-2">
-        <Button className="px-5! text-[15px]!" onClick={onCancel} disabled={pending}>
+      <Flex justify="end" gap="2">
+        <Button variant="soft" color="gray" size="2" onClick={onCancel} disabled={pending}>
           取消
         </Button>
-        <Button
-          className="px-5! text-[15px]!"
-          type="primary"
-          onClick={() => submit()}
-          loading={pending}
-        >
+        <Button size="2" onClick={() => submit()} loading={pending}>
           提交
         </Button>
-      </div>
-    </div>
+      </Flex>
+    </Flex>
   );
 }

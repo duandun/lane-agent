@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { BulbOutlined, CodeOutlined, ThunderboltFilled } from '@ant-design/icons';
+import { CodeIcon, LightningBoltIcon, MagicWandIcon } from '@radix-ui/react-icons';
 import DisclosureRow from './DisclosureRow';
 import Markdown from './Markdown';
 import type { Block } from '../lib/blocks';
@@ -27,7 +27,7 @@ export default function Activity({ blocks, active }: { blocks: ActivityBlock[]; 
 
   return (
     <DisclosureRow
-      icon={<ThunderboltFilled />}
+      icon={<LightningBoltIcon />}
       title={active ? '处理中…' : '已处理'}
       preview={summary}
       status={active ? 'running' : failed ? 'error' : 'ok'}
@@ -62,7 +62,7 @@ function ProcessRow({ block, active }: { block: ActivityBlock; active: boolean }
 
   return (
     <DisclosureRow
-      icon={reasoning ? <BulbOutlined /> : <CodeOutlined />}
+      icon={reasoning ? <MagicWandIcon /> : <CodeIcon />}
       title={
         reasoning
           ? block.duration != null

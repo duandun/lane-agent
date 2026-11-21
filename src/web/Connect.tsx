@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Alert, Button, Card, Flex, Form, Input, Typography } from 'antd';
+import { Cross2Icon, FileIcon, Link2Icon, LockClosedIcon } from '@radix-ui/react-icons';
+import { Button, Callout, Card, Flex, IconButton, Text, TextField } from '@radix-ui/themes';
 import { Welcome } from '@ant-design/x';
-import { LockOutlined, FolderOpenOutlined, LinkOutlined } from '@ant-design/icons';
 import { appBridge } from '@core/lib/bridge';
 import { DEFAULT_CONN, makeClient, type Conn } from '@core/lib/client';
 import { errorText } from '@core/lib/error';
+import Field from '@core/components/Field';
 import laneIcon from '@assets/favicon.svg';
 
 /** 连接表单：先用 Basic Auth 校验服务端，通过后再保存 Conn。 */
@@ -15,15 +16,12 @@ export default function Connect({
   initial: Conn;
   onConnect: (conn: Conn) => void;
 }) {
-  const [form] = Form.useForm<Conn>();
+  // Web 端不能选择本机目录，固定用默认工作区。
+  const [values, setValues] = useState<Conn>(
+    appBridge ? initial : { ...initial, directory: DEFAULT_CONN.directory }
+  );
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [bridgeChecking, setBridgeChecking] = useState(false);
-  const [bridgeResult, setBridgeResult] = useState<{ ok: boolean; text: string } | null>(null);
-  const [fsChecking, setFsChecking] = useState(false);
-  const [fsResult, setFsResult] = useState<{ ok: boolean; text: string } | null>(null);
-  const [npxChecking, setNpxChecking] = useState(false);
-  const [npxResult, setNpxResult] = useState<{ ok: boolean; text: string } | null>(null);
 
   // Electron 端会启动内置 CLI 的本地服务；没有保存过其它地址时自动填上。
   useEffect(() => {
@@ -31,87 +29,33 @@ export default function Connect({
     let alive = true;
     void appBridge.localService().then((service) => {
       if (!alive || !service) return;
-      const current = String(form.getFieldValue('baseUrl') ?? '');
-      if (current && current !== DEFAULT_CONN.baseUrl) return;
-      form.setFieldsValue({ baseUrl: service.url, password: service.password });
+      setValues((current) => {
+        if (current.baseUrl && current.baseUrl !== DEFAULT_CONN.baseUrl) return current;
+        return { ...current, baseUrl: service.url, password: service.password };
+      });
     });
     return () => {
       alive = false;
     };
-  }, [form]);
-
-  async function checkBridge() {
-    if (!appBridge) return;
-    setBridgeChecking(true);
-    try {
-      const [pong, info] = await Promise.all([appBridge.ping(), appBridge.info()]);
-      setBridgeResult({
-        ok: true,
-        text: `${pong} · Electron ${info.versions.electron} · Node ${info.versions.node} · ${info.platform}/${info.arch}`,
-      });
-    } catch (cause) {
-      setBridgeResult({ ok: false, text: errorText(cause) });
-    } finally {
-      setBridgeChecking(false);
-    }
-  }
-
-  async function listWorkspace() {
-    if (!appBridge) return;
-    const root = String(form.getFieldValue('directory') ?? '').trim();
-    if (!root) {
-      setFsResult({ ok: false, text: '项目目录为空' });
-      return;
-    }
-    setFsChecking(true);
-    try {
-      const entries = await appBridge.fs.list(root);
-      const names = entries.slice(0, 8).map((entry) => (entry.dir ? `${entry.name}/` : entry.name));
-      setFsResult({
-        ok: true,
-        text: `共 ${entries.length} 项${names.length ? `：${names.join('、')}${entries.length > names.length ? '…' : ''}` : ''}`,
-      });
-    } catch (cause) {
-      setFsResult({ ok: false, text: errorText(cause) });
-    } finally {
-      setFsChecking(false);
-    }
-  }
-
-  async function testNpx() {
-    if (!appBridge) return;
-    const root = String(form.getFieldValue('directory') ?? '').trim();
-    if (!root) {
-      setNpxResult({ ok: false, text: '项目目录为空' });
-      return;
-    }
-    setNpxChecking(true);
-    try {
-      const result = await appBridge.exec.npx(root, ['--version']);
-      const output = (result.stdout || result.stderr).trim().split('\n')[0] ?? '';
-      setNpxResult({
-        ok: result.code === 0,
-        text: `code ${result.code}${output ? ` · ${output}` : ''}`,
-      });
-    } catch (cause) {
-      setNpxResult({ ok: false, text: errorText(cause) });
-    } finally {
-      setNpxChecking(false);
-    }
-  }
+  }, []);
 
   async function pickDirectory() {
     if (!appBridge) return;
     const path = await appBridge.selectDirectory();
-    if (path) form.setFieldValue('directory', path);
+    if (path) setValues((current) => ({ ...current, directory: path }));
   }
 
-  async function submit(values: Conn) {
+  async function submit() {
     const next: Conn = {
       baseUrl: values.baseUrl.trim(),
       password: values.password ?? '',
       directory: appBridge ? (values.directory ?? '').trim() : DEFAULT_CONN.directory,
     };
+
+    if (!next.baseUrl) {
+      setError('请填写服务地址');
+      return;
+    }
 
     setPending(true);
     setError(null);
@@ -129,153 +73,122 @@ export default function Connect({
     }
   }
 
-  // Web 端不能选择本机目录，固定用默认工作区。
-  const initialValues: Conn = appBridge
-    ? initial
-    : { ...initial, directory: DEFAULT_CONN.directory };
+  function enter(event: React.KeyboardEvent) {
+    if (event.key === 'Enter') void submit();
+  }
 
   return (
     <div className="flex min-h-dvh flex-col items-center justify-center gap-4 px-4 py-8">
-      <Card
-        className="w-full max-w-[480px] border! border-(--line)! bg-(--panel)! [&_.ant-form]:mt-5! [&_.ant-form-item-label>label]:text-(--muted)! [&_.ant-welcome]:pb-2! [&_.ant-welcome]:pt-1!"
-        variant="borderless"
-      >
-        <Welcome
-          variant="borderless"
-          icon={<img src={laneIcon} alt="Lane" width={52} height={52} />}
-          title="Lane"
-          description={
-            appBridge
-              ? '桌面端 AI agent。服务由应用在本机启动。'
-              : '浏览器端的 AI agent 外壳。连接你自己启动的 opencode serve。'
-          }
-        />
+      <Card size="3" className="w-full max-w-[480px]">
+        <Flex direction="column" gap="4">
+          <Welcome
+            variant="borderless"
+            icon={<img src={laneIcon} alt="Lane" width={52} height={52} />}
+            title="Lane"
+            description={
+              appBridge
+                ? '桌面端 AI agent。服务由应用在本机启动。'
+                : '浏览器端的 AI agent 外壳。连接你自己启动的 opencode serve。'
+            }
+          />
 
-        <Form
-          form={form}
-          layout="vertical"
-          initialValues={initialValues}
-          requiredMark={false}
-          onFinish={(values) => void submit(values)}
-        >
-          <Form.Item
-            name="baseUrl"
-            label="服务地址"
-            rules={[{ required: true, message: '请填写服务地址' }]}
-            hidden={!!appBridge}
-          >
-            <Input
-              prefix={<LinkOutlined />}
-              placeholder="http://127.0.0.1:4096"
-              autoComplete="url"
-            />
-          </Form.Item>
+          {!appBridge && (
+            <>
+              <Field label="服务地址">
+                <TextField.Root
+                  value={values.baseUrl}
+                  onChange={(event) =>
+                    setValues((current) => ({ ...current, baseUrl: event.target.value }))
+                  }
+                  onKeyDown={enter}
+                  placeholder="http://127.0.0.1:4096"
+                  autoComplete="url"
+                >
+                  <TextField.Slot>
+                    <Link2Icon />
+                  </TextField.Slot>
+                </TextField.Root>
+              </Field>
 
-          <Form.Item name="password" label="密码（OPENCODE_PASSWORD）" hidden={!!appBridge}>
-            <Input.Password
-              prefix={<LockOutlined />}
-              placeholder="留空表示服务器未设密码"
-              autoComplete="current-password"
-            />
-          </Form.Item>
-
-          <Form.Item
-            name="directory"
-            label="项目目录"
-            extra="agent 会在这个目录里读写文件、执行命令。"
-          >
-            <Input
-              prefix={<FolderOpenOutlined />}
-              placeholder="/Users/cr/opencode-workspace"
-              disabled={!appBridge}
-              suffix={
-                appBridge ? (
-                  <Button variant="filled" size="small" onClick={() => void pickDirectory()}>
-                    选择
-                  </Button>
-                ) : undefined
-              }
-            />
-          </Form.Item>
-
-          {error && (
-            <Alert
-              className="mb-4"
-              type="error"
-              showIcon
-              title={error}
-              closable={{ onClose: () => setError(null) }}
-            />
+              <Field label="密码（OPENCODE_PASSWORD）">
+                <TextField.Root
+                  type="password"
+                  value={values.password}
+                  onChange={(event) =>
+                    setValues((current) => ({ ...current, password: event.target.value }))
+                  }
+                  onKeyDown={enter}
+                  placeholder="留空表示服务器未设密码"
+                  autoComplete="current-password"
+                >
+                  <TextField.Slot>
+                    <LockClosedIcon />
+                  </TextField.Slot>
+                </TextField.Root>
+              </Field>
+            </>
           )}
 
-          <Button type="primary" htmlType="submit" block size="large" loading={pending}>
+          <Field label="项目目录">
+            <TextField.Root
+              value={values.directory}
+              onChange={(event) =>
+                setValues((current) => ({ ...current, directory: event.target.value }))
+              }
+              onKeyDown={enter}
+              placeholder="/Users/cr/opencode-workspace"
+              disabled={!appBridge}
+            >
+              <TextField.Slot>
+                <FileIcon />
+              </TextField.Slot>
+              {appBridge && (
+                <TextField.Slot side="right">
+                  <Button variant="soft" size="1" onClick={() => void pickDirectory()}>
+                    选择
+                  </Button>
+                </TextField.Slot>
+              )}
+            </TextField.Root>
+          </Field>
+
+          <Text size="1" color="gray">
+            agent 会在这个目录里读写文件、执行命令。
+          </Text>
+
+          {error && (
+            <Callout.Root color="red" size="1" className="pr-8">
+              <Callout.Text>{error}</Callout.Text>
+              <IconButton
+                size="1"
+                variant="ghost"
+                color="gray"
+                aria-label="关闭"
+                className="absolute top-1 right-1"
+                onClick={() => setError(null)}
+              >
+                <Cross2Icon />
+              </IconButton>
+            </Callout.Root>
+          )}
+
+          <Button size="3" loading={pending} onClick={() => void submit()}>
             连接
           </Button>
-        </Form>
+        </Flex>
       </Card>
 
       {!appBridge && (
-        <Card
-          className="w-full max-w-[480px] border! border-(--line)! bg-(--panel)! [&_.ant-card-body]:grid! [&_.ant-card-body]:gap-2!"
-          size="small"
-          variant="borderless"
-        >
-          <Typography.Text type="secondary" className="text-xs!">
-            先在终端启动服务
-          </Typography.Text>
-          <pre className="m-0 overflow-x-auto font-mono text-xs leading-[1.7] text-(--muted)">{`OPENCODE_PASSWORD=your-secret \\
+        <Card size="2" className="w-full max-w-[480px]">
+          <Flex direction="column" gap="2">
+            <Text size="1" color="gray">
+              先在终端启动服务
+            </Text>
+            <pre className="m-0 overflow-x-auto font-mono text-xs leading-[1.7] text-(--muted)">{`OPENCODE_PASSWORD=your-secret \\
   opencode serve --hostname 0.0.0.0 --port 4096 --cors https://ai.cr123.life`}</pre>
+          </Flex>
         </Card>
       )}
-
-      {/*{appBridge && (*/}
-      {/*  <Card*/}
-      {/*    className="w-full max-w-[480px] border! border-(--line)! bg-(--panel)! [&_.ant-card-body]:grid! [&_.ant-card-body]:gap-2!"*/}
-      {/*    size="small"*/}
-      {/*    variant="borderless"*/}
-      {/*  >*/}
-      {/*    <Flex align="center" justify="space-between" gap={8}>*/}
-      {/*      <Typography.Text type="secondary" className="text-xs!">*/}
-      {/*        App 通道*/}
-      {/*      </Typography.Text>*/}
-      {/*      <Flex gap={8} wrap>*/}
-      {/*        <Button size="small" loading={bridgeChecking} onClick={() => void checkBridge()}>*/}
-      {/*          检测 IPC*/}
-      {/*        </Button>*/}
-      {/*        <Button size="small" loading={fsChecking} onClick={() => void listWorkspace()}>*/}
-      {/*          列出文件*/}
-      {/*        </Button>*/}
-      {/*        <Button size="small" loading={npxChecking} onClick={() => void testNpx()}>*/}
-      {/*          测试 npx*/}
-      {/*        </Button>*/}
-      {/*      </Flex>*/}
-      {/*    </Flex>*/}
-      {/*    {bridgeResult && (*/}
-      {/*      <Typography.Text*/}
-      {/*        className="block break-all text-xs!"*/}
-      {/*        type={bridgeResult.ok ? 'success' : 'danger'}*/}
-      {/*      >*/}
-      {/*        {bridgeResult.ok ? `正常：${bridgeResult.text}` : `失败：${bridgeResult.text}`}*/}
-      {/*      </Typography.Text>*/}
-      {/*    )}*/}
-      {/*    {fsResult && (*/}
-      {/*      <Typography.Text*/}
-      {/*        className="block break-all text-xs!"*/}
-      {/*        type={fsResult.ok ? 'success' : 'danger'}*/}
-      {/*      >*/}
-      {/*        {fsResult.ok ? `fs:list ${fsResult.text}` : `fs:list 失败：${fsResult.text}`}*/}
-      {/*      </Typography.Text>*/}
-      {/*    )}*/}
-      {/*    {npxResult && (*/}
-      {/*      <Typography.Text*/}
-      {/*        className="block break-all text-xs!"*/}
-      {/*        type={npxResult.ok ? 'success' : 'danger'}*/}
-      {/*      >*/}
-      {/*        {npxResult.ok ? `npx ${npxResult.text}` : `npx 失败：${npxResult.text}`}*/}
-      {/*      </Typography.Text>*/}
-      {/*    )}*/}
-      {/*  </Card>*/}
-      {/*)}*/}
     </div>
   );
 }

@@ -1,36 +1,38 @@
-import { useEffect, useMemo, useRef, useState, type ComponentRef, type ReactNode } from 'react';
-import {
-  Alert,
-  App as AntdApp,
-  Badge,
-  Button,
-  Drawer,
-  Dropdown,
-  Flex,
-  Select,
-  Tag,
-  Tooltip,
-  Typography,
-} from 'antd';
+import { useEffect, useMemo, useRef, useState, type ComponentRef } from 'react';
 import { Sender } from '@ant-design/x';
 import {
-  DeleteOutlined,
-  DesktopOutlined,
-  EditOutlined,
-  LogoutOutlined,
-  MenuFoldOutlined,
-  MenuOutlined,
-  MenuUnfoldOutlined,
-  MoonOutlined,
-  PlusOutlined,
-  SunOutlined,
-} from '@ant-design/icons';
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  Cross2Icon,
+  DesktopIcon,
+  ExitIcon,
+  HamburgerMenuIcon,
+  MoonIcon,
+  Pencil2Icon,
+  PlusIcon,
+  SunIcon,
+  TrashIcon,
+} from '@radix-ui/react-icons';
+import {
+  Button,
+  Callout,
+  Code,
+  Dialog,
+  DropdownMenu,
+  Flex,
+  IconButton,
+  Select,
+  Text,
+  Tooltip,
+  VisuallyHidden,
+} from '@radix-ui/themes';
 import type { SkillInfo } from '@opencode/client';
 import AgentPicker from '@core/components/AgentPicker';
 import AttachmentButton from '@core/components/AttachmentButton';
 import CustomModelModal from '@core/components/CustomModelModal';
 import Companion, { type CompanionState } from '@core/components/companion';
 import Messages from '@core/components/Messages';
+import OptionPicker, { type PickerOption } from '@core/components/OptionPicker';
 import PermissionModal from '@core/components/PermissionModal';
 import QuestionPrompt from '@core/components/QuestionPrompt';
 import SessionList from '@core/components/SessionList';
@@ -50,21 +52,16 @@ type ModelOption = {
   modelID: string;
 };
 
-const CUSTOM_ADD_VALUE = '__custom_add__';
-
 const THEME_ITEMS = [
-  { key: 'auto', label: '跟随系统', icon: <DesktopOutlined /> },
-  { key: 'light', label: '浅色', icon: <SunOutlined /> },
-  { key: 'dark', label: '深色', icon: <MoonOutlined /> },
+  { key: 'auto', label: '跟随系统', icon: <DesktopIcon /> },
+  { key: 'light', label: '浅色', icon: <SunIcon /> },
+  { key: 'dark', label: '深色', icon: <MoonIcon /> },
 ];
 
-const STATUS_META: Record<
-  ChatStatus,
-  { badge: 'processing' | 'success' | 'error'; label: string }
-> = {
-  connecting: { badge: 'processing', label: '连接中' },
-  online: { badge: 'success', label: '已连接' },
-  offline: { badge: 'error', label: '已断开' },
+const STATUS_META: Record<ChatStatus, { color: string; label: string }> = {
+  connecting: { color: 'var(--muted)', label: '连接中' },
+  online: { color: 'var(--ok)', label: '已连接' },
+  offline: { color: 'var(--err)', label: '已断开' },
 };
 
 /**
@@ -118,7 +115,7 @@ export default function Chat({ conn, onDisconnect }: { conn: Conn; onDisconnect:
   const [editingModel, setEditingModel] = useState<CustomModel | null>(null);
   const customModels = useAppStore((state) => state.customModels);
   const removeCustomModel = useAppStore((state) => state.removeCustomModel);
-  const { message } = AntdApp.useApp();
+  const [modelError, setModelError] = useState<string | null>(null);
   const [skills, setSkills] = useState<SkillInfo[]>([]);
   const [selectedSkill, setSelectedSkill] = useState<SkillInfo | null>(null);
   const senderRef = useRef<ComponentRef<typeof Sender>>(null);
@@ -213,17 +210,6 @@ export default function Chat({ conn, onDisconnect }: { conn: Conn; onDisconnect:
     void switchModel(model);
   }, [model, modelsReady, sessionID]);
 
-  const modelSelectOptions = [
-    ...modelOptions,
-    {
-      value: CUSTOM_ADD_VALUE,
-      label: '添加自定义模型',
-      providerID: '',
-      modelID: '',
-      className: 'model-add-option',
-    },
-  ];
-
   const currentCustomModel =
     customModels.find(
       (item) => item.providerID === model?.providerID && item.modelID === model?.id
@@ -234,87 +220,76 @@ export default function Chat({ conn, onDisconnect }: { conn: Conn; onDisconnect:
     try {
       await deleteProviderModel(client, conn.directory, custom.providerID, custom.modelID);
       removeCustomModel(custom);
-      message.success('自定义模型已删除');
+      setModelError(null);
       await reloadModels(model);
     } catch (cause) {
-      message.error(errorText(cause));
+      setModelError(errorText(cause));
     }
   }
 
-  /** 模型下拉的卡片式布局：状态点、名称、自定义标记、Provider。 */
-  function renderModelOption(option: {
-    value?: unknown;
-    label?: ReactNode;
-    data?: ModelOption;
-  }): ReactNode {
-    if (String(option.value) === CUSTOM_ADD_VALUE) {
-      return (
-        <span className="flex w-full items-center justify-center gap-1.5 text-[13px] text-(--muted)">
-          <PlusOutlined className="text-[11px]" />
-          添加自定义模型
-        </span>
-      );
-    }
-
-    // 自定义字段挂在 option.data 上，FlattenOptionData 不会把它们展开到顶层。
-    const { providerID = '', modelID = '' } = option.data ?? {};
-    const label = option.data?.label ?? option.label;
+  // 模型下拉的卡片式布局：状态点、名称、自定义标记、Provider。
+  const modelPickerOptions: PickerOption[] = modelOptions.map((option) => {
+    const { providerID, modelID, label } = option;
     const selected = !!model && `${providerID}/${modelID}` === `${model.providerID}/${model.id}`;
     const custom = customModels.find(
       (item) => item.providerID === providerID && item.modelID === modelID
     );
-
-    return (
-      <div className="group flex w-full min-w-0 items-center gap-2.5">
-        <span
-          className={`h-2 w-2 shrink-0 rounded-full ${selected ? 'bg-(--ok)' : 'bg-(--line)'}`}
-        />
-        <span className="min-w-0 truncate text-[13px] text-(--text)">{label}</span>
-        {custom && (
-          <span className="shrink-0 rounded-full border border-(--accent)/30 bg-(--accent)/10 px-1.5 py-px text-[11px] leading-4 text-(--accent)">
-            自定义
-          </span>
-        )}
-        <span className="ml-auto flex shrink-0 items-center gap-1">
-          {/* 自定义模型悬停时用编辑/删除按钮替换 provider ID。 */}
+    return {
+      value: option.value,
+      search: `${label} ${providerID}`,
+      content: () => (
+        <Flex align="center" gap="2" className="min-w-0 flex-1">
           <span
-            className={`font-mono text-[11px] text-(--muted) ${selected ? 'hidden' : ''} ${
-              custom ? 'group-hover:hidden' : ''
-            }`}
-          >
-            {providerID}
-          </span>
+            className={`size-2 shrink-0 rounded-full ${selected ? 'bg-(--ok)' : 'bg-(--line)'}`}
+          />
+          <Text size="2" truncate className="min-w-0">
+            {label}
+          </Text>
           {custom && (
-            <span
-              className="hidden items-center group-hover:flex"
-              onMouseDown={(event) => event.preventDefault()}
-              onClick={(event) => event.stopPropagation()}
+            <Text
+              size="1"
+              className="shrink-0 rounded-full border border-(--accent)/30 bg-(--accent)/10 px-1.5 py-px text-(--accent)"
             >
-              <Button
-                size="small"
-                type="text"
-                title="编辑"
-                icon={<EditOutlined />}
-                onClick={() => {
-                  setEditingModel(custom);
-                  setCustomOpen(true);
-                }}
-              />
-              <Button
-                size="small"
-                type="text"
-                danger
-                title={selected ? '当前模型不能删除' : '删除'}
-                disabled={selected}
-                icon={<DeleteOutlined />}
-                onClick={() => void deleteCustomModel(custom)}
-              />
-            </span>
+              自定义
+            </Text>
           )}
-        </span>
-      </div>
-    );
-  }
+          {!selected && (
+            <Text size="1" color="gray" className="ml-auto shrink-0 font-mono">
+              {providerID}
+            </Text>
+          )}
+        </Flex>
+      ),
+      actions: custom ? (
+        <>
+          <IconButton
+            size="1"
+            variant="ghost"
+            color="gray"
+            aria-label="编辑"
+            title="编辑"
+            onClick={() => {
+              setEditingModel(custom);
+              setCustomOpen(true);
+            }}
+          >
+            <Pencil2Icon />
+          </IconButton>
+          <IconButton
+            size="1"
+            variant="ghost"
+            color="red"
+            aria-label="删除"
+            title={selected ? '当前模型不能删除' : '删除'}
+            disabled={selected}
+            onClick={() => void deleteCustomModel(custom)}
+          >
+            <TrashIcon />
+          </IconButton>
+        </>
+      ) : undefined,
+    };
+  });
 
   function pickModel(value: string) {
     const slash = value.indexOf('/');
@@ -380,42 +355,30 @@ export default function Chat({ conn, onDisconnect }: { conn: Conn; onDisconnect:
           {history(false)}
         </aside>
       )}
-      <Drawer
-        placement="left"
-        size={264}
-        open={historyOpen}
-        onClose={() => setHistoryOpen(false)}
-        closable={false}
-        styles={{ body: { padding: 0 } }}
-      >
-        {history(true)}
-      </Drawer>
 
       <div className="grid min-w-0 flex-1 grid-rows-[auto_1fr_auto] bg-(--bg)">
-        <header className="flex items-center justify-between gap-4 overflow-hidden border-b border-(--line) bg-(--bar) px-5 py-2.5 text-[13px] backdrop-blur-[10px] max-sm:px-3 max-sm:py-2">
-          <Flex align="center" gap={10} className="min-w-0 flex-1 overflow-hidden">
-            <Button
-              type="text"
-              className="sm:hidden!"
-              icon={<MenuOutlined />}
-              onClick={() => setHistoryOpen(true)}
-            />
-            <Button
-              type="text"
-              className="max-sm:hidden!"
+        <header className="flex items-center justify-between gap-4 overflow-hidden border-b border-(--line) bg-(--bar) px-5 py-2.5 text-[13px] backdrop-blur-[10px] max-sm:flex-wrap max-sm:px-3 max-sm:py-2">
+          <Flex align="center" gap="2" className="min-w-0 flex-1 overflow-hidden max-sm:basis-full">
+            <IconButton
+              variant="ghost"
+              color="gray"
+              className="max-sm:hidden"
+              aria-label={historyCollapsed ? '展开会话历史' : '折叠会话历史'}
               title={historyCollapsed ? '展开会话历史' : '折叠会话历史'}
-              icon={historyCollapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
               onClick={() => setHistoryCollapsed((value) => !value)}
-            />
-            <Badge status={meta.badge} />
-            <Typography.Text strong className="whitespace-nowrap">
+            >
+              {historyCollapsed ? <ChevronRightIcon /> : <ChevronLeftIcon />}
+            </IconButton>
+            <span className="size-2 shrink-0 rounded-full" style={{ background: meta.color }} />
+            <Text size="2" weight="bold" className="whitespace-nowrap">
               Lane
-            </Typography.Text>
-            <Tooltip title={appBridge && conn.directory ? '打开项目目录' : undefined}>
-              <Typography.Text
-                type="secondary"
-                ellipsis
-                className={`max-w-[min(46vw,480px)] text-xs! max-sm:hidden ${
+            </Text>
+            <Tooltip content={appBridge && conn.directory ? '打开项目目录' : undefined}>
+              <Text
+                size="1"
+                color="gray"
+                truncate
+                className={`max-w-[min(46vw,480px)] max-sm:hidden ${
                   appBridge && conn.directory ? 'cursor-pointer hover:underline' : ''
                 }`}
                 onClick={
@@ -425,19 +388,24 @@ export default function Chat({ conn, onDisconnect }: { conn: Conn; onDisconnect:
                 }
               >
                 {conn.directory}
-              </Typography.Text>
+              </Text>
             </Tooltip>
           </Flex>
-          <Flex align="center" gap={8} className="shrink-0">
-            <Select<CompanionKind>
+          <Flex
+            align="center"
+            gap="1"
+            className="shrink-0 max-sm:w-full max-sm:flex-wrap max-sm:justify-end"
+          >
+            <Select.Root
               value={companion}
-              onChange={setCompanion}
-              options={[
-                { value: 'eagle', label: '小鹰' },
-                { value: 'cat', label: '小猫' },
-              ]}
-              popupMatchSelectWidth={false}
-            />
+              onValueChange={(value) => setCompanion(value as CompanionKind)}
+            >
+              <Select.Trigger className="max-sm:hidden!" radius="large" variant="soft" />
+              <Select.Content>
+                <Select.Item value="eagle">小鹰</Select.Item>
+                <Select.Item value="cat">小猫</Select.Item>
+              </Select.Content>
+            </Select.Root>
             <AgentPicker
               client={client}
               directory={conn.directory}
@@ -445,80 +413,89 @@ export default function Chat({ conn, onDisconnect }: { conn: Conn; onDisconnect:
               modelOptions={modelOptions.map((item) => ({ value: item.value, label: item.label }))}
               onSwitch={(id) => void switchAgent(id)}
             />
-            <Select
-              className="w-[200px]! max-sm:w-[130px]!"
-              style={{ maxHeight: 'none' }}
-              placeholder="选择模型"
-              value={model ? `${model.providerID}/${model.id}` : undefined}
-              options={modelSelectOptions}
-              optionRender={renderModelOption}
-              classNames={{ popup: { root: 'model-picker' } }}
-              onChange={(value) => {
-                if (value === CUSTOM_ADD_VALUE) {
-                  setEditingModel(null);
-                  setCustomOpen(true);
-                  return;
-                }
-                pickModel(value);
-              }}
-              popupMatchSelectWidth={false}
-              showSearch={{
-                filterOption: (input, option) =>
-                  `${option?.label ?? ''} ${option?.providerID ?? ''}`
-                    .toLowerCase()
-                    .includes(input.toLowerCase()),
+            <OptionPicker
+              value={model ? `${model.providerID}/${model.id}` : null}
+              trigger={
+                modelOptions.find((item) => item.value === `${model?.providerID}/${model?.id}`)
+                  ?.label ?? '选择模型'
+              }
+              triggerClassName="w-[200px] max-sm:w-[120px]"
+              placeholder="搜索模型"
+              options={modelPickerOptions}
+              width={340}
+              onSelect={pickModel}
+              addLabel="添加自定义模型"
+              addIcon={<PlusIcon />}
+              onAdd={() => {
+                setEditingModel(null);
+                setCustomOpen(true);
               }}
             />
-            <Typography.Text type="secondary" className="text-xs!">
+            <Text size="1" color="gray" className="max-sm:hidden">
               {meta.label}
-            </Typography.Text>
+            </Text>
             {sessionID && (
-              <Tooltip title="当前会话 ID">
-                <Tag variant="filled" color="blue" className="font-mono">
+              <Tooltip content="当前会话 ID">
+                <Code variant="soft" color="blue" className="font-mono max-sm:hidden">
                   {sessionID.slice(-8)}
-                </Tag>
+                </Code>
               </Tooltip>
             )}
-            <Dropdown
-              trigger={['click']}
-              menu={{
-                selectable: true,
-                selectedKeys: [themeMode],
-                items: THEME_ITEMS,
-                onClick: ({ key }) => {
-                  if (key === 'auto' || key === 'light' || key === 'dark') setThemeMode(key);
-                },
-              }}
-            >
-              <Button
-                type="text"
-                title="主题"
-                icon={
-                  themeMode === 'light' ? (
-                    <SunOutlined />
+            <DropdownMenu.Root>
+              <DropdownMenu.Trigger>
+                <IconButton variant="ghost" color="gray" aria-label="主题" title="主题">
+                  {themeMode === 'light' ? (
+                    <SunIcon />
                   ) : themeMode === 'dark' ? (
-                    <MoonOutlined />
+                    <MoonIcon />
                   ) : (
-                    <DesktopOutlined />
-                  )
-                }
-              />
-            </Dropdown>
-            <Button type="text" icon={<LogoutOutlined />} onClick={onDisconnect}>
-              断开
+                    <DesktopIcon />
+                  )}
+                </IconButton>
+              </DropdownMenu.Trigger>
+              <DropdownMenu.Content>
+                <DropdownMenu.RadioGroup
+                  value={themeMode}
+                  onValueChange={(key) => {
+                    if (key === 'auto' || key === 'light' || key === 'dark') setThemeMode(key);
+                  }}
+                >
+                  {THEME_ITEMS.map((item) => (
+                    <DropdownMenu.RadioItem key={item.key} value={item.key}>
+                      {item.icon}
+                      {item.label}
+                    </DropdownMenu.RadioItem>
+                  ))}
+                </DropdownMenu.RadioGroup>
+              </DropdownMenu.Content>
+            </DropdownMenu.Root>
+            <Button variant="ghost" color="gray" aria-label="断开" onClick={onDisconnect}>
+              <Flex align="center" gap="1">
+                <ExitIcon />
+                <span className="max-sm:hidden">断开</span>
+              </Flex>
             </Button>
           </Flex>
         </header>
 
         <main className="mx-auto flex min-h-0 w-full min-w-0 max-w-[900px] flex-col px-4 pt-3 max-sm:px-2.5 max-sm:pt-2">
-          {error && (
-            <Alert
-              className="mb-2.5"
-              type="error"
-              showIcon
-              closable={{ onClose: clearError }}
-              title={error}
-            />
+          {(error || modelError) && (
+            <Callout.Root color="red" size="1" className="mb-2.5 pr-8">
+              <Callout.Text>{error ?? modelError}</Callout.Text>
+              <IconButton
+                size="1"
+                variant="ghost"
+                color="gray"
+                aria-label="关闭"
+                className="absolute top-1 right-1"
+                onClick={() => {
+                  clearError();
+                  setModelError(null);
+                }}
+              >
+                <Cross2Icon />
+              </IconButton>
+            </Callout.Root>
           )}
 
           <Messages
@@ -569,8 +546,8 @@ export default function Chat({ conn, onDisconnect }: { conn: Conn; onDisconnect:
                 }
                 header={appBridge ? attachments.header : undefined}
                 footer={
-                  <Flex align="center" justify="space-between" gap={8}>
-                    <Flex align="center" gap={4}>
+                  <Flex align="center" justify="between" gap="2">
+                    <Flex align="center" gap="1">
                       {/*{appBridge && (*/}
                       {/*  <AttachmentButton onClick={attachments.open} disabled={!sessionID || busy} />*/}
                       {/*)}*/}
@@ -587,10 +564,10 @@ export default function Chat({ conn, onDisconnect }: { conn: Conn; onDisconnect:
                         />
                       )}
                     </Flex>
-                    <Flex align="center" gap={8}>
-                      <Typography.Text type="secondary" className="text-xs!">
+                    <Flex align="center" gap="2">
+                      <Text size="1" color="gray">
                         Enter 发送 · Shift+Enter 换行
-                      </Typography.Text>
+                      </Text>
                     </Flex>
                   </Flex>
                 }

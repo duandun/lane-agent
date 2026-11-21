@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Button, Dropdown, Input, Typography, Tooltip, type InputRef, type MenuProps } from 'antd';
-import { AppstoreOutlined, SearchOutlined } from '@ant-design/icons';
+import { useMemo, useState } from 'react';
+import { GridIcon, MagnifyingGlassIcon } from '@radix-ui/react-icons';
+import { Button, Flex, Popover, ScrollArea, Text, TextField } from '@radix-ui/themes';
 import type { SkillInfo } from '@opencode/client';
 
-/** 输入框左下角的 skill 选择器：Dropdown + 搜索，单选，选中项显示为 Sender 的 skill chip。 */
+/** 输入框左下角的 skill 选择器：Popover + 搜索，单选，选中项显示为 Sender 的 skill chip。 */
 export default function SkillPicker({
   skills,
   selected,
@@ -17,14 +17,12 @@ export default function SkillPicker({
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
-  const inputRef = useRef<InputRef>(null);
+
   const sortedSkills = useMemo(() => {
-    const agentDesktopIndex = skills.findIndex((item) => item.name === 'agent-desktop');
-    if (agentDesktopIndex > -1) {
-      const agentDesktop = skills.splice(agentDesktopIndex, 1)[0];
-      skills.unshift(agentDesktop);
-    }
-    return skills;
+    const list = [...skills];
+    const index = list.findIndex((item) => item.name === 'agent-desktop');
+    if (index > -1) list.unshift(list.splice(index, 1)[0]);
+    return list;
   }, [skills]);
 
   const filtered = useMemo(() => {
@@ -37,93 +35,84 @@ export default function SkillPicker({
     );
   }, [query, sortedSkills]);
 
-  const items: MenuProps['items'] = filtered.map((skill) => ({
-    key: skill.id,
-    label: (
-      <div className="flex w-full min-w-0 flex-col gap-1 py-0.5">
-        <div className="flex gap-2 items-center">
-          <AppstoreOutlined className="shrink-0 text-[12px] text-(--muted)" />
-          <Tooltip
-            title={
-              skill.description ? (
-                <div className="w-full line-clamp-5">{skill.description}</div>
-              ) : undefined
-            }
-            placement="topLeft"
-            // 列表里快速上下移动时不要让 Tooltip 跟着连续弹出。
-            mouseEnterDelay={0.5}
-            styles={{ root: { maxWidth: 'none' }, container: { width: 340 } }}
-          >
-            <Typography.Text strong className="font-mono text-[14px]">
-              {skill.name}
-            </Typography.Text>
-          </Tooltip>
-        </div>
-
-        <div className="min-w-0 flex-1 ml-5">
-          {skill.description && (
-            <div className="w-full truncate text-xs text-(--muted)">{skill.description}</div>
-          )}
-        </div>
-      </div>
-    ),
-  }));
-
-  useEffect(() => {
-    if (!open) return;
-    // 弹出层经 Portal 在下一帧才挂载，等一帧再聚焦。
-    const frame = requestAnimationFrame(() => inputRef.current?.focus());
-    return () => cancelAnimationFrame(frame);
-  }, [open]);
-
   return (
-    <Dropdown
-      trigger={['click']}
-      placement="topLeft"
+    <Popover.Root
       open={open}
-      // 让菜单项内容可收缩，长描述才能在弹出框内截断而不是溢出。
-      styles={{ itemContent: { minWidth: 0 } }}
       onOpenChange={(next) => {
         setOpen(next);
         if (next) onRefresh?.();
+        if (!next) setQuery('');
       }}
-      menu={{
-        items,
-        selectable: true,
-        selectedKeys: selected ? [selected.id] : [],
-        // antd 默认给下拉菜单加了 max-height + overflow，会和外层滚动容器嵌套。
-        style: { width: '100%', background: 'transparent', maxHeight: 'none' },
-        onClick: ({ key }) => {
-          onSelect(sortedSkills.find((skill) => skill.id === key) ?? null);
-          setOpen(false);
-        },
-      }}
-      popupRender={(menu) => (
-        <div className="skill-picker-popup w-[400px] rounded-lg border border-(--line) bg-(--panel) p-2 shadow-xl">
-          <Input
-            ref={inputRef}
-            allowClear
-            prefix={<SearchOutlined />}
-            placeholder="搜索 skill"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            onKeyDown={(event) => {
-              // 中文输入法确认候选词时也会发 Enter，不能当成选择。
-              if (event.key !== 'Enter' || event.nativeEvent.isComposing) return;
-              const first = filtered[0];
-              if (!first) return;
-              event.preventDefault();
-              onSelect(first);
-              setOpen(false);
-            }}
-          />
-          <div className="mt-2 max-h-[330px] overflow-y-auto overscroll-contain">{menu}</div>
-        </div>
-      )}
     >
-      <Button type="text" size="small" icon={<AppstoreOutlined />}>
-        技能
-      </Button>
-    </Dropdown>
+      <Popover.Trigger>
+        <Button variant="ghost" color="gray" size="1">
+          <Flex align="center" gap="1">
+            <GridIcon />
+            技能
+          </Flex>
+        </Button>
+      </Popover.Trigger>
+      <Popover.Content side="top" align="start" width="400px" className="p-2">
+        <TextField.Root
+          size="1"
+          placeholder="搜索 skill"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          autoFocus
+          onKeyDown={(event) => {
+            // 中文输入法确认候选词时也会发 Enter，不能当成选择。
+            if (event.key !== 'Enter' || event.nativeEvent.isComposing) return;
+            const first = filtered[0];
+            if (!first) return;
+            event.preventDefault();
+            onSelect(first);
+            setOpen(false);
+          }}
+        >
+          <TextField.Slot>
+            <MagnifyingGlassIcon />
+          </TextField.Slot>
+        </TextField.Root>
+        <ScrollArea type="auto" style={{ maxHeight: 330 }} className="mt-2">
+          <Flex direction="column" gap="1">
+            {filtered.map((skill) => {
+              const active = selected?.id === skill.id;
+              return (
+                <button
+                  key={skill.id}
+                  type="button"
+                  onClick={() => {
+                    onSelect(skill);
+                    setOpen(false);
+                  }}
+                  className={`flex w-full flex-col gap-0.5 rounded-md px-2 py-1.5 text-left [font:inherit] ${
+                    active ? 'bg-(--panel-2)' : 'hover:bg-(--panel-2)'
+                  }`}
+                >
+                  <Flex align="center" gap="2">
+                    <GridIcon className="shrink-0 text-(--muted)" />
+                    <Text size="2" weight="bold" className="font-mono">
+                      {skill.name}
+                    </Text>
+                  </Flex>
+                  {skill.description && (
+                    <Text size="1" color="gray" truncate className="ml-5">
+                      {skill.description}
+                    </Text>
+                  )}
+                </button>
+              );
+            })}
+            {!filtered.length && (
+              <div className="px-2 py-6 text-center">
+                <Text size="1" color="gray">
+                  没有匹配的 skill
+                </Text>
+              </div>
+            )}
+          </Flex>
+        </ScrollArea>
+      </Popover.Content>
+    </Popover.Root>
   );
 }
