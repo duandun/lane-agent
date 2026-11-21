@@ -211,6 +211,7 @@ Web 和 Electron 共用 `core`；Electron 加载的是 `web` 构建出来的 `di
 - `FileChange`：文件改动的 diff 卡片，词级高亮 + 单侧整行着色。
 - `Sender`：输入框，回车发送、Shift+回车换行，运行中变成停止按钮；↑ / ↓ 浏览发送历史。
 - `Select` + `optionRender`：模型卡片下拉，自定义模型行悬停显示编辑 / 删除。
+- `SessionList`：左侧会话历史（按目录取 `session.list`，标题取该会话的第一条提问），顶部新建会话，悬停会话可重命名 / 删除；窄屏收进抽屉，桌面端可折叠。
 - `Welcome` + `Prompts`：空会话的引导和快捷任务。
 - `Actions`：助手消息的复制 / 重新生成按钮；弹窗、表单、状态灯用 antd。
 
@@ -218,7 +219,7 @@ Web 和 Electron 共用 `core`；Electron 加载的是 `web` 构建出来的 `di
 
 ## 已知边界
 
-- 每次打开页面都会新建一个 session，没有会话列表 / 历史切换；输入历史也只存在当前页面内存里。
+- 打开页面会恢复当前目录下最近更新的会话，左侧可切换或新建；列表只取当前目录最近 30 个，运行中不能切换。输入历史仍只存在当前页面内存里。
 - `message.list` 的 `limit` 上限是 200，传大了直接报 `Expected a value less than or equal to 200`。
 - 权限弹窗走 `permission.asked` 事件；如果服务器配置里权限全是 allow，就永远不会弹。
 - 局域网访问要三件事一起改：`opencode serve --hostname 0.0.0.0`、`vite --host`、以及把真实 origin 加进 `--cors`。

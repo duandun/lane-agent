@@ -4,6 +4,7 @@ import {
   App as AntdApp,
   Badge,
   Button,
+  Drawer,
   Dropdown,
   Flex,
   Select,
@@ -17,6 +18,9 @@ import {
   DesktopOutlined,
   EditOutlined,
   LogoutOutlined,
+  MenuFoldOutlined,
+  MenuOutlined,
+  MenuUnfoldOutlined,
   MoonOutlined,
   PlusOutlined,
   SunOutlined,
@@ -29,6 +33,7 @@ import Companion, { type CompanionState } from '@core/components/companion';
 import Messages from '@core/components/Messages';
 import PermissionModal from '@core/components/PermissionModal';
 import QuestionPrompt from '@core/components/QuestionPrompt';
+import SessionList from '@core/components/SessionList';
 import SkillPicker from '@core/components/SkillPicker';
 import { useAttachments } from '@core/hooks/useAttachments';
 import { useChatSession, type ChatStatus, type ModelRef } from '@core/hooks/useChatSession';
@@ -74,6 +79,7 @@ export default function Chat({ conn, onDisconnect }: { conn: Conn; onDisconnect:
   const client = useMemo(() => makeClient(conn), [conn]);
   const {
     sessionID,
+    sessions,
     agentID,
     blocks,
     status,
@@ -85,6 +91,10 @@ export default function Chat({ conn, onDisconnect }: { conn: Conn; onDisconnect:
     error,
     clearError,
     send,
+    selectSession,
+    newSession,
+    renameSession,
+    deleteSession,
     stop,
     reply,
     replyForm,
@@ -95,6 +105,8 @@ export default function Chat({ conn, onDisconnect }: { conn: Conn; onDisconnect:
   } = useChatSession(conn, client);
 
   const [draft, setDraft] = useState('');
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyCollapsed, setHistoryCollapsed] = useState(false);
   const model = useAppStore((state) => state.model);
   const setModel = useAppStore((state) => state.setModel);
   // 已发送内容的最近 10 条，最新在前；上箭头依次回填。
@@ -155,7 +167,8 @@ export default function Chat({ conn, onDisconnect }: { conn: Conn; onDisconnect:
     }
   }
 
-  const appliedInitialModel = useRef(false);
+  // 每个会话打开时都对齐一次全局模型偏好，避免下拉显示与实际使用的模型不一致。
+  const modelSyncedFor = useRef<string | null>(null);
 
   // 当前目录可用的模型，以及服务端默认模型；selected 是调用时的当前选择。
   async function reloadModels(selected: ModelRef | null) {
@@ -193,10 +206,10 @@ export default function Chat({ conn, onDisconnect }: { conn: Conn; onDisconnect:
     });
   }, [client, conn.directory]);
 
-  // 会话创建后补一次模型切换，避免默认模型比会话晚返回。
+  // 会话创建 / 切换后补一次模型切换，避免默认模型比会话晚返回。
   useEffect(() => {
-    if (!sessionID || !model || !modelsReady || appliedInitialModel.current) return;
-    appliedInitialModel.current = true;
+    if (!sessionID || !model || !modelsReady || modelSyncedFor.current === sessionID) return;
+    modelSyncedFor.current = sessionID;
     void switchModel(model);
   }, [model, modelsReady, sessionID]);
 
@@ -341,227 +354,277 @@ export default function Chat({ conn, onDisconnect }: { conn: Conn; onDisconnect:
     return 'idle';
   }
 
+  // closeOnPick：窄屏抽屉里点完就收起，桌面端侧栏保持常驻。
+  const history = (closeOnPick: boolean) => (
+    <SessionList
+      sessions={sessions}
+      current={sessionID}
+      busy={busy}
+      onSelect={(id) => {
+        if (closeOnPick) setHistoryOpen(false);
+        void selectSession(id);
+      }}
+      onNew={() => {
+        if (closeOnPick) setHistoryOpen(false);
+        void newSession();
+      }}
+      onRename={renameSession}
+      onDelete={deleteSession}
+    />
+  );
+
   return (
-    <div className="grid h-dvh min-w-0 grid-rows-[auto_1fr_auto] bg-(--bg)">
-      <header className="flex items-center justify-between gap-4 overflow-hidden border-b border-(--line) bg-(--bar) px-5 py-2.5 text-[13px] backdrop-blur-[10px] max-sm:px-3 max-sm:py-2">
-        <Flex align="center" gap={10} className="min-w-0 flex-1 overflow-hidden">
-          <Badge status={meta.badge} />
-          <Typography.Text strong className="whitespace-nowrap">
-            Lane
-          </Typography.Text>
-          <Tooltip title={appBridge && conn.directory ? '打开项目目录' : undefined}>
-            <Typography.Text
-              type="secondary"
-              ellipsis
-              className={`max-w-[min(46vw,480px)] text-xs! max-sm:hidden ${
-                appBridge && conn.directory ? 'cursor-pointer hover:underline' : ''
-              }`}
-              onClick={
-                appBridge && conn.directory
-                  ? () => void appBridge?.openPath(conn.directory)
-                  : undefined
-              }
-            >
-              {conn.directory}
-            </Typography.Text>
-          </Tooltip>
-        </Flex>
-        <Flex align="center" gap={8} className="shrink-0">
-          <Select<CompanionKind>
-            value={companion}
-            onChange={setCompanion}
-            options={[
-              { value: 'eagle', label: '小鹰' },
-              { value: 'cat', label: '小猫' },
-            ]}
-            popupMatchSelectWidth={false}
-          />
-          <AgentPicker
-            client={client}
-            directory={conn.directory}
-            agentID={agentID}
-            modelOptions={modelOptions.map((item) => ({ value: item.value, label: item.label }))}
-            onSwitch={(id) => void switchAgent(id)}
-          />
-          <Select
-            className="w-[200px]! max-sm:w-[130px]!"
-            style={{ maxHeight: 'none' }}
-            placeholder="选择模型"
-            value={model ? `${model.providerID}/${model.id}` : undefined}
-            options={modelSelectOptions}
-            optionRender={renderModelOption}
-            classNames={{ popup: { root: 'model-picker' } }}
-            onChange={(value) => {
-              if (value === CUSTOM_ADD_VALUE) {
-                setEditingModel(null);
-                setCustomOpen(true);
-                return;
-              }
-              pickModel(value);
-            }}
-            popupMatchSelectWidth={false}
-            showSearch={{
-              filterOption: (input, option) =>
-                `${option?.label ?? ''} ${option?.providerID ?? ''}`
-                  .toLowerCase()
-                  .includes(input.toLowerCase()),
-            }}
-          />
-          <Typography.Text type="secondary" className="text-xs!">
-            {meta.label}
-          </Typography.Text>
-          {sessionID && (
-            <Tooltip title="当前会话 ID">
-              <Tag variant="filled" color="blue" className="font-mono">
-                {sessionID.slice(-8)}
-              </Tag>
-            </Tooltip>
-          )}
-          <Dropdown
-            trigger={['click']}
-            menu={{
-              selectable: true,
-              selectedKeys: [themeMode],
-              items: THEME_ITEMS,
-              onClick: ({ key }) => {
-                if (key === 'auto' || key === 'light' || key === 'dark') setThemeMode(key);
-              },
-            }}
-          >
+    <div className="flex h-dvh min-w-0 bg-(--bg)">
+      {!historyCollapsed && (
+        <aside className="hidden w-[248px] shrink-0 border-r border-(--line) sm:block">
+          {history(false)}
+        </aside>
+      )}
+      <Drawer
+        placement="left"
+        size={264}
+        open={historyOpen}
+        onClose={() => setHistoryOpen(false)}
+        closable={false}
+        styles={{ body: { padding: 0 } }}
+      >
+        {history(true)}
+      </Drawer>
+
+      <div className="grid min-w-0 flex-1 grid-rows-[auto_1fr_auto] bg-(--bg)">
+        <header className="flex items-center justify-between gap-4 overflow-hidden border-b border-(--line) bg-(--bar) px-5 py-2.5 text-[13px] backdrop-blur-[10px] max-sm:px-3 max-sm:py-2">
+          <Flex align="center" gap={10} className="min-w-0 flex-1 overflow-hidden">
             <Button
               type="text"
-              title="主题"
-              icon={
-                themeMode === 'light' ? (
-                  <SunOutlined />
-                ) : themeMode === 'dark' ? (
-                  <MoonOutlined />
-                ) : (
-                  <DesktopOutlined />
-                )
-              }
+              className="sm:hidden!"
+              icon={<MenuOutlined />}
+              onClick={() => setHistoryOpen(true)}
             />
-          </Dropdown>
-          <Button type="text" icon={<LogoutOutlined />} onClick={onDisconnect}>
-            断开
-          </Button>
-        </Flex>
-      </header>
+            <Button
+              type="text"
+              className="max-sm:hidden!"
+              title={historyCollapsed ? '展开会话历史' : '折叠会话历史'}
+              icon={historyCollapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+              onClick={() => setHistoryCollapsed((value) => !value)}
+            />
+            <Badge status={meta.badge} />
+            <Typography.Text strong className="whitespace-nowrap">
+              Lane
+            </Typography.Text>
+            <Tooltip title={appBridge && conn.directory ? '打开项目目录' : undefined}>
+              <Typography.Text
+                type="secondary"
+                ellipsis
+                className={`max-w-[min(46vw,480px)] text-xs! max-sm:hidden ${
+                  appBridge && conn.directory ? 'cursor-pointer hover:underline' : ''
+                }`}
+                onClick={
+                  appBridge && conn.directory
+                    ? () => void appBridge?.openPath(conn.directory)
+                    : undefined
+                }
+              >
+                {conn.directory}
+              </Typography.Text>
+            </Tooltip>
+          </Flex>
+          <Flex align="center" gap={8} className="shrink-0">
+            <Select<CompanionKind>
+              value={companion}
+              onChange={setCompanion}
+              options={[
+                { value: 'eagle', label: '小鹰' },
+                { value: 'cat', label: '小猫' },
+              ]}
+              popupMatchSelectWidth={false}
+            />
+            <AgentPicker
+              client={client}
+              directory={conn.directory}
+              agentID={agentID}
+              modelOptions={modelOptions.map((item) => ({ value: item.value, label: item.label }))}
+              onSwitch={(id) => void switchAgent(id)}
+            />
+            <Select
+              className="w-[200px]! max-sm:w-[130px]!"
+              style={{ maxHeight: 'none' }}
+              placeholder="选择模型"
+              value={model ? `${model.providerID}/${model.id}` : undefined}
+              options={modelSelectOptions}
+              optionRender={renderModelOption}
+              classNames={{ popup: { root: 'model-picker' } }}
+              onChange={(value) => {
+                if (value === CUSTOM_ADD_VALUE) {
+                  setEditingModel(null);
+                  setCustomOpen(true);
+                  return;
+                }
+                pickModel(value);
+              }}
+              popupMatchSelectWidth={false}
+              showSearch={{
+                filterOption: (input, option) =>
+                  `${option?.label ?? ''} ${option?.providerID ?? ''}`
+                    .toLowerCase()
+                    .includes(input.toLowerCase()),
+              }}
+            />
+            <Typography.Text type="secondary" className="text-xs!">
+              {meta.label}
+            </Typography.Text>
+            {sessionID && (
+              <Tooltip title="当前会话 ID">
+                <Tag variant="filled" color="blue" className="font-mono">
+                  {sessionID.slice(-8)}
+                </Tag>
+              </Tooltip>
+            )}
+            <Dropdown
+              trigger={['click']}
+              menu={{
+                selectable: true,
+                selectedKeys: [themeMode],
+                items: THEME_ITEMS,
+                onClick: ({ key }) => {
+                  if (key === 'auto' || key === 'light' || key === 'dark') setThemeMode(key);
+                },
+              }}
+            >
+              <Button
+                type="text"
+                title="主题"
+                icon={
+                  themeMode === 'light' ? (
+                    <SunOutlined />
+                  ) : themeMode === 'dark' ? (
+                    <MoonOutlined />
+                  ) : (
+                    <DesktopOutlined />
+                  )
+                }
+              />
+            </Dropdown>
+            <Button type="text" icon={<LogoutOutlined />} onClick={onDisconnect}>
+              断开
+            </Button>
+          </Flex>
+        </header>
 
-      <main className="mx-auto flex min-h-0 w-full min-w-0 max-w-[900px] flex-col px-4 pt-3 max-sm:px-2.5 max-sm:pt-2">
-        {error && (
-          <Alert
-            className="mb-2.5"
-            type="error"
-            showIcon
-            closable={{ onClose: clearError }}
-            title={error}
+        <main className="mx-auto flex min-h-0 w-full min-w-0 max-w-[900px] flex-col px-4 pt-3 max-sm:px-2.5 max-sm:pt-2">
+          {error && (
+            <Alert
+              className="mb-2.5"
+              type="error"
+              showIcon
+              closable={{ onClose: clearError }}
+              title={error}
+            />
+          )}
+
+          <Messages
+            blocks={blocks}
+            busy={busy}
+            directory={conn.directory}
+            onSuggestion={(text) => {
+              setHistoryIndex(-1);
+              setDraft(text);
+            }}
+            onRegenerate={regenerate}
           />
-        )}
+        </main>
 
-        <Messages
-          blocks={blocks}
-          busy={busy}
-          directory={conn.directory}
-          onSuggestion={(text) => {
-            setHistoryIndex(-1);
-            setDraft(text);
-          }}
-          onRegenerate={regenerate}
+        <footer className="composer mx-auto w-full max-w-[900px] px-4 pb-[calc(14px+env(safe-area-inset-bottom))] pt-2.5 max-sm:px-2.5 max-sm:pb-[calc(10px+env(safe-area-inset-bottom))] max-sm:pt-2">
+          {forms[0] ? (
+            <QuestionPrompt
+              form={forms[0]}
+              count={forms.length}
+              pending={formPending}
+              onReply={(answer) => void replyForm(answer)}
+              onCancel={() => void cancelForm()}
+            />
+          ) : (
+            <div className={busy ? 'sender-glow' : 'sender-normal'}>
+              <Sender
+                ref={senderRef}
+                className={busy ? 'thinking' : undefined}
+                value={draft}
+                onChange={setDraft}
+                onKeyDown={handleHistoryKey}
+                onSubmit={(text) => void submit(text)}
+                loading={busy}
+                onCancel={() => void stop()}
+                disabled={!sessionID}
+                placeholder={
+                  sessionID ? '描述你要 Lane 做的事，Enter 发送，Shift+Enter 换行' : '正在创建会话…'
+                }
+                autoSize={{ minRows: 2, maxRows: 2 }}
+                skill={
+                  selectedSkill
+                    ? {
+                        title: selectedSkill.name,
+                        value: selectedSkill.id,
+                        closable: { onClose: () => setSelectedSkill(null) },
+                      }
+                    : undefined
+                }
+                header={appBridge ? attachments.header : undefined}
+                footer={
+                  <Flex align="center" justify="space-between" gap={8}>
+                    <Flex align="center" gap={4}>
+                      {/*{appBridge && (*/}
+                      {/*  <AttachmentButton onClick={attachments.open} disabled={!sessionID || busy} />*/}
+                      {/*)}*/}
+                      {appBridge && (
+                        <SkillPicker
+                          skills={skills}
+                          selected={selectedSkill}
+                          onSelect={(skill) => {
+                            setSelectedSkill(skill);
+                            // 选中后 Sender 会从 textarea 换成 contenteditable，等重渲染完再聚焦。
+                            requestAnimationFrame(() => senderRef.current?.focus());
+                          }}
+                          onRefresh={() => void refreshSkills()}
+                        />
+                      )}
+                    </Flex>
+                    <Flex align="center" gap={8}>
+                      <Typography.Text type="secondary" className="text-xs!">
+                        Enter 发送 · Shift+Enter 换行
+                      </Typography.Text>
+                    </Flex>
+                  </Flex>
+                }
+              />
+            </div>
+          )}
+        </footer>
+
+        <Companion kind={companion} state={companionState()} />
+
+        <PermissionModal
+          request={queue[0]}
+          count={queue.length}
+          onReply={(decision) => void reply(decision)}
         />
-      </main>
 
-      <footer className="composer mx-auto w-full max-w-[900px] px-4 pb-[calc(14px+env(safe-area-inset-bottom))] pt-2.5 max-sm:px-2.5 max-sm:pb-[calc(10px+env(safe-area-inset-bottom))] max-sm:pt-2">
-        {forms[0] ? (
-          <QuestionPrompt
-            form={forms[0]}
-            count={forms.length}
-            pending={formPending}
-            onReply={(answer) => void replyForm(answer)}
-            onCancel={() => void cancelForm()}
-          />
-        ) : (
-          <div className={busy ? 'sender-glow' : 'sender-normal'}>
-            <Sender
-              ref={senderRef}
-              className={busy ? 'thinking' : undefined}
-              value={draft}
-              onChange={setDraft}
-              onKeyDown={handleHistoryKey}
-              onSubmit={(text) => void submit(text)}
-              loading={busy}
-              onCancel={() => void stop()}
-              disabled={!sessionID}
-              placeholder={
-                sessionID ? '描述你要 Lane 做的事，Enter 发送，Shift+Enter 换行' : '正在创建会话…'
-              }
-              autoSize={{ minRows: 2, maxRows: 2 }}
-              skill={
-                selectedSkill
-                  ? {
-                      title: selectedSkill.name,
-                      value: selectedSkill.id,
-                      closable: { onClose: () => setSelectedSkill(null) },
-                    }
-                  : undefined
-              }
-              header={appBridge ? attachments.header : undefined}
-              footer={
-                <Flex align="center" justify="space-between" gap={8}>
-                  <Flex align="center" gap={4}>
-                    {/*{appBridge && (*/}
-                    {/*  <AttachmentButton onClick={attachments.open} disabled={!sessionID || busy} />*/}
-                    {/*)}*/}
-                    {appBridge && (
-                      <SkillPicker
-                        skills={skills}
-                        selected={selectedSkill}
-                        onSelect={(skill) => {
-                          setSelectedSkill(skill);
-                          // 选中后 Sender 会从 textarea 换成 contenteditable，等重渲染完再聚焦。
-                          requestAnimationFrame(() => senderRef.current?.focus());
-                        }}
-                        onRefresh={() => void refreshSkills()}
-                      />
-                    )}
-                  </Flex>
-                  <Flex align="center" gap={8}>
-                    <Typography.Text type="secondary" className="text-xs!">
-                      Enter 发送 · Shift+Enter 换行
-                    </Typography.Text>
-                  </Flex>
-                </Flex>
-              }
-            />
-          </div>
-        )}
-      </footer>
-
-      <Companion kind={companion} state={companionState()} />
-
-      <PermissionModal
-        request={queue[0]}
-        count={queue.length}
-        onReply={(decision) => void reply(decision)}
-      />
-
-      <CustomModelModal
-        open={customOpen}
-        client={client}
-        directory={conn.directory}
-        current={model}
-        editing={editingModel}
-        onClose={() => {
-          setCustomOpen(false);
-          setEditingModel(null);
-        }}
-        onSaved={async (saved) => {
-          await reloadModels(model);
-          const ref = { providerID: saved.providerID, id: saved.modelID };
-          setModel(ref);
-          await switchModel(ref);
-        }}
-      />
+        <CustomModelModal
+          open={customOpen}
+          client={client}
+          directory={conn.directory}
+          current={model}
+          editing={editingModel}
+          onClose={() => {
+            setCustomOpen(false);
+            setEditingModel(null);
+          }}
+          onSaved={async (saved) => {
+            await reloadModels(model);
+            const ref = { providerID: saved.providerID, id: saved.modelID };
+            setModel(ref);
+            await switchModel(ref);
+          }}
+        />
+      </div>
     </div>
   );
 }

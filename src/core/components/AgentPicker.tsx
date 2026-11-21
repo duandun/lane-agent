@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { App as AntdApp, Button, Select } from 'antd';
-import { CheckOutlined, DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons';
+import { DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons';
 import type { AgentInfo } from '@opencode/client';
 import type { Client } from '../lib/client';
 import { DEFAULT_AGENTS, type DefaultAgent } from '../lib/defaultAgents';
@@ -100,7 +100,7 @@ export default function AgentPicker({
     try {
       await saveAgentConfig(client, directory, agent);
       saveCustomAgent(agent);
-      message.success(`已添加默认角色「${agent.name}」`);
+      message.success(`已选择角色「${agent.name}」`);
       await reloadAgents();
       onSwitch(agent.id);
     } catch (cause) {

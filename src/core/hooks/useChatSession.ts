@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { FormAnswer, FormInfo, PermissionRequest } from '@opencode/client';
+import type { FormAnswer, FormInfo, PermissionRequest, SessionInfo } from '@opencode/client';
 import type { Client, Conn } from '../lib/client';
 import {
   blocksFromMessages,
@@ -17,6 +17,12 @@ export type ChatStatus = 'connecting' | 'online' | 'offline';
 export type AgentActivity = 'idle' | 'thinking' | 'talking' | 'reading' | 'working';
 
 export type ModelRef = { providerID: string; id: string };
+
+/** 会话标题取第一条提问的首行，太长截断。 */
+function titleOf(text: string): string {
+  const line = text.trim().split('\n')[0];
+  return line.length > 60 ? `${line.slice(0, 60)}…` : line;
+}
 
 function textOf(content: unknown): string {
   if (!Array.isArray(content)) return '';
@@ -36,6 +42,7 @@ function textOf(content: unknown): string {
  */
 export function useChatSession(conn: Conn, client: Client) {
   const [sessionID, setSessionID] = useState<string | null>(null);
+  const [sessions, setSessions] = useState<SessionInfo[]>([]);
   const [agentID, setAgentID] = useState<string | null>(null);
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [status, setStatus] = useState<ChatStatus>('connecting');
@@ -57,27 +64,106 @@ export function useChatSession(conn: Conn, client: Client) {
     setBlocks(blocksFromMessages(response.data));
   }
 
-  // 在所选目录里创建会话。
+  // 旧版本把所有会话标题固定写成 Lane，这里用第一条提问在本地修正显示。
+  // 不回写服务端：session.update 会顺带刷新 updated 时间，打乱历史排序。
+  const derivedTitles = useRef(new Map<string, string>());
+  const titleChecked = useRef(new Set<string>());
+
+  // 当前目录的最近会话；子代理的会话不放进历史列表。
+  async function loadSessions(): Promise<SessionInfo[]> {
+    const response = await client.session.list({
+      directory: conn.directory || undefined,
+      order: 'desc',
+      limit: 30,
+    });
+    return response.data
+      .filter((item) => !item.parentID)
+      .map((item) => {
+        const title = derivedTitles.current.get(item.id);
+        return title !== undefined ? { ...item, title } : item;
+      });
+  }
+
+  function deriveTitles(list: SessionInfo[]) {
+    for (const session of list) {
+      if (session.title?.trim() && session.title !== 'Lane') continue;
+      if (titleChecked.current.has(session.id)) continue;
+      titleChecked.current.add(session.id);
+      void client.message
+        .list({ sessionID: session.id, order: 'asc', limit: 50 })
+        .then((response) => {
+          const first = response.data.find((item) => item.type === 'user');
+          const title = first?.type === 'user' && first.text.trim() ? titleOf(first.text) : '';
+          derivedTitles.current.set(session.id, title);
+          setSessions((current) =>
+            current.map((item) => (item.id === session.id ? { ...item, title } : item))
+          );
+        })
+        .catch(() => {});
+    }
+  }
+
+  async function refreshSessions() {
+    try {
+      const list = await loadSessions();
+      setSessions(list);
+      deriveTitles(list);
+    } catch {
+      // 历史列表是辅助 UI，拉取失败不影响当前会话。
+    }
+  }
+
+  // 打开一个已有会话：ID、agent、消息和待回答的表单都从服务端重建。
+  async function openSession(id: string, info?: SessionInfo) {
+    setSessionID(id);
+    setAgentID(info?.agent ?? null);
+    setBlocks([]);
+    setForms([]);
+    setError(null);
+    await reload(id);
+    if (!info?.agent) {
+      try {
+        const detail = await client.session.get({ sessionID: id });
+        setAgentID(detail.agent ?? null);
+      } catch {
+        // 拿不到详情时保留空 agent，服务端会用默认角色。
+      }
+    }
+    try {
+      const pending = await client.session.form.list({ sessionID: id });
+      if (pending.length) setForms(pending);
+    } catch {
+      // 老版本服务端没有 form API 时忽略。
+    }
+  }
+
+  async function createSession() {
+    const session = await client.session.create({
+      location: conn.directory ? { directory: conn.directory } : undefined,
+    });
+    await openSession(session.id, session);
+    return session;
+  }
+
+  // 打开目录里最近的会话；没有历史时才新建。
   useEffect(() => {
     let cancelled = false;
 
-    async function createSession() {
+    async function bootstrap() {
       try {
-        const session = await client.session.create({
-          title: 'Lane',
-          location: conn.directory ? { directory: conn.directory } : undefined,
-        });
-        if (cancelled) return;
-        setSessionID(session.id);
-        setAgentID(session.agent ?? null);
-        setStatus('online');
-        await reload(session.id);
+        let list: SessionInfo[] = [];
         try {
-          const pending = await client.session.form.list({ sessionID: session.id });
-          if (!cancelled && pending.length) setForms(pending);
+          list = await loadSessions();
         } catch {
-          // 老版本服务端没有 form API 时忽略。
+          // 老服务端没有会话列表时直接新建。
         }
+        if (cancelled) return;
+        setSessions(list);
+        if (list.length) await openSession(list[0].id, list[0]);
+        else await createSession();
+        if (cancelled) return;
+        setStatus('online');
+        void refreshSessions();
       } catch (cause) {
         if (cancelled) return;
         setStatus('offline');
@@ -85,7 +171,7 @@ export function useChatSession(conn: Conn, client: Client) {
       }
     }
 
-    void createSession();
+    void bootstrap();
     return () => {
       cancelled = true;
     };
@@ -300,6 +386,7 @@ export function useChatSession(conn: Conn, client: Client) {
               setBusy(false);
               setActivity('idle');
               await reload(event.data.sessionID);
+              void refreshSessions();
               break;
             }
 
@@ -309,6 +396,7 @@ export function useChatSession(conn: Conn, client: Client) {
               setActivity('idle');
               setError(JSON.stringify(event.data.error));
               await reload(event.data.sessionID);
+              void refreshSessions();
               break;
             }
           }
@@ -325,9 +413,64 @@ export function useChatSession(conn: Conn, client: Client) {
     return () => controller.abort();
   }, [client]);
 
+  async function selectSession(id: string) {
+    if (busy || id === sessionID) return;
+    try {
+      await openSession(
+        id,
+        sessions.find((item) => item.id === id)
+      );
+      setStatus('online');
+    } catch (cause) {
+      setError(errorText(cause));
+    }
+  }
+
+  async function newSession() {
+    if (busy) return;
+    try {
+      await createSession();
+      setStatus('online');
+      await refreshSessions();
+    } catch (cause) {
+      setError(errorText(cause));
+    }
+  }
+
+  async function renameSession(id: string, title: string) {
+    try {
+      await client.session.update({ sessionID: id, title });
+      // 用户改过的标题优先于本地推导的历史标题。
+      derivedTitles.current.delete(id);
+      setSessions((current) => current.map((item) => (item.id === id ? { ...item, title } : item)));
+    } catch (cause) {
+      setError(errorText(cause));
+    }
+  }
+
+  async function deleteSession(id: string) {
+    try {
+      await client.session.remove({ sessionID: id });
+      derivedTitles.current.delete(id);
+      titleChecked.current.delete(id);
+      const remaining = sessions.filter((item) => item.id !== id);
+      setSessions(remaining);
+      if (id !== sessionID) return;
+      setQueue([]);
+      if (remaining.length) await openSession(remaining[0].id, remaining[0]);
+      else await createSession();
+      setStatus('online');
+      await refreshSessions();
+    } catch (cause) {
+      setError(errorText(cause));
+    }
+  }
+
   async function send(text: string, skills: SkillTag[] = []) {
     const value = text.trim();
     if (!value || !sessionID || busy) return;
+    // 第一条提问作为会话标题。
+    const first = !blocks.some((block) => block.kind === 'user');
     setBusy(true);
     setActivity('thinking');
     setError(null);
@@ -341,6 +484,13 @@ export function useChatSession(conn: Conn, client: Client) {
         text: value,
         skills: skills.length ? skills.map(({ id }) => ({ id })) : undefined,
       });
+      if (first) {
+        const title = titleOf(value);
+        setSessions((current) =>
+          current.map((item) => (item.id === sessionID ? { ...item, title } : item))
+        );
+        void client.session.update({ sessionID, title }).catch(() => {});
+      }
     } catch (cause) {
       setBusy(false);
       setError(errorText(cause));
@@ -448,6 +598,7 @@ export function useChatSession(conn: Conn, client: Client) {
 
   return {
     sessionID,
+    sessions,
     agentID,
     blocks,
     status,
@@ -459,6 +610,10 @@ export function useChatSession(conn: Conn, client: Client) {
     error,
     clearError: () => setError(null),
     send,
+    selectSession,
+    newSession,
+    renameSession,
+    deleteSession,
     stop,
     reply,
     replyForm,
