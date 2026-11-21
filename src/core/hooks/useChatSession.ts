@@ -43,6 +43,8 @@ function textOf(content: unknown): string {
 export function useChatSession(conn: Conn, client: Client) {
   const [sessionID, setSessionID] = useState<string | null>(null);
   const [sessions, setSessions] = useState<SessionInfo[]>([]);
+  const [sessionCursor, setSessionCursor] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [agentID, setAgentID] = useState<string | null>(null);
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [status, setStatus] = useState<ChatStatus>('connecting');
@@ -69,19 +71,25 @@ export function useChatSession(conn: Conn, client: Client) {
   const derivedTitles = useRef(new Map<string, string>());
   const titleChecked = useRef(new Set<string>());
 
-  // 当前目录的最近会话；子代理的会话不放进历史列表。
-  async function loadSessions(): Promise<SessionInfo[]> {
+  // 当前目录的最近会话；子代理和归档会话不放进历史列表。
+  async function loadSessions(cursor?: string): Promise<{
+    list: SessionInfo[];
+    next: string | null;
+  }> {
     const response = await client.session.list({
       directory: conn.directory || undefined,
       order: 'desc',
       limit: 30,
+      // 官方接口约定：parentID=null 只返回根会话；archived=false 排除归档会话。
+      parentID: null,
+      archived: false,
+      cursor,
     });
-    return response.data
-      .filter((item) => !item.parentID)
-      .map((item) => {
-        const title = derivedTitles.current.get(item.id);
-        return title !== undefined ? { ...item, title } : item;
-      });
+    const list = response.data.map((item) => {
+      const title = derivedTitles.current.get(item.id);
+      return title !== undefined ? { ...item, title } : item;
+    });
+    return { list, next: response.cursor?.next ?? null };
   }
 
   function deriveTitles(list: SessionInfo[]) {
@@ -105,11 +113,31 @@ export function useChatSession(conn: Conn, client: Client) {
 
   async function refreshSessions() {
     try {
-      const list = await loadSessions();
-      setSessions(list);
-      deriveTitles(list);
+      const page = await loadSessions();
+      setSessions(page.list);
+      setSessionCursor(page.next);
+      deriveTitles(page.list);
     } catch {
       // 历史列表是辅助 UI，拉取失败不影响当前会话。
+    }
+  }
+
+  /** 追加下一页历史会话。 */
+  async function loadMoreSessions() {
+    if (!sessionCursor || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const page = await loadSessions(sessionCursor);
+      setSessions((current) => {
+        const ids = new Set(current.map((item) => item.id));
+        return [...current, ...page.list.filter((item) => !ids.has(item.id))];
+      });
+      setSessionCursor(page.next);
+      deriveTitles(page.list);
+    } catch (cause) {
+      setError(errorText(cause));
+    } finally {
+      setLoadingMore(false);
     }
   }
 
@@ -153,7 +181,9 @@ export function useChatSession(conn: Conn, client: Client) {
       try {
         let list: SessionInfo[] = [];
         try {
-          list = await loadSessions();
+          const page = await loadSessions();
+          list = page.list;
+          if (!cancelled) setSessionCursor(page.next);
         } catch {
           // 老服务端没有会话列表时直接新建。
         }
@@ -599,6 +629,9 @@ export function useChatSession(conn: Conn, client: Client) {
   return {
     sessionID,
     sessions,
+    hasMore: sessionCursor !== null,
+    loadingMore,
+    loadMore: loadMoreSessions,
     agentID,
     blocks,
     status,

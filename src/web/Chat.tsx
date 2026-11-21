@@ -80,6 +80,9 @@ export default function Chat({ conn, onDisconnect }: { conn: Conn; onDisconnect:
   const {
     sessionID,
     sessions,
+    hasMore,
+    loadingMore,
+    loadMore,
     agentID,
     blocks,
     status,
@@ -360,6 +363,9 @@ export default function Chat({ conn, onDisconnect }: { conn: Conn; onDisconnect:
       sessions={sessions}
       current={sessionID}
       busy={busy}
+      hasMore={hasMore}
+      loadingMore={loadingMore}
+      onLoadMore={() => void loadMore()}
       onSelect={(id) => {
         if (closeOnPick) setHistoryOpen(false);
         void selectSession(id);

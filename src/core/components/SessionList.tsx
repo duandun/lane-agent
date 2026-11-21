@@ -22,19 +22,25 @@ export default function SessionList({
   sessions,
   current,
   busy,
+  hasMore,
+  loadingMore,
   onSelect,
   onNew,
   onRename,
   onDelete,
+  onLoadMore,
 }: {
   sessions: SessionInfo[];
   current: string | null;
   /** 一轮运行中不允许切走，避免同一个会话被并发驱动。 */
   busy: boolean;
+  hasMore: boolean;
+  loadingMore: boolean;
   onSelect: (id: string) => void;
   onNew: () => void;
   onRename: (id: string, title: string) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
+  onLoadMore: () => void;
 }) {
   const { modal } = AntdApp.useApp();
   const [renaming, setRenaming] = useState<SessionInfo | null>(null);
@@ -157,6 +163,11 @@ export default function SessionList({
         })}
         {!sessions.length && (
           <div className="px-2 py-6 text-center text-xs text-(--muted)">还没有会话</div>
+        )}
+        {hasMore && (
+          <Button block type="text" size="small" loading={loadingMore} onClick={onLoadMore}>
+            加载更多
+          </Button>
         )}
       </div>
 
