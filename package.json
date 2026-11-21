@@ -60,11 +60,7 @@
     }
   },
   "dependencies": {
-    "@astryxdesign/core": "^0.7.16",
-    "@astryxdesign/theme-neutral": "^0.7.16",
-    "@heroicons/react": "^2.2.0",
     "@opencode/client": "^2.3.0",
-    "@stylexjs/stylex": "^0.19.2",
     "diff": "^9.0.0",
     "react-helmet-async": "^3.1.0",
     "zustand": "^5.1.0"
@@ -73,7 +69,6 @@
     "@ant-design/icons": "^6.3.4",
     "@ant-design/x": "^2.10.0",
     "@ant-design/x-markdown": "^2.10.0",
-    "@astryxdesign/cli": "^0.7.16",
     "@tailwindcss/vite": "^4.3.5",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",

@@ -2,4 +2,3 @@ dist
 release
 bun.lock
 dist-electron
-src/astryx-themes.ts
