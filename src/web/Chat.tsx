@@ -376,7 +376,7 @@ export default function Chat({ conn, onDisconnect }: { conn: Conn; onDisconnect:
   return (
     <div className="flex h-dvh min-w-0 bg-(--bg)">
       {!historyCollapsed && (
-        <aside className="hidden w-[248px] shrink-0 border-r border-(--line) sm:block">
+        <aside className="hidden w-[260px] shrink-0 border-r border-(--line) sm:block">
           {history(false)}
         </aside>
       )}

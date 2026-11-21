@@ -1,15 +1,24 @@
 import { useState } from 'react';
-import { App as AntdApp, Button, Dropdown, Input, Modal } from 'antd';
-import { DeleteOutlined, EditOutlined, EllipsisOutlined, PlusOutlined } from '@ant-design/icons';
+import { PencilSquareIcon, TrashIcon } from '@heroicons/react/24/outline';
 import type { SessionInfo } from '@opencode/client';
+import { AlertDialog } from '@astryxdesign/core/AlertDialog';
+import { Button } from '@astryxdesign/core/Button';
+import { Dialog, DialogHeader } from '@astryxdesign/core/Dialog';
+import { DropdownMenu, type DropdownMenuOption } from '@astryxdesign/core/DropdownMenu';
+import { Icon } from '@astryxdesign/core/Icon';
+import { IconButton } from '@astryxdesign/core/IconButton';
+import { HStack, Layout, LayoutContent, LayoutFooter } from '@astryxdesign/core/Layout';
+import { SideNav, SideNavItem, SideNavSection } from '@astryxdesign/core/SideNav';
+import { Text } from '@astryxdesign/core/Text';
+import { TextInput } from '@astryxdesign/core/TextInput';
 
-/** 会话更新时间：一周内用相对时间，更早显示日期。 */
+/** 会话更新时间：窄侧栏里用短格式。 */
 function timeAgo(ms: number): string {
   const diff = Date.now() - ms;
   if (diff < 60_000) return '刚刚';
-  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)} 分钟前`;
-  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)} 小时前`;
-  if (diff < 7 * 86_400_000) return `${Math.floor(diff / 86_400_000)} 天前`;
+  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)} 分`;
+  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)} 时`;
+  if (diff < 7 * 86_400_000) return `${Math.floor(diff / 86_400_000)} 天`;
   const date = new Date(ms);
   return `${date.getMonth() + 1}-${date.getDate()}`;
 }
@@ -36,12 +45,11 @@ export default function SessionList({
   onRename: (id: string, title: string) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
 }) {
-  const { modal } = AntdApp.useApp();
   const [renaming, setRenaming] = useState<SessionInfo | null>(null);
   const [title, setTitle] = useState('');
   const [saving, setSaving] = useState(false);
-  // 菜单打开期间保持该行的选中态，指针移到菜单里也不会掉。
-  const [openMenuID, setOpenMenuID] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<SessionInfo | null>(null);
+  const [deletePending, setDeletePending] = useState(false);
 
   function startRename(session: SessionInfo) {
     setRenaming(session);
@@ -49,7 +57,7 @@ export default function SessionList({
   }
 
   async function submitRename() {
-    const value = title.trim();
+    const value = title.trim().slice(0, 60);
     if (!renaming || !value) return;
     setSaving(true);
     try {
@@ -60,116 +68,152 @@ export default function SessionList({
     }
   }
 
-  function confirmDelete(session: SessionInfo) {
-    modal.confirm({
-      title: '删除会话',
-      content: `「${session.title?.trim() || '未命名会话'}」及其全部消息会被删除，无法恢复。`,
-      okText: '删除',
-      okButtonProps: { danger: true },
-      cancelText: '取消',
-      onOk: () => onDelete(session.id),
-    });
+  async function submitDelete() {
+    if (!deleting) return;
+    setDeletePending(true);
+    try {
+      await onDelete(deleting.id);
+      setDeleting(null);
+    } finally {
+      setDeletePending(false);
+    }
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-(--panel)">
-      <div className="p-2.5">
-        <Button block icon={<PlusOutlined />} disabled={busy} onClick={onNew}>
-          新会话
-        </Button>
-      </div>
-      <div className="px-3 pb-1 text-[11px] text-(--muted)">历史会话</div>
-      <div className="min-h-0 flex-1 space-y-0.5 overflow-y-auto px-2 pb-2">
-        {sessions.map((session) => {
-          const active = session.id === current;
-          const locked = busy && !active;
-          // 正在跑的当前会话不能删也不能改名。
-          const actionsDisabled = busy && active;
-          // 当前会话、悬停、菜单打开时都是选中态。
-          const selected = active || openMenuID === session.id;
-          return (
-            <div key={session.id} className="group relative">
-              <Button
-                type="text"
-                block
-                disabled={locked}
-                title={locked ? '当前这轮还没跑完' : undefined}
-                onClick={() => onSelect(session.id)}
-                className={`h-auto! flex-col! items-start! gap-0.5! rounded-md! py-1.5! pr-7! pl-2! text-left! [font:inherit]! ${
-                  selected ? 'bg-(--panel-2)!' : 'group-hover:bg-(--panel-2)!'
-                } ${locked ? 'opacity-50!' : ''}`}
-              >
-                <span
-                  className={`w-full truncate text-[13px] ${selected ? 'text-(--text)' : 'text-(--muted)'}`}
-                >
-                  {session.title?.trim() || '未命名会话'}
-                </span>
-                <span className="text-[11px] text-(--muted)">
-                  {timeAgo(session.time.updated || session.time.created)}
-                </span>
-              </Button>
-              <Dropdown
-                trigger={['click']}
-                disabled={actionsDisabled}
-                open={openMenuID === session.id}
-                onOpenChange={(open) =>
-                  setOpenMenuID((id) => (open ? session.id : id === session.id ? null : id))
-                }
-                menu={{
-                  items: [
-                    { key: 'rename', label: '重命名', icon: <EditOutlined /> },
-                    {
-                      key: 'delete',
-                      label: '删除',
-                      icon: <DeleteOutlined />,
-                      danger: true,
-                    },
-                  ],
-                  onClick: ({ key }) => {
-                    if (key === 'rename') startRename(session);
-                    if (key === 'delete') confirmDelete(session);
-                  },
-                }}
-              >
-                <Button
-                  type="text"
-                  size="small"
-                  title="会话操作"
-                  className={`absolute! top-1/2 right-1 -translate-y-1/2 focus-visible:opacity-100! max-sm:opacity-100! ${
-                    openMenuID === session.id
-                      ? 'opacity-100!'
-                      : 'opacity-0! group-hover:opacity-100!'
-                  }`}
-                  icon={<EllipsisOutlined />}
-                />
-              </Dropdown>
-            </div>
-          );
-        })}
-        {!sessions.length && (
-          <div className="px-2 py-6 text-center text-xs text-(--muted)">还没有会话</div>
-        )}
-      </div>
-
-      <Modal
-        title="重命名会话"
-        open={!!renaming}
-        okText="保存"
-        cancelText="取消"
-        confirmLoading={saving}
-        onOk={() => void submitRename()}
-        onCancel={() => setRenaming(null)}
-        destroyOnHidden
+    <>
+      <SideNav
+        topContent={
+          <Button
+            label="新会话"
+            variant="secondary"
+            width="100%"
+            isDisabled={busy}
+            onClick={onNew}
+          />
+        }
       >
-        <Input
-          value={title}
-          onChange={(event) => setTitle(event.target.value)}
-          onPressEnter={() => void submitRename()}
-          maxLength={60}
-          autoFocus
-          placeholder="会话标题"
+        <SideNavSection title="历史会话">
+          {sessions.length ? (
+            sessions.map((session) => {
+              const active = session.id === current;
+              const locked = busy && !active;
+              // 正在跑的当前会话不能删也不能改名。
+              const actionsDisabled = busy && active;
+              const items: DropdownMenuOption[] = [
+                {
+                  label: '重命名',
+                  icon: PencilSquareIcon,
+                  isDisabled: actionsDisabled,
+                  onClick: () => startRename(session),
+                },
+                { type: 'divider' },
+                {
+                  label: '删除',
+                  icon: TrashIcon,
+                  variant: 'destructive',
+                  isDisabled: actionsDisabled,
+                  onClick: () => setDeleting(session),
+                },
+              ];
+
+              return (
+                <SideNavItem
+                  key={session.id}
+                  label={session.title?.trim() || '未命名会话'}
+                  isSelected={active}
+                  isDisabled={locked}
+                  onClick={() => onSelect(session.id)}
+                  actions={
+                    <span className="session-meta">
+                      <span className="session-time">
+                        <Text type="supporting" color="secondary">
+                          {timeAgo(session.time.updated || session.time.created)}
+                        </Text>
+                      </span>
+                      <DropdownMenu
+                        renderTrigger={(props) => (
+                          <IconButton
+                            {...props}
+                            className="session-actions"
+                            label="会话操作"
+                            tooltip="会话操作"
+                            icon={<Icon icon="moreHorizontal" />}
+                            variant="ghost"
+                            size="sm"
+                          />
+                        )}
+                        placement="end"
+                        alignment="start"
+                        items={items}
+                      />
+                    </span>
+                  }
+                />
+              );
+            })
+          ) : (
+            <Text type="supporting" color="secondary">
+              还没有会话
+            </Text>
+          )}
+        </SideNavSection>
+      </SideNav>
+
+      <Dialog
+        isOpen={!!renaming}
+        onOpenChange={(open) => {
+          if (!open) setRenaming(null);
+        }}
+        purpose="form"
+        width={400}
+      >
+        <Layout
+          header={<DialogHeader title="重命名会话" onOpenChange={() => setRenaming(null)} />}
+          content={
+            <LayoutContent>
+              <TextInput
+                label="会话标题"
+                value={title}
+                onChange={setTitle}
+                onEnter={() => void submitRename()}
+                hasAutoFocus
+                placeholder="会话标题"
+              />
+            </LayoutContent>
+          }
+          footer={
+            <LayoutFooter>
+              <HStack gap={2} hAlign="end">
+                <Button label="取消" onClick={() => setRenaming(null)} />
+                <Button
+                  label="保存"
+                  variant="primary"
+                  isDisabled={!title.trim()}
+                  isLoading={saving}
+                  onClick={() => void submitRename()}
+                />
+              </HStack>
+            </LayoutFooter>
+          }
         />
-      </Modal>
-    </div>
+      </Dialog>
+
+      <AlertDialog
+        isOpen={!!deleting}
+        onOpenChange={(open) => {
+          if (!open) setDeleting(null);
+        }}
+        title="删除会话"
+        description={
+          deleting
+            ? `「${deleting.title?.trim() || '未命名会话'}」及其全部消息会被删除，无法恢复。`
+            : ''
+        }
+        actionLabel="删除"
+        cancelLabel="取消"
+        isActionLoading={deletePending}
+        onAction={() => void submitDelete()}
+      />
+    </>
   );
 }
