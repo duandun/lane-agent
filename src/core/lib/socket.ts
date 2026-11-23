@@ -1,5 +1,6 @@
 import { io } from 'socket.io-client';
 import { appBridge } from './bridge';
+import type { PhoneMessage } from './phone';
 
 export const BASE_URL = 'http://59.110.25.186';
 
@@ -46,5 +47,30 @@ export function subscribePhoneMessages(onMessage: (text: string) => void): () =>
   socket.on('chat message', onSocketMessage);
   return () => {
     socket.off('chat message', onSocketMessage);
+  };
+}
+
+/** 是否已经和手机配对。 */
+export function isPhonePaired(): boolean {
+  return !!sessionStorage.getItem(PHONE_CODE_KEY);
+}
+
+/** 把 agent 的对话快照和忙碌状态发给已配对的手机；未配对时 no-op。 */
+export function publishAgentMessages(messages: PhoneMessage[], working: boolean) {
+  const code = sessionStorage.getItem(PHONE_CODE_KEY);
+  if (code) socket.emit('agent messages', { code, messages, working });
+}
+
+/** 手机请求一次快照时回调；只接受本机连接码。 */
+export function subscribeAgentSync(onSync: () => void): () => void {
+  const handler = (payload: unknown) => {
+    const expected = sessionStorage.getItem(PHONE_CODE_KEY);
+    if (!expected || !payload || typeof payload !== 'object') return;
+    const { code } = payload as { code?: unknown };
+    if (code === expected) onSync();
+  };
+  socket.on('agent sync', handler);
+  return () => {
+    socket.off('agent sync', handler);
   };
 }

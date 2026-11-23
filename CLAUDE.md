@@ -73,6 +73,7 @@ Electron 生产环境把 `dist/` 用一个写死端口的本地 HTTP 服务（`h
 ## Known limits
 
 - 打开页面恢复当前目录最近更新的会话（`session.list` 首屏 30 个，可继续加载，排除子代理和归档会话）；运行中禁止切换。
+- 会话消息只加载最近 200 条（`message.list` 的 limit 上限），更早的消息不会显示在界面上。
 - 服务端 CORS 必须显式包含当前页面 origin（协议+主机+端口，无路径、无尾斜杠），多个 origin 重复传 `--cors`。
 - 权限弹窗依赖 `permission.asked` 事件；服务端权限全 allow 时不会出现。
 - `agent-desktop` skill 首次安装后需要重启 `opencode serve` 才会被发现。

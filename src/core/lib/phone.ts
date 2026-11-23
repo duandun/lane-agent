@@ -1,3 +1,5 @@
+import type { Block } from './blocks';
+import { toolFileDiff } from './diff';
 import { BASE_URL, PHONE_CODE_KEY, joinPhoneRoom } from './socket';
 
 export type PhonePairing = {
@@ -5,6 +7,32 @@ export type PhonePairing = {
   url: string;
   qr: string;
 };
+
+export type PhoneMessage = {
+  role: 'user' | 'assistant' | 'system' | 'change';
+  text: string;
+};
+
+/**
+ * 同步给手机的对话快照：保留 user / assistant / system / 文件改动，
+ * 跳过 reasoning 和普通工具调用（即 UI 里的 activity 组）。
+ */
+export function toPhoneMessages(blocks: Block[]): PhoneMessage[] {
+  const messages: PhoneMessage[] = [];
+  for (const block of blocks) {
+    if (block.kind === 'user') {
+      messages.push({ role: 'user', text: block.text });
+    } else if (block.kind === 'text') {
+      messages.push({ role: 'assistant', text: block.text });
+    } else if (block.kind === 'notice') {
+      messages.push({ role: 'system', text: block.text });
+    } else if (block.kind === 'tool') {
+      const diff = toolFileDiff(block.name, block.input);
+      if (diff) messages.push({ role: 'change', text: `修改文件：${diff.path}` });
+    }
+  }
+  return messages.filter((message) => message.text.trim()).slice(-100);
+}
 
 /**
  * Ask lane-serve for a fresh phone pairing: a six-digit code plus the

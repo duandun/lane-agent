@@ -62,7 +62,7 @@ export default function PhoneConnect({ onMessage }: { onMessage: (text: string) 
               连接码：<span className="font-mono">{pair.code}</span>
             </Typography.Text>
             <Typography.Text type="secondary" className="text-center text-xs!">
-              用手机扫码打开广播页。之后的消息会携带该连接码，不匹配的消息会被忽略。
+              用手机扫码打开手机对话页。之后的消息会携带该连接码，不匹配的消息会被忽略。
             </Typography.Text>
           </div>
         )}

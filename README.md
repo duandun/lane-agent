@@ -220,7 +220,7 @@ Web 和 Electron 共用 `core`；Electron 加载的是 `web` 构建出来的 `di
 ## 已知边界
 
 - 打开页面会恢复当前目录下最近更新的会话，左侧可切换或新建；列表首屏 30 条，可继续加载，排除归档和子代理会话，运行中不能切换。输入历史仍只存在当前页面内存里。
-- `message.list` 的 `limit` 上限是 200，传大了直接报 `Expected a value less than or equal to 200`。
+- `message.list` 的 `limit` 上限是 200，传大了直接报 `Expected a value less than or equal to 200`；长会话只展示最近 200 条消息。
 - 权限弹窗走 `permission.asked` 事件；如果服务器配置里权限全是 allow，就永远不会弹。
 - 局域网访问要三件事一起改：`opencode serve --hostname 0.0.0.0`、`vite --host`、以及把真实 origin 加进 `--cors`。
 - 自定义模型的「自定义」标记和编辑 / 删除按钮依赖本地 `customModels`（通过应用保存过的才会记录）；手工写进 `opencode.json` 的模型会出现在列表里，但没有这两个按钮。

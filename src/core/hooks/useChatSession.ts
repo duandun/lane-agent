@@ -62,8 +62,9 @@ export function useChatSession(conn: Conn, client: Client) {
   }, [sessionID]);
 
   async function reload(id: string) {
-    const response = await client.message.list({ sessionID: id, order: 'asc', limit: 200 });
-    setBlocks(blocksFromMessages(response.data));
+    // 服务端 limit 上限 200；取最新的一页再反转为时间顺序，否则长会话只会拿到最早的 200 条。
+    const response = await client.message.list({ sessionID: id, order: 'desc', limit: 200 });
+    setBlocks(blocksFromMessages([...response.data].reverse()));
   }
 
   // 旧版本把所有会话标题固定写成 Lane，这里用第一条提问在本地修正显示。

@@ -38,6 +38,7 @@ import SessionList from '@core/components/SessionList';
 import SkillPicker from '@core/components/SkillPicker';
 import { useAttachments } from '@core/hooks/useAttachments';
 import { useChatSession, type ChatStatus, type ModelRef } from '@core/hooks/useChatSession';
+import { usePhoneSync } from '@core/hooks/usePhoneSync';
 import { appBridge } from '@core/lib/bridge';
 import { makeClient, type Conn } from '@core/lib/client';
 import { errorText } from '@core/lib/error';
@@ -107,6 +108,9 @@ export default function Chat({ conn, onDisconnect }: { conn: Conn; onDisconnect:
     switchModel,
     switchAgent,
   } = useChatSession(conn, client);
+
+  // 配对后把非 activity 的对话内容和忙碌状态同步给手机页面。
+  usePhoneSync(blocks, busy);
 
   const [draft, setDraft] = useState('');
   const [historyOpen, setHistoryOpen] = useState(false);
