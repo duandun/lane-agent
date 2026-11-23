@@ -4,6 +4,7 @@ import { contextBridge, ipcRenderer } from 'electron';
 contextBridge.exposeInMainWorld('appBridge', {
   ping: () => ipcRenderer.invoke('app:ping'),
   info: () => ipcRenderer.invoke('app:info'),
+  serverHealth: (baseUrl: string) => ipcRenderer.invoke('app:serverHealth', baseUrl),
   fs: {
     list: (root: string, dir?: string) => ipcRenderer.invoke('fs:list', root, dir),
     read: (root: string, path: string) => ipcRenderer.invoke('fs:read', root, path),

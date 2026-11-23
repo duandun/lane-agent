@@ -41,6 +41,7 @@ import { appBridge } from '@core/lib/bridge';
 import { makeClient, type Conn } from '@core/lib/client';
 import { errorText } from '@core/lib/error';
 import { deleteProviderModel } from '@core/lib/opencodeConfig';
+import { socket } from '@core/lib/socket';
 import { useAppStore, type CompanionKind, type CustomModel } from '@core/lib/store';
 
 type ModelOption = {
@@ -108,6 +109,21 @@ export default function Chat({ conn, onDisconnect }: { conn: Conn; onDisconnect:
   } = useChatSession(conn, client);
 
   const [draft, setDraft] = useState('');
+  // 服务端通过 socket 推送的消息：先回填输入框，再自动触发发送。
+  useEffect(() => {
+    const onMessage = (payload: unknown) => {
+      const message =
+        typeof payload === 'string' ? payload : (payload as { msg?: unknown } | null)?.msg;
+      if (typeof message !== 'string' || !message.trim()) return;
+      setDraft(message);
+      // 等输入框回填后，在下一帧走和发送按钮相同的提交逻辑。
+      requestAnimationFrame(() => void submit(message));
+    };
+    socket.on('chat message', onMessage);
+    return () => {
+      socket.off('chat message', onMessage);
+    };
+  }, [submit]);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyCollapsed, setHistoryCollapsed] = useState(false);
   const model = useAppStore((state) => state.model);

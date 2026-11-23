@@ -27,6 +27,7 @@ export type LocalService = {
 export type AppBridge = {
   ping: () => Promise<string>;
   info: () => Promise<AppInfo>;
+  serverHealth: (baseUrl: string) => Promise<{ status?: string } | null>;
   localService: () => Promise<LocalService | null>;
   selectDirectory: () => Promise<string | null>;
   /** 用系统文件管理器打开路径。 */
