@@ -21,6 +21,8 @@
     "electron:package:win": "cd apps/desktop && bun run package:win",
     "bundle:cli": "cd apps/desktop && node scripts/bundle-opencode-cli.mjs",
     "bundle:runtime": "cd apps/desktop && node scripts/bundle-runtime.mjs",
+    "upload:mobile": "cd apps/mobile && ./upload.sh",
+    "upload:server": "cd apps/server && ./upload.sh",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
