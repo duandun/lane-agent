@@ -29,6 +29,7 @@ opencode serve  ← agent / 工具 / 权限 / 会话都在这里
 - **会话历史**：左侧按项目目录恢复最近会话，支持切换、新建、重命名和删除；窄屏收进抽屉。
 - **手机联动**：桌面端点「手机连接」生成 6 位连接码和二维码，手机扫码后可以收发消息，agent 的对话快照（含文件改动）实时同步到手机。
 - **技能与附件**：输入框可挑选 skill，附件写入项目目录后随消息提交。
+- **操作存为 skill**：桌面端完成一次 agent-desktop 操作后，可把本次命令提取成 `SKILL.md` 草稿，保存到 `~/.config/opencode/skills`，刷新技能列表即可复用。
 - **文件改动卡片**：`edit` / `write` / `patch` 工具会在对话里展开成 git 风格的 diff——文件名、`+N −N`、词级高亮的增删行；diff 用 jsdiff 计算。
 - **模型选择**：卡片式下拉，显示状态点、模型名、自定义标记、provider ID 和选中对勾；自定义 OpenAI 兼容模型可以定义任意多个，同一行悬停可编辑 / 删除。
 - **输入框**：Enter 发送、Shift+Enter 换行，↑ / ↓ 浏览最近 10 条已发送内容。
@@ -198,7 +199,7 @@ nginx 需要：
 应用内置 agent-desktop CLI 和 skill，用户不需要预装：
 
 - 启动时把当前平台的二进制、helper 和 skill 安装到 `~/.config/opencode/skills/agent-desktop/`，带 `.installed` 标记；升级时自动重装，不覆盖用户自己放的同名 skill。
-- OpenCode 从全局 skills 目录自动发现它；首次安装后需要重启 `opencode serve`。
+- OpenCode 会热加载全局 skills 目录里的新增技能，安装后刷新技能列表即可，无需重启 `opencode serve`。
 - skill 里的命令已替换成安装后的绝对路径（`bin/agent-desktop`），不依赖 PATH；`references/` 和 CLI 的 `skills get` 都可用。
 - 真正操作 GUI 的是运行 opencode 的进程，macOS 上要给那个终端/应用授予辅助功能、屏幕录制权限；用 `agent-desktop status` 查看。
 - 桌面端启动的是本地 opencode 服务，所以 skill 和 agent-desktop CLI 天然在同一台机器；Web 端连远程服务器时，skill 仍需另外部署到服务器上。

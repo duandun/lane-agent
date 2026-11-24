@@ -4,6 +4,7 @@ import { registerFsIpc } from './fs.js';
 import { registerHealthIpc } from './health.js';
 import { registerLocalServiceIpc } from './local.js';
 import { registerShellIpc } from './shell.js';
+import { registerSkillsIpc } from './skills.js';
 
 /**
  * Node 能力的唯一入口：所有主进程操作都在这里注册，
@@ -16,4 +17,5 @@ export function registerIpc() {
   registerLocalServiceIpc();
   registerDialogIpc();
   registerShellIpc();
+  registerSkillsIpc();
 }

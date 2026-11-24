@@ -24,6 +24,22 @@ export type LocalService = {
   password: string;
 };
 
+export type SkillInfo = {
+  root: string;
+  agentDesktopBin: string | null;
+};
+
+export type SaveSkillInput = {
+  name: string;
+  description: string;
+  body: string;
+  overwrite?: boolean;
+};
+
+export type SaveSkillResult =
+  | { ok: true; path: string }
+  | { ok: false; reason: 'invalid' | 'managed' | 'exists' | 'symlink'; message?: string };
+
 export type AppBridge = {
   ping: () => Promise<string>;
   info: () => Promise<AppInfo>;
@@ -41,6 +57,10 @@ export type AppBridge = {
   };
   exec: {
     npx: (root: string, args: string[]) => Promise<ExecResult>;
+  };
+  skills: {
+    info: () => Promise<SkillInfo>;
+    save: (input: SaveSkillInput) => Promise<SaveSkillResult>;
   };
 };
 

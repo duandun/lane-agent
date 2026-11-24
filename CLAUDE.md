@@ -66,6 +66,7 @@ Electron 生产环境把 `apps/desktop/dist/`（构建时从 `apps/web/dist` 拷
 - 一轮运行结束的可靠信号是 `session.execution.succeeded / failed / interrupted`；`session.idle` 只表示会话安静，不能单独当作跑完。结束时用 `message.list`（limit 上限 200）从服务端重建 block 列表，抵消客户端的乐观状态漂移。
 - `@opencode/client/service` 只能在 Node 里用；渲染进程一律通过 `makeClient(conn)` 走 HTTP Basic Auth，用户名固定 `opencode`。
 - 手机同步：`packages/protocol` 定义事件名、`PhoneMessage` 和限额；web 端 `core/lib/socket.ts` / `phone.ts` 发送，mobile 端 `routes/phone.tsx` 接收，server 只做房间转发与校验。
+- 操作存为 skill：提取逻辑在 `apps/web/src/core/lib/skillDraft.ts`（自检 `apps/web/scripts/skill-draft.check.ts`），保存走 `apps/desktop/src/ipc/skills.ts` 的 `skills:info` / `skills:save`；只写 `~/.config/opencode/skills`，拒绝覆盖 `agent-desktop` 或带 `.installed` 的受管 skill。
 
 ### Node 能力（IPC）
 
@@ -99,6 +100,6 @@ Electron 生产环境把 `apps/desktop/dist/`（构建时从 `apps/web/dist` 拷
 - 会话消息只加载最近 200 条（`message.list` 的 limit 上限），更早的消息不会显示在界面上。
 - 服务端 CORS 必须显式包含当前页面 origin（协议+主机+端口，无路径、无尾斜杠），多个 origin 重复传 `--cors`。
 - 权限弹窗依赖 `permission.asked` 事件；服务端权限全 allow 时不会出现。
-- `agent-desktop` skill 首次安装后需要重启 `opencode serve` 才会被发现。
+- `agent-desktop` skill 和新增 skill 文件会热加载（OpenCode 2.3.0 实测）：安装后只需刷新技能列表，无需重启 `opencode serve`。
 - 部署脚本：`apps/mobile/upload.sh` 上传源码 + `dist` 到 `/opt/lane-serve/web`；`apps/server/upload.sh` 上传源码到 `/opt/lane-serve/server`，服务器上仍用 `npm ci` + `pm2 restart lane-serve-api`。
 - Vercel 部署两个独立项目：Root Directory 分别设 `apps/welcome`（TanStack Start，Nitro）和 `apps/web`（Vite 静态站，`apps/web/vercel.json` 固定框架和 `dist` 输出）；两边构建命令都是 `bun run build`，Vercel 会在仓库根安装 workspace 依赖。`apps/web` 部署后要把域名加进 `opencode serve --cors`。
