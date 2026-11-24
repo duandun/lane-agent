@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Alert, App as AntdApp, Flex, Input, Modal, Typography } from 'antd';
 import { appBridge, type SaveSkillResult } from '../lib/bridge';
 import type { Block } from '../lib/blocks';
@@ -30,11 +30,19 @@ export default function SaveSkillModal({
   const [warnings, setWarnings] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  // 打开时快照 blocks，流式输出继续追加也不能覆盖用户已经改过的草稿。
+  const blocksRef = useRef(blocks);
+  const touchedRef = useRef(false);
+
+  useEffect(() => {
+    blocksRef.current = blocks;
+  }, [blocks]);
 
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
-    const base = draftSkill(blocks);
+    touchedRef.current = false;
+    const base = draftSkill(blocksRef.current);
     setName(base.name);
     setDescription(base.description);
     setBody(base.body);
@@ -45,8 +53,8 @@ export default function SaveSkillModal({
     void appBridge?.skills
       .info()
       .then((info) => {
-        if (cancelled || !info.agentDesktopBin) return;
-        const next = draftSkill(blocks, { bin: info.agentDesktopBin });
+        if (cancelled || touchedRef.current || !info.agentDesktopBin) return;
+        const next = draftSkill(blocksRef.current, { bin: info.agentDesktopBin });
         setName(next.name);
         setDescription(next.description);
         setBody(next.body);
@@ -57,7 +65,7 @@ export default function SaveSkillModal({
     return () => {
       cancelled = true;
     };
-  }, [open, blocks]);
+  }, [open]);
 
   async function save(overwrite = false) {
     if (!appBridge) return;
@@ -132,19 +140,31 @@ export default function SaveSkillModal({
         {error && <Alert type="error" showIcon title={error} />}
 
         <Field label="名称（kebab-case）">
-          <Input value={name} onChange={(event) => setName(event.target.value)} />
+          <Input
+            value={name}
+            onChange={(event) => {
+              touchedRef.current = true;
+              setName(event.target.value);
+            }}
+          />
         </Field>
         <Field label="描述（决定 agent 何时加载它）">
           <Input.TextArea
             value={description}
-            onChange={(event) => setDescription(event.target.value)}
+            onChange={(event) => {
+              touchedRef.current = true;
+              setDescription(event.target.value);
+            }}
             autoSize={{ minRows: 2, maxRows: 4 }}
           />
         </Field>
         <Field label="SKILL.md 正文">
           <Input.TextArea
             value={body}
-            onChange={(event) => setBody(event.target.value)}
+            onChange={(event) => {
+              touchedRef.current = true;
+              setBody(event.target.value);
+            }}
             rows={16}
             className="font-mono text-xs!"
           />

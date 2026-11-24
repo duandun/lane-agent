@@ -217,3 +217,8 @@ export function draftSkill(
 
   return { name, description, body, steps: picked.length, warnings };
 }
+
+/** 技能列表里是否已有该 skill：id 通常等于目录名，name 来自 frontmatter。 */
+export function isSkillLoaded(skills: { id: string; name: string }[], name: string): boolean {
+  return skills.some((skill) => skill.id === name || skill.name === name);
+}

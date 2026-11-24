@@ -45,7 +45,7 @@ import { appBridge } from '@core/lib/bridge';
 import { makeClient, type Conn } from '@core/lib/client';
 import { errorText } from '@core/lib/error';
 import { deleteProviderModel } from '@core/lib/opencodeConfig';
-import { hasAgentDesktopRun } from '@core/lib/skillDraft';
+import { hasAgentDesktopRun, isSkillLoaded } from '@core/lib/skillDraft';
 import { useAppStore, type CompanionKind, type CustomModel } from '@core/lib/store';
 
 type ModelOption = {
@@ -361,13 +361,13 @@ export default function Chat({ conn, onDisconnect }: { conn: Conn; onDisconnect:
   // 保存后服务端会热加载，但本地列表要主动刷新；仍未出现时用 location.reload 兜底。
   async function handleSkillSaved(saved: { path: string; name: string }) {
     const list = await refreshSkills();
-    if (list.some((skill) => skill.id === saved.name)) return;
+    if (isSkillLoaded(list, saved.name)) return;
     try {
       await client.location.reload({
         headers: conn.directory ? { 'x-opencode-directory': conn.directory } : undefined,
       });
       const again = await refreshSkills();
-      if (!again.some((skill) => skill.id === saved.name)) {
+      if (!isSkillLoaded(again, saved.name)) {
         message.warning('已保存，但服务端尚未加载，可尝试重启 opencode serve');
       }
     } catch {
@@ -520,19 +520,24 @@ export default function Chat({ conn, onDisconnect }: { conn: Conn; onDisconnect:
                 </Tag>
               </Tooltip>
             )}
-            <Button
-              type="text"
-              icon={<FileAddOutlined />}
+            <Tooltip
               title={
                 !appBridge
                   ? '仅桌面端支持存为技能'
                   : canSaveSkill
-                    ? '存为技能'
+                    ? '把本次操作存为技能'
                     : '本次会话还没有 agent-desktop 操作'
               }
-              disabled={!appBridge || !canSaveSkill}
-              onClick={() => setSaveSkillOpen(true)}
-            />
+            >
+              <span>
+                <Button
+                  type="text"
+                  icon={<FileAddOutlined />}
+                  disabled={!appBridge || !canSaveSkill}
+                  onClick={() => setSaveSkillOpen(true)}
+                />
+              </span>
+            </Tooltip>
             <PhoneConnect
               onMessage={(message) => {
                 setDraft(message);
