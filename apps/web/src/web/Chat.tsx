@@ -17,6 +17,7 @@ import {
   DeleteOutlined,
   DesktopOutlined,
   EditOutlined,
+  FileAddOutlined,
   LogoutOutlined,
   MenuFoldOutlined,
   MenuOutlined,
@@ -34,6 +35,7 @@ import Messages from '@core/components/Messages';
 import PermissionModal from '@core/components/PermissionModal';
 import PhoneConnect from '@core/components/PhoneConnect';
 import QuestionPrompt from '@core/components/QuestionPrompt';
+import SaveSkillModal from '@core/components/SaveSkillModal';
 import SessionList from '@core/components/SessionList';
 import SkillPicker from '@core/components/SkillPicker';
 import { useAttachments } from '@core/hooks/useAttachments';
@@ -43,6 +45,7 @@ import { appBridge } from '@core/lib/bridge';
 import { makeClient, type Conn } from '@core/lib/client';
 import { errorText } from '@core/lib/error';
 import { deleteProviderModel } from '@core/lib/opencodeConfig';
+import { hasAgentDesktopRun } from '@core/lib/skillDraft';
 import { useAppStore, type CompanionKind, type CustomModel } from '@core/lib/store';
 
 type ModelOption = {
@@ -129,12 +132,14 @@ export default function Chat({ conn, onDisconnect }: { conn: Conn; onDisconnect:
   const [modelOptions, setModelOptions] = useState<ModelOption[]>([]);
   const [modelsReady, setModelsReady] = useState(false);
   const [customOpen, setCustomOpen] = useState(false);
+  const [saveSkillOpen, setSaveSkillOpen] = useState(false);
   const [editingModel, setEditingModel] = useState<CustomModel | null>(null);
   const customModels = useAppStore((state) => state.customModels);
   const removeCustomModel = useAppStore((state) => state.removeCustomModel);
   const { message } = AntdApp.useApp();
   const [skills, setSkills] = useState<SkillInfo[]>([]);
   const [selectedSkill, setSelectedSkill] = useState<SkillInfo | null>(null);
+  const canSaveSkill = useMemo(() => hasAgentDesktopRun(blocks), [blocks]);
   const senderRef = useRef<ComponentRef<typeof Sender>>(null);
   const attachments = useAttachments({
     directory: conn.directory,
@@ -339,15 +344,34 @@ export default function Chat({ conn, onDisconnect }: { conn: Conn; onDisconnect:
   }
 
   // 桌面端才提供 skill 选择；Web 端直接跳过。会话创建前 skill 列表可能为空，所以等 sessionID。
-  async function refreshSkills() {
-    if (!appBridge || !sessionID) return;
+  async function refreshSkills(): Promise<SkillInfo[]> {
+    if (!appBridge || !sessionID) return [];
     try {
       const result = await client.skill.list({
         location: conn.directory ? { directory: conn.directory } : undefined,
       });
       setSkills(result.data);
+      return result.data;
     } catch {
       // 服务端没有 skill API 时忽略。
+      return [];
+    }
+  }
+
+  // 保存后服务端会热加载，但本地列表要主动刷新；仍未出现时用 location.reload 兜底。
+  async function handleSkillSaved(saved: { path: string; name: string }) {
+    const list = await refreshSkills();
+    if (list.some((skill) => skill.id === saved.name)) return;
+    try {
+      await client.location.reload({
+        headers: conn.directory ? { 'x-opencode-directory': conn.directory } : undefined,
+      });
+      const again = await refreshSkills();
+      if (!again.some((skill) => skill.id === saved.name)) {
+        message.warning('已保存，但服务端尚未加载，可尝试重启 opencode serve');
+      }
+    } catch {
+      message.warning('已保存，但刷新技能列表失败，可稍后手动刷新');
     }
   }
 
@@ -496,6 +520,19 @@ export default function Chat({ conn, onDisconnect }: { conn: Conn; onDisconnect:
                 </Tag>
               </Tooltip>
             )}
+            <Button
+              type="text"
+              icon={<FileAddOutlined />}
+              title={
+                !appBridge
+                  ? '仅桌面端支持存为技能'
+                  : canSaveSkill
+                    ? '存为技能'
+                    : '本次会话还没有 agent-desktop 操作'
+              }
+              disabled={!appBridge || !canSaveSkill}
+              onClick={() => setSaveSkillOpen(true)}
+            />
             <PhoneConnect
               onMessage={(message) => {
                 setDraft(message);
@@ -647,6 +684,13 @@ export default function Chat({ conn, onDisconnect }: { conn: Conn; onDisconnect:
             setModel(ref);
             await switchModel(ref);
           }}
+        />
+
+        <SaveSkillModal
+          open={saveSkillOpen}
+          blocks={blocks}
+          onClose={() => setSaveSkillOpen(false)}
+          onSaved={(saved) => void handleSkillSaved(saved)}
         />
       </div>
     </div>
