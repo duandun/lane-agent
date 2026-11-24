@@ -4,4 +4,5 @@ bun.lock
 dist-electron
 apps/mobile
 apps/server
+apps/welcome
 apps/desktop/assets/agent-desktop-skill

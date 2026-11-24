@@ -10,6 +10,7 @@ bun workspaces monorepo：
 - `apps/desktop` — Electron 主进程、打包脚本和内置资源
 - `apps/mobile` — 手机 Web（TanStack Start，扫码后使用的页面）
 - `apps/server` — 手机连接用的 Express + Socket.IO 服务（6060）
+- `apps/welcome` — 产品官网（TanStack Start SSR + Nitro，部署到 Vercel）
 - `packages/protocol` — web 与 mobile 共享的手机同步协议
 
 ```
@@ -54,6 +55,12 @@ bun dev
 ```bash
 bun run dev:server   # apps/server，http://localhost:6060
 bun run dev:mobile   # apps/mobile，http://localhost:3000
+```
+
+官网（另开终端）：
+
+```bash
+bun run dev:welcome  # apps/welcome，http://localhost:3001
 ```
 
 打开 http://localhost:5173 ，填：
@@ -215,6 +222,7 @@ apps/
     dist/、dist-electron/、resources/opencode-cli/  构建产物（不提交）
   mobile/              手机 Web（原 lane-serve/web，TanStack Start SPA）
   server/              中继服务（原 lane-serve/server，Express + Socket.IO）
+  welcome/             产品官网（TanStack Start SSR + Nitro，Vercel 部署）
 packages/
   protocol/            手机同步协议：事件名、消息类型、限额
 ```

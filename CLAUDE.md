@@ -10,6 +10,7 @@ bun workspaces monorepo：
 - `apps/web` — 桌面端渲染界面（Vite + React，也可直接当浏览器版）
 - `apps/mobile` — 手机 Web（TanStack Start SPA，扫码后使用）
 - `apps/server` — 手机连接用的 Express + Socket.IO 中继服务（6060）
+- `apps/welcome` — 产品官网（TanStack Start SSR + Nitro，部署 Vercel，单独有 `apps/welcome/CLAUDE.md`）
 - `packages/protocol` — web 与 mobile 共享的手机同步协议（server 刻意不依赖）
 
 桌面端是「方案 A」：不改 OpenCode 源码，只连用户自己起的 `opencode serve` 的 HTTP API + SSE。`README.md` 有完整产品背景、打包细节和踩坑说明。
@@ -25,6 +26,7 @@ bun run build            # 构建渲染进程到 apps/web/dist/
 bun run build:app        # 只编译 Electron 主进程到 apps/desktop/dist-electron/
 bun run dev:server       # apps/server，6060
 bun run dev:mobile       # apps/mobile，3000
+bun run dev:welcome      # apps/welcome，3001（官网）
 
 bun run electron:dev     # 编译主进程 + apps/web Vite + Electron（热更新）
 bun run electron:start   # 构建 dist + 主进程后用 Electron 打开（离线）
@@ -99,3 +101,4 @@ Electron 生产环境把 `apps/desktop/dist/`（构建时从 `apps/web/dist` 拷
 - 权限弹窗依赖 `permission.asked` 事件；服务端权限全 allow 时不会出现。
 - `agent-desktop` skill 首次安装后需要重启 `opencode serve` 才会被发现。
 - 部署脚本：`apps/mobile/upload.sh` 上传源码 + `dist` 到 `/opt/lane-serve/web`；`apps/server/upload.sh` 上传源码到 `/opt/lane-serve/server`，服务器上仍用 `npm ci` + `pm2 restart lane-serve-api`。
+- `apps/welcome` 走 Vercel + Nitro 部署：Vercel 项目根目录设为 `apps/welcome`，构建命令 `bun run build`（Vercel 会自动在仓库根安装 workspace 依赖）。
