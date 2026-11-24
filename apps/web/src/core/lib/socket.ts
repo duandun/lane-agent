@@ -1,6 +1,7 @@
+import { EVENTS } from '@lane/protocol';
+import type { PhoneMessage } from '@lane/protocol';
 import { io } from 'socket.io-client';
 import { appBridge } from './bridge';
-import type { PhoneMessage } from './phone';
 
 export const BASE_URL = 'http://59.110.25.186';
 
@@ -28,7 +29,7 @@ socket.on('connect', () => {
 
 /** 告诉服务端本机属于哪个连接码房间；未配对时是 no-op。 */
 export function joinPhoneRoom(code: string | null = sessionStorage.getItem(PHONE_CODE_KEY)) {
-  if (code) socket.emit('phone join', { code });
+  if (code) socket.emit(EVENTS.phoneJoin, { code });
 }
 
 /**
@@ -44,9 +45,9 @@ export function subscribePhoneMessages(onMessage: (text: string) => void): () =>
     if (code !== expected || typeof msg !== 'string' || !msg.trim()) return;
     onMessage(msg);
   };
-  socket.on('chat message', onSocketMessage);
+  socket.on(EVENTS.chatMessage, onSocketMessage);
   return () => {
-    socket.off('chat message', onSocketMessage);
+    socket.off(EVENTS.chatMessage, onSocketMessage);
   };
 }
 
@@ -58,7 +59,7 @@ export function isPhonePaired(): boolean {
 /** 把 agent 的对话快照和忙碌状态发给已配对的手机；未配对时 no-op。 */
 export function publishAgentMessages(messages: PhoneMessage[], working: boolean) {
   const code = sessionStorage.getItem(PHONE_CODE_KEY);
-  if (code) socket.emit('agent messages', { code, messages, working });
+  if (code) socket.emit(EVENTS.agentMessages, { code, messages, working });
 }
 
 /** 手机请求一次快照时回调；只接受本机连接码。 */
@@ -69,8 +70,8 @@ export function subscribeAgentSync(onSync: () => void): () => void {
     const { code } = payload as { code?: unknown };
     if (code === expected) onSync();
   };
-  socket.on('agent sync', handler);
+  socket.on(EVENTS.agentSync, handler);
   return () => {
-    socket.off('agent sync', handler);
+    socket.off(EVENTS.agentSync, handler);
   };
 }

@@ -1,3 +1,5 @@
+import { EVENTS } from '@lane/protocol'
+import type { PhoneMessage } from '@lane/protocol'
 import { createFileRoute } from '@tanstack/react-router'
 import React, { useEffect, useRef, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
@@ -17,8 +19,6 @@ import {
 } from '@radix-ui/themes'
 
 export const Route = createFileRoute('/phone')({ component: Phone })
-
-type PhoneMessage = { role: 'user' | 'assistant' | 'system' | 'change'; text: string }
 
 function Phone() {
   const [code, setCode] = useState('')
@@ -42,15 +42,15 @@ function Phone() {
 
     socket.on('connect', () => {
       setConnected(true)
-      socket.emit('phone join', { code })
+      socket.emit(EVENTS.phoneJoin, { code })
       // 加入房间后请 agent 补一次当前对话。
-      socket.emit('agent sync', { code })
+      socket.emit(EVENTS.agentSync, { code })
     })
     socket.on('disconnect', () => {
       setConnected(false)
       setWorking(false)
     })
-    socket.on('agent messages', (payload: { messages?: PhoneMessage[]; working?: boolean }) => {
+    socket.on(EVENTS.agentMessages, (payload: { messages?: PhoneMessage[]; working?: boolean }) => {
       setMessages(payload.messages ?? [])
       setWorking(payload.working === true)
     })

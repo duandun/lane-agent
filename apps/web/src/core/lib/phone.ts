@@ -1,3 +1,5 @@
+import type { PhoneMessage } from '@lane/protocol';
+import { LIMITS } from '@lane/protocol';
 import type { Block } from './blocks';
 import { toolFileDiff } from './diff';
 import { BASE_URL, PHONE_CODE_KEY, joinPhoneRoom } from './socket';
@@ -6,11 +8,6 @@ export type PhonePairing = {
   code: string;
   url: string;
   qr: string;
-};
-
-export type PhoneMessage = {
-  role: 'user' | 'assistant' | 'system' | 'change';
-  text: string;
 };
 
 /**
@@ -31,7 +28,7 @@ export function toPhoneMessages(blocks: Block[]): PhoneMessage[] {
       if (diff) messages.push({ role: 'change', text: `修改文件：${diff.path}` });
     }
   }
-  return messages.filter((message) => message.text.trim()).slice(-100);
+  return messages.filter((message) => message.text.trim()).slice(-LIMITS.syncMessages);
 }
 
 /**
