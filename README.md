@@ -124,6 +124,26 @@ Windows 产物是 NSIS 安装包 `apps/desktop/release/Lane Setup <版本>.exe`�
 
 `electron:package` 在 macOS 上出 dmg + zip，未做代码签名（没有 Apple 证书），拷到别的机器首次打开要右键 → 打开。脚本里写死了 npmmirror 的 Electron 下载镜像；网络能直连 GitHub 的话删掉那两个环境变量即可。
 
+## 部署到 Vercel（官网 + 桌面端 Web）
+
+`apps/welcome`（SSR）和 `apps/web`（静态 SPA）是两个独立的 Vercel 项目，导入同一个仓库，分别设置 Root Directory。
+
+| 设置项           | 官网项目                                  | 桌面端 Web 项目                  |
+| ---------------- | ----------------------------------------- | -------------------------------- |
+| Root Directory   | `apps/welcome`                            | `apps/web`                       |
+| Framework Preset | TanStack Start（`vercel.json` 已指定）    | Vite（自动识别）                 |
+| Install Command  | 留空（Vercel 在仓库根执行 `bun install`） | 留空                             |
+| Build Command    | `bun run build`                           | `bun run build`                  |
+| Output Directory | Nitro 自动（`.output`）                   | `dist`                           |
+| 环境变量         | `VITE_BAIDU_TONGJI_ID`                    | 无（服务地址由用户在连接页填写） |
+
+步骤：
+
+1. Vercel → Add New Project → 导入本仓库，Root Directory 设为 `apps/welcome`，按上表配置。
+2. 再 Add New Project 一次，导入本仓库，Root Directory 设为 `apps/web`。
+3. 分别绑定域名，并确认 Project Settings 里的 “Include source files outside of the Root Directory in the Build Step” 已勾选（否则根 `package.json`、`bun.lock`、`packages/protocol` 不会进入构建）。
+4. `apps/web` 部署后，把你自己的 `opencode serve` 启动参数里的 `--cors` 加上该域名；`apps/web` 没有 URL 路由，不需要 SPA rewrite。
+
 ## Node 通道
 
 渲染进程不直接拿 Node，主进程通过 IPC 提供受控能力：

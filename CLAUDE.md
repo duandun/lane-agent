@@ -101,4 +101,4 @@ Electron 生产环境把 `apps/desktop/dist/`（构建时从 `apps/web/dist` 拷
 - 权限弹窗依赖 `permission.asked` 事件；服务端权限全 allow 时不会出现。
 - `agent-desktop` skill 首次安装后需要重启 `opencode serve` 才会被发现。
 - 部署脚本：`apps/mobile/upload.sh` 上传源码 + `dist` 到 `/opt/lane-serve/web`；`apps/server/upload.sh` 上传源码到 `/opt/lane-serve/server`，服务器上仍用 `npm ci` + `pm2 restart lane-serve-api`。
-- `apps/welcome` 走 Vercel + Nitro 部署：Vercel 项目根目录设为 `apps/welcome`，构建命令 `bun run build`（Vercel 会自动在仓库根安装 workspace 依赖）。
+- Vercel 部署两个独立项目：Root Directory 分别设 `apps/welcome`（TanStack Start，Nitro）和 `apps/web`（Vite 静态站，`apps/web/vercel.json` 固定框架和 `dist` 输出）；两边构建命令都是 `bun run build`，Vercel 会在仓库根安装 workspace 依赖。`apps/web` 部署后要把域名加进 `opencode serve --cors`。
