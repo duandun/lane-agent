@@ -64,6 +64,16 @@ function issuePhoneCode() {
   throw new Error('no free phone code');
 }
 
+// 手机上表单答案只允许标量或多选字符串数组。
+function isFormValue(value) {
+  return (
+    typeof value === 'string' ||
+    typeof value === 'number' ||
+    typeof value === 'boolean' ||
+    (Array.isArray(value) && value.every((item) => typeof item === 'string'))
+  );
+}
+
 function isValidPhoneCode(code) {
   if (typeof code !== 'string' || !/^\d{6}$/.test(code)) return false;
   const expiresAt = phoneCodes.get(code);
@@ -169,6 +179,38 @@ io.on('connection', (socket) => {
     const code = typeof payload?.code === 'string' ? payload.code.trim() : '';
     if (!isValidPhoneCode(code) || !allow(`agent-sync:${socket.id}`, 20, 10 * 1000)) return;
     io.to(code).emit('agent sync', { code });
+  });
+
+  // 把 agent 当前的提问表单同步给手机；form 为 null 表示问题已处理完。
+  socket.on('agent form', (payload) => {
+    const code = typeof payload?.code === 'string' ? payload.code.trim() : '';
+    if (!isValidPhoneCode(code) || !allow(`agent-form:${socket.id}`, 60, 10 * 1000)) return;
+    const form = payload?.form ?? null;
+    if (form !== null) {
+      if (typeof form !== 'object' || Array.isArray(form)) return;
+      if (JSON.stringify(form).length > 16000) return;
+    }
+    io.to(code).emit('agent form', { form });
+  });
+
+  // 手机上提交或取消表单，转发给同一房间里的 agent。
+  socket.on('form answer', (payload) => {
+    const code = typeof payload?.code === 'string' ? payload.code.trim() : '';
+    const formID = typeof payload?.formID === 'string' ? payload.formID.trim() : '';
+    if (!isValidPhoneCode(code) || !formID || formID.length > 128) return;
+    if (!allow(`form-answer:${socket.id}`, 20, 10 * 1000)) return;
+    if (!allow(`form-answer-code:${code}`, 30, 10 * 1000)) return;
+    const cancel = payload?.cancel === true;
+    const answer = payload?.answer;
+    if (!cancel) {
+      if (!answer || typeof answer !== 'object' || Array.isArray(answer)) return;
+      if (!Object.values(answer).every(isFormValue)) return;
+      if (JSON.stringify(answer).length > 8000) return;
+    }
+    if (socket.data.phoneCode && socket.data.phoneCode !== code) socket.leave(socket.data.phoneCode);
+    socket.data.phoneCode = code;
+    socket.join(code);
+    io.to(code).emit('form answer', { formID, answer: cancel ? undefined : answer, cancel });
   });
 
   socket.on('chat message', (payload) => {

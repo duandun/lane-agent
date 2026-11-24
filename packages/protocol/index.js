@@ -4,6 +4,8 @@ export const EVENTS = {
   chatMessage: 'chat message',
   agentMessages: 'agent messages',
   agentSync: 'agent sync',
+  agentForm: 'agent form',
+  formAnswer: 'form answer',
 };
 
 export const PHONE_ROLES = ['user', 'assistant', 'system', 'change'];
