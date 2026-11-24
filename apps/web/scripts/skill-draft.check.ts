@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import type { Block } from '../src/core/lib/blocks';
-import { draftSkill, hasAgentDesktopRun } from '../src/core/lib/skillDraft';
+import { draftSkill, hasAgentDesktopRun, isSkillLoaded } from '../src/core/lib/skillDraft';
 
 const snapshot = JSON.stringify({
   ok: true,
@@ -96,5 +96,9 @@ const chineseOnly: Block[] = [
 ];
 
 assert.match(draftSkill(chineseOnly).name, /^desktop-task-\d{8}$/);
+
+assert.equal(isSkillLoaded([{ id: 'x', name: 'probe' }], 'probe'), true);
+assert.equal(isSkillLoaded([{ id: 'probe', name: 'Probe' }], 'probe'), true);
+assert.equal(isSkillLoaded([{ id: 'other', name: 'other' }], 'probe'), false);
 
 console.log('skillDraft check: ok');
