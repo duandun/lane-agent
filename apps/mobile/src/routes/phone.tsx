@@ -1,5 +1,6 @@
 import { EVENTS } from '@lane/protocol'
-import type { PhoneMessage } from '@lane/protocol'
+import type { PhoneForm, PhoneFormValue, PhoneMessage } from '@lane/protocol'
+import QuestionPrompt from '../components/QuestionPrompt'
 import { createFileRoute } from '@tanstack/react-router'
 import React, { useEffect, useRef, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
@@ -23,6 +24,7 @@ export const Route = createFileRoute('/phone')({ component: Phone })
 function Phone() {
   const [code, setCode] = useState('')
   const [messages, setMessages] = useState<PhoneMessage[]>([])
+  const [form, setForm] = useState<PhoneForm | null>(null)
   const [connected, setConnected] = useState(false)
   const [working, setWorking] = useState(false)
   const [text, setText] = useState('')
@@ -53,6 +55,17 @@ function Phone() {
     socket.on(EVENTS.agentMessages, (payload: { messages?: PhoneMessage[]; working?: boolean }) => {
       setMessages(payload.messages ?? [])
       setWorking(payload.working === true)
+    })
+    socket.on(EVENTS.agentForm, (payload: { form?: PhoneForm | null }) => {
+      const next = payload?.form
+      const ok =
+        next &&
+        typeof next.id === 'string' &&
+        Array.isArray(next.fields) &&
+        next.fields.every(
+          (field) => field && typeof field.key === 'string' && typeof field.type === 'string'
+        )
+      setForm(ok ? next : null)
     })
 
     return () => {
@@ -85,6 +98,16 @@ function Phone() {
     } finally {
       setSending(false)
     }
+  }
+
+  function replyForm(answer: Record<string, PhoneFormValue>) {
+    if (!form) return
+    socketRef.current?.emit(EVENTS.formAnswer, { code, formID: form.id, answer })
+  }
+
+  function cancelForm() {
+    if (!form) return
+    socketRef.current?.emit(EVENTS.formAnswer, { code, formID: form.id, cancel: true })
   }
 
   const isError = status.includes('失败')
@@ -153,27 +176,35 @@ function Phone() {
 
           <Separator size="4" my="3" />
 
-          <form onSubmit={send}>
-            <Flex direction="column" gap="2">
-              <TextArea
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                autoComplete="off"
-                placeholder={code ? '给 agent 发消息' : '缺少连接码'}
-                rows={2}
-                resize="vertical"
-                disabled={!code}
-              />
-              <Flex align="center" justify="between" gap="3" wrap="wrap">
-                <Text size="2" color={isError ? 'red' : 'gray'}>
-                  {status}
-                </Text>
-                <Button type="submit" loading={sending} disabled={!text.trim() || !code || working}>
-                  发送
-                </Button>
+          {form ? (
+            <QuestionPrompt form={form} onReply={replyForm} onCancel={cancelForm} />
+          ) : (
+            <form onSubmit={send}>
+              <Flex direction="column" gap="2">
+                <TextArea
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                  autoComplete="off"
+                  placeholder={code ? '给 agent 发消息' : '缺少连接码'}
+                  rows={2}
+                  resize="vertical"
+                  disabled={!code}
+                />
+                <Flex align="center" justify="between" gap="3" wrap="wrap">
+                  <Text size="2" color={isError ? 'red' : 'gray'}>
+                    {status}
+                  </Text>
+                  <Button
+                    type="submit"
+                    loading={sending}
+                    disabled={!text.trim() || !code || working}
+                  >
+                    发送
+                  </Button>
+                </Flex>
               </Flex>
-            </Flex>
-          </form>
+            </form>
+          )}
         </Card>
       </Container>
     </main>

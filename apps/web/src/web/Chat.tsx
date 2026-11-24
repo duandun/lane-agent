@@ -109,8 +109,14 @@ export default function Chat({ conn, onDisconnect }: { conn: Conn; onDisconnect:
     switchAgent,
   } = useChatSession(conn, client);
 
-  // 配对后把非 activity 的对话内容和忙碌状态同步给手机页面。
-  usePhoneSync(blocks, busy);
+  // 配对后把非 activity 的对话内容、忙碌状态和待回答表单同步给手机页面。
+  usePhoneSync(
+    blocks,
+    busy,
+    forms[0],
+    (answer) => void replyForm(answer),
+    () => void cancelForm()
+  );
 
   const [draft, setDraft] = useState('');
   const [historyOpen, setHistoryOpen] = useState(false);

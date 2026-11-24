@@ -1,5 +1,5 @@
 import { EVENTS } from '@lane/protocol';
-import type { PhoneMessage } from '@lane/protocol';
+import type { PhoneForm, PhoneFormAnswer, PhoneMessage } from '@lane/protocol';
 import { io } from 'socket.io-client';
 import { appBridge } from './bridge';
 
@@ -60,6 +60,28 @@ export function isPhonePaired(): boolean {
 export function publishAgentMessages(messages: PhoneMessage[], working: boolean) {
   const code = sessionStorage.getItem(PHONE_CODE_KEY);
   if (code) socket.emit(EVENTS.agentMessages, { code, messages, working });
+}
+
+/** 把当前待回答的表单同步给手机；null 表示问题已处理完。未配对时 no-op。 */
+export function publishAgentForm(form: PhoneForm | null) {
+  const code = sessionStorage.getItem(PHONE_CODE_KEY);
+  if (code) socket.emit(EVENTS.agentForm, { code, form });
+}
+
+/** 订阅手机的表单回答；只接受本机连接码和当前表单。 */
+export function subscribeFormAnswers(onAnswer: (answer: PhoneFormAnswer) => void): () => void {
+  const handler = (payload: unknown) => {
+    const expected = sessionStorage.getItem(PHONE_CODE_KEY);
+    if (!expected || !payload || typeof payload !== 'object') return;
+    const { formID, answer, cancel } = payload as Partial<PhoneFormAnswer>;
+    if (typeof formID !== 'string' || !formID) return;
+    if (!cancel && (!answer || typeof answer !== 'object' || Array.isArray(answer))) return;
+    onAnswer({ formID, answer, cancel });
+  };
+  socket.on(EVENTS.formAnswer, handler);
+  return () => {
+    socket.off(EVENTS.formAnswer, handler);
+  };
 }
 
 /** 手机请求一次快照时回调；只接受本机连接码。 */
