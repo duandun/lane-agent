@@ -96,7 +96,15 @@ app.post('/api/agent/pair', async (req, res) => {
   }
   try {
     const code = issuePhoneCode();
-    const url = `${PUBLIC_BASE_URL}/phone?code=${encodeURIComponent(code)}`;
+    // 桌面端可带局域网候选和一次性 token，让手机优先直连；没有就走中继。
+    const lan = Array.isArray(req.body?.lan)
+      ? req.body.lan.filter((item) => typeof item === 'string' && /^https?:\/\//.test(item)).slice(0, 5)
+      : [];
+    const token = typeof req.body?.token === 'string' ? req.body.token.slice(0, 128) : '';
+    let url = `${PUBLIC_BASE_URL}/phone?code=${encodeURIComponent(code)}`;
+    if (lan.length && token) {
+      url += `&lan=${encodeURIComponent(lan.join(','))}&token=${encodeURIComponent(token)}`;
+    }
     const qr = await QRCode.toDataURL(url, { width: 360, margin: 1, errorCorrectionLevel: 'M' });
     res.json({ code, url, qr });
   } catch (error) {

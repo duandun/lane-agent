@@ -2,6 +2,7 @@ import { registerDialogIpc } from './dialog.js';
 import { registerExecIpc } from './exec.js';
 import { registerFsIpc } from './fs.js';
 import { registerHealthIpc } from './health.js';
+import { registerLanIpc } from './lan.js';
 import { registerLocalServiceIpc } from './local.js';
 import { registerShellIpc } from './shell.js';
 import { registerSkillsIpc } from './skills.js';
@@ -18,4 +19,5 @@ export function registerIpc() {
   registerDialogIpc();
   registerShellIpc();
   registerSkillsIpc();
+  registerLanIpc();
 }

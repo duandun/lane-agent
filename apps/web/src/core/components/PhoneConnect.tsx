@@ -3,7 +3,7 @@ import { App as AntdApp, Button, Modal, Typography } from 'antd';
 import { MobileOutlined } from '@ant-design/icons';
 import { errorText } from '../lib/error';
 import { requestPhonePairing, type PhonePairing } from '../lib/phone';
-import { subscribePhoneMessages } from '../lib/socket';
+import { setLanCode, startLanAgent, stopLanAgent, subscribePhoneMessages } from '../lib/socket';
 
 /**
  * 手机连接：向 lane-serve 申请一次性配对码，展示二维码；
@@ -21,10 +21,13 @@ export default function PhoneConnect({ onMessage }: { onMessage: (text: string) 
     if (pairing) return;
     setPairing(true);
     try {
-      const data = await requestPhonePairing();
+      const hints = await startLanAgent();
+      const data = await requestPhonePairing(hints ?? undefined);
+      await setLanCode(data.code);
       setPair(data);
       setOpen(true);
     } catch (cause) {
+      void stopLanAgent();
       message.error(`手机连接失败：${errorText(cause)}`);
     } finally {
       setPairing(false);
@@ -62,7 +65,7 @@ export default function PhoneConnect({ onMessage }: { onMessage: (text: string) 
               连接码：<span className="font-mono">{pair.code}</span>
             </Typography.Text>
             <Typography.Text type="secondary" className="text-center text-xs!">
-              用手机扫码打开手机对话页。之后的消息会携带该连接码，不匹配的消息会被忽略。
+              用手机扫码打开手机对话页。同一局域网会直连电脑，否则走服务器中继。
             </Typography.Text>
           </div>
         )}

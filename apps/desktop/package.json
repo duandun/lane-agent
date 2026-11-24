@@ -9,6 +9,7 @@
   "main": "dist-electron/main.js",
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "check:phone-lan": "bun scripts/phone-lan.check.ts",
     "build:renderer": "(cd ../web && bun run build) && rm -rf dist && cp -R ../web/dist dist",
     "dev": "tsc -p tsconfig.json && ((cd ../web && exec bun run dev) & VITE_PID=$!; trap 'kill $VITE_PID' EXIT; electron . --dev)",
     "start": "bun run build:renderer && tsc -p tsconfig.json && electron .",
@@ -54,7 +55,9 @@
     }
   },
   "dependencies": {
-    "@opencode/client": "^2.3.0"
+    "@lane/protocol": "workspace:*",
+    "@opencode/client": "^2.3.0",
+    "socket.io": "^4.8.4"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
@@ -62,6 +65,7 @@
     "electron": "^45.3.3",
     "electron-builder": "^26.18.0",
     "npm": "^12.2.2",
+    "socket.io-client": "^4.8.4",
     "typescript": "^5.6.0"
   }
 }

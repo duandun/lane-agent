@@ -33,11 +33,18 @@ export function toPhoneMessages(blocks: Block[]): PhoneMessage[] {
 
 /**
  * Ask lane-serve for a fresh phone pairing: a six-digit code plus the
- * broadcast URL rendered as a QR data URL. The code is stored in
- * sessionStorage so socket messages can be filtered by it.
+ * broadcast URL rendered as a QR data URL. 局域网候选和 token 会一起写进
+ * 二维码 URL，手机优先直连，失败再回退中继。
  */
-export async function requestPhonePairing(): Promise<PhonePairing> {
-  const response = await fetch(`${BASE_URL}/api/agent/pair`, { method: 'POST' });
+export async function requestPhonePairing(hints?: {
+  lan: string[];
+  token: string;
+}): Promise<PhonePairing> {
+  const response = await fetch(`${BASE_URL}/api/agent/pair`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(hints ?? {}),
+  });
   const data = (await response.json().catch(() => null)) as
     | (Partial<PhonePairing> & {
         error?: string;

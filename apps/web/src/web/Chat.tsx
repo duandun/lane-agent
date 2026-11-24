@@ -46,6 +46,7 @@ import { makeClient, type Conn } from '@core/lib/client';
 import { errorText } from '@core/lib/error';
 import { deleteProviderModel } from '@core/lib/opencodeConfig';
 import { hasAgentDesktopRun, isSkillLoaded } from '@core/lib/skillDraft';
+import { stopLanAgent } from '@core/lib/socket';
 import { useAppStore, type CompanionKind, type CustomModel } from '@core/lib/store';
 
 type ModelOption = {
@@ -378,6 +379,9 @@ export default function Chat({ conn, onDisconnect }: { conn: Conn; onDisconnect:
   useEffect(() => {
     void refreshSkills();
   }, [client, conn.directory, sessionID]);
+
+  // 离开聊天页（断开连接）时关掉只在该会话期间开放的局域网端点。
+  useEffect(() => () => void stopLanAgent(), []);
 
   const meta = STATUS_META[status];
 
