@@ -11,6 +11,8 @@ import {
   MousePointer2,
   Pencil,
   Plus,
+  QrCode,
+  Smartphone,
   Sparkles,
   Sun,
   Terminal,
@@ -187,6 +189,35 @@ export default function Features() {
             </ul>
           </div>
           <SessionVisual />
+        </article>
+
+        <article className="bento reveal mt-4 grid gap-6 p-6 sm:p-8 lg:grid-cols-[1fr_280px] lg:items-center">
+          <div>
+            <div className="flex items-center gap-2 text-xs font-bold text-ink-soft">
+              <Smartphone className="size-4 text-brand" aria-hidden="true" />
+              手机联动
+            </div>
+            <h3 className="mt-3 text-2xl font-extrabold tracking-tight text-ink">
+              扫一下，任务跟着你走。
+            </h3>
+            <p className="mt-2 max-w-lg text-sm leading-6 text-ink-soft">
+              在聊天页点「手机连接」，生成 6 位连接码和二维码。手机扫码后能看到当前对话的实时快照，
+              也能直接发指令——执行仍在电脑上继续，你不用守在旁边。
+            </p>
+            <ul className="mt-5 space-y-2.5 text-sm leading-6 text-ink-soft">
+              {[
+                '扫码配对，6 位连接码 2 小时内有效',
+                '对话与文件改动实时同步，只推关键内容',
+                '手机上发的消息回到同一个 agent，上下文不中断',
+              ].map((item) => (
+                <li key={item} className="flex gap-2">
+                  <Check className="mt-1 size-3.5 shrink-0 text-ok" aria-hidden="true" />
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </div>
+          <PhoneVisual />
         </article>
 
         <article className="bento reveal mt-4 grid gap-6 p-6 sm:p-8 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
@@ -434,6 +465,33 @@ function SessionVisual() {
             <Ellipsis className="size-3.5 shrink-0 text-ink-soft/60" aria-hidden="true" />
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+function PhoneVisual() {
+  return (
+    <div className="relative mx-auto w-full max-w-[260px]">
+      <div className="overflow-hidden rounded-[28px] border border-line bg-surface p-2 shadow-[0_24px_60px_-32px_rgba(12,22,38,0.35)]">
+        <div className="overflow-hidden rounded-[22px] border border-line">
+          <img
+            src="/shots/phone-card.webp"
+            alt="手机扫码后与 Lane 的对话：发送任务、接收结果和文件改动"
+            width={358}
+            height={391}
+            loading="lazy"
+            decoding="async"
+            className="block w-full"
+          />
+        </div>
+      </div>
+      <div className="absolute -bottom-4 -left-4 rounded-xl border border-line bg-surface px-3 py-2">
+        <span className="flex items-center gap-1.5 text-[10px] font-semibold text-ink">
+          <QrCode className="size-3.5 text-brand" aria-hidden="true" />
+          连接码 · 已连接
+        </span>
+        <span className="mt-0.5 block font-mono text-sm tracking-[0.2em] text-ink">482913</span>
       </div>
     </div>
   );

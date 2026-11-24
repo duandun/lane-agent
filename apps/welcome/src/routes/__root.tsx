@@ -29,7 +29,7 @@ export const Route = createRootRoute({
       {
         name: 'description',
         content:
-          'Lane 是跑在你项目目录里的 AI agent。读代码、改文件、执行命令，支持 macOS、Windows、Linux 与 Web。',
+          'Lane 是跑在你项目目录里的 AI agent。读代码、改文件、执行命令，支持 macOS、Windows、Linux 与 Web，手机扫码即可跟进。',
       },
       {
         property: 'og:title',
@@ -38,7 +38,7 @@ export const Route = createRootRoute({
       {
         property: 'og:description',
         content:
-          '在你自己的项目目录里读代码、改文件、跑命令。桌面端开箱即用，也可以连接自己的本地 agent 服务。',
+          '在你自己的项目目录里读代码、改文件、跑命令。桌面端开箱即用，手机扫码就能跟进进度。',
       },
       { property: 'og:type', content: 'website' },
     ],
