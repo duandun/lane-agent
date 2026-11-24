@@ -1,6 +1,6 @@
 # Lane
 
-浏览器端 / Electron 的 AI agent 外壳。走「方案 A」：不改 OpenCode 源码，只用一个 Web 客户端连它自己的 HTTP API + SSE。
+AI agent 的桌面端 / Web / 手机联动套件，走「方案 A」：不改 OpenCode 源码，只用 Web 客户端连它自己的 HTTP API + SSE。仓库里同时有产品官网。
 
 仓库：<https://github.com/duandun/lane-agent>
 
@@ -26,6 +26,9 @@ opencode serve  ← agent / 工具 / 权限 / 会话都在这里
 ## 功能
 
 - **聊天**：SSE 增量出字，推理过程和工具调用折叠成「已处理」，权限请求和问题表单用弹窗处理，支持停止和重新生成。
+- **会话历史**：左侧按项目目录恢复最近会话，支持切换、新建、重命名和删除；窄屏收进抽屉。
+- **手机联动**：桌面端点「手机连接」生成 6 位连接码和二维码，手机扫码后可以收发消息，agent 的对话快照（含文件改动）实时同步到手机。
+- **技能与附件**：输入框可挑选 skill，附件写入项目目录后随消息提交。
 - **文件改动卡片**：`edit` / `write` / `patch` 工具会在对话里展开成 git 风格的 diff——文件名、`+N −N`、词级高亮的增删行；diff 用 jsdiff 计算。
 - **模型选择**：卡片式下拉，显示状态点、模型名、自定义标记、provider ID 和选中对勾；自定义 OpenAI 兼容模型可以定义任意多个，同一行悬停可编辑 / 删除。
 - **输入框**：Enter 发送、Shift+Enter 换行，↑ / ↓ 浏览最近 10 条已发送内容。
@@ -71,7 +74,7 @@ bun run dev:welcome  # apps/welcome，http://localhost:3001
 | 密码     | 你上面设的 `OPENCODE_PASSWORD`                          |
 | 项目目录 | 默认 `/Users/cr/opencode-workspace`，agent 就在这里干活 |
 
-生产环境是 https://ai.cr123.life （静态前端）。直接打开它时，服务端要把这个 origin 加进 CORS：
+生产环境（Vercel 静态前端）见下文「部署到 Vercel」。直接打开线上页面时，服务端要把该页面的 origin 加进 CORS：
 
 ```bash
 OPENCODE_PASSWORD=your-secret \
@@ -143,6 +146,32 @@ Windows 产物是 NSIS 安装包 `apps/desktop/release/Lane Setup <版本>.exe`�
 2. 再 Add New Project 一次，导入本仓库，Root Directory 设为 `apps/web`。
 3. 分别绑定域名，并确认 Project Settings 里的 “Include source files outside of the Root Directory in the Build Step” 已勾选（否则根 `package.json`、`bun.lock`、`packages/protocol` 不会进入构建）。
 4. `apps/web` 部署后，把你自己的 `opencode serve` 启动参数里的 `--cors` 加上该域名；`apps/web` 没有 URL 路由，不需要 SPA rewrite。
+
+## 手机端与中继服务
+
+- `apps/server`：Express + Socket.IO，负责生成 6 位配对码、按连接码划分房间、转发消息和快照；连接码在内存里保存 2 小时，配对/广播有简单限流。
+- `apps/mobile`：扫码后打开的手机页面，加入房间后接收 `agent messages` 快照并回发 `chat message`；协议类型和事件名在 `packages/protocol`。
+
+本地联调：
+
+```bash
+bun run dev:server   # 6060
+bun run dev:mobile   # 3000，开发服务器把 /api、/socket.io 代理到 6060
+```
+
+部署到 VPS（默认 `root@59.110.25.186`，可用 `-- user@host` 覆盖）：
+
+```bash
+bun run upload:mobile   # 上传 apps/mobile 源码 + dist 到 /opt/lane-serve/web
+bun run upload:server   # 上传 apps/server 源码到 /opt/lane-serve/server
+ssh root@59.110.25.186 'cd /opt/lane-serve/server && npm ci && pm2 restart lane-serve-api'
+```
+
+nginx 需要：
+
+- `root /opt/lane-serve/web/dist/client`，`location / { try_files $uri /_shell.html; }`；`_shell.html` 不缓存，`/assets/` 可长缓存。
+- `/api/` 与 `/socket.io/` 反代到 `127.0.0.1:6060`，Socket.IO 要带 `Upgrade` / `Connection: upgrade` 头。
+- 开 gzip，并把 `X-Forwarded-For` 传给服务端，限流才会按真实客户端 IP 生效。
 
 ## Node 通道
 
@@ -275,4 +304,4 @@ packages/
 - 权限弹窗走 `permission.asked` 事件；如果服务器配置里权限全是 allow，就永远不会弹。
 - 局域网访问要三件事一起改：`opencode serve --hostname 0.0.0.0`、`vite --host`、以及把真实 origin 加进 `--cors`。
 - 自定义模型的「自定义」标记和编辑 / 删除按钮依赖本地 `customModels`（通过应用保存过的才会记录）；手工写进 `opencode.json` 的模型会出现在列表里，但没有这两个按钮。
-- 没有测试和 lint 脚本，类型检查用 `npx tsc -p apps/web/tsconfig.json`、`npx tsc -p apps/desktop/tsconfig.json` 和 `npx tsc --noEmit -p apps/mobile/tsconfig.json`。
+- 没有测试框架。类型检查用 `npx tsc -p apps/web/tsconfig.json`、`npx tsc -p apps/desktop/tsconfig.json`、`npx tsc --noEmit -p apps/mobile/tsconfig.json`；apps/welcome 在自身目录跑 `bunx tsc --noEmit`，Lint 用 `bun run lint`（仅 welcome 配置了 ESLint）。
