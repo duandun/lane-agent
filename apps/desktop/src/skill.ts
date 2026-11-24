@@ -1,7 +1,10 @@
 import { app } from 'electron';
 import { access, chmod, cp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import { createRequire } from 'node:module';
 import { homedir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+
+const require = createRequire(import.meta.url);
 
 /** 内置 SKILL.md 有改动时加一，触发重新安装。 */
 const SKILL_REVISION = 2;
@@ -36,7 +39,9 @@ const PLATFORMS: Record<string, PlatformEntry> = {
 function roots(): { pkg: string; skill: string } {
   const base = app.isPackaged ? process.resourcesPath : app.getAppPath();
   return {
-    pkg: app.isPackaged ? join(base, 'agent-desktop') : join(base, 'node_modules', 'agent-desktop'),
+    pkg: app.isPackaged
+      ? join(base, 'agent-desktop')
+      : dirname(require.resolve('agent-desktop/package.json')),
     skill: app.isPackaged
       ? join(base, 'agent-desktop-skill')
       : join(base, 'assets', 'agent-desktop-skill'),
