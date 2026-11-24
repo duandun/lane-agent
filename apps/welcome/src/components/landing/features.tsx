@@ -202,13 +202,14 @@ export default function Features() {
             </h3>
             <p className="mt-2 max-w-lg text-sm leading-6 text-ink-soft">
               在聊天页点「手机连接」，生成 6 位连接码和二维码。手机扫码后能看到当前对话的实时快照，
-              也能直接发指令——执行仍在电脑上继续，你不用守在旁边。
+              也能直接发指令——同一局域网优先直连这台电脑，换到其他网络自动回退服务器中继。
             </p>
             <ul className="mt-5 space-y-2.5 text-sm leading-6 text-ink-soft">
               {[
                 '扫码配对，6 位连接码 2 小时内有效',
-                '对话与文件改动实时同步，只推关键内容',
-                '手机上发的消息回到同一个 agent，上下文不中断',
+                '同一局域网直连电脑，延迟更低、不绕服务器',
+                '离开局域网自动回退中继，连接不中断',
+                '手机上的指令回到同一个 agent，上下文不中断',
               ].map((item) => (
                 <li key={item} className="flex gap-2">
                   <Check className="mt-1 size-3.5 shrink-0 text-ok" aria-hidden="true" />
@@ -478,8 +479,8 @@ function PhoneVisual() {
           <img
             src="/shots/phone-card.webp"
             alt="手机扫码后与 Lane 的对话：发送任务、接收结果和文件改动"
-            width={358}
-            height={391}
+            width={390}
+            height={529}
             loading="lazy"
             decoding="async"
             className="block w-full"
@@ -489,9 +490,9 @@ function PhoneVisual() {
       <div className="absolute -bottom-4 -left-4 rounded-xl border border-line bg-surface px-3 py-2">
         <span className="flex items-center gap-1.5 text-[10px] font-semibold text-ink">
           <QrCode className="size-3.5 text-brand" aria-hidden="true" />
-          连接码 · 已连接
+          局域网直连
         </span>
-        <span className="mt-0.5 block font-mono text-sm tracking-[0.2em] text-ink">482913</span>
+        <span className="mt-0.5 block font-mono text-sm tracking-[0.2em] text-ink">123456</span>
       </div>
     </div>
   );
