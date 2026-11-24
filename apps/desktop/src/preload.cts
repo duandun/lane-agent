@@ -19,4 +19,9 @@ contextBridge.exposeInMainWorld('appBridge', {
   localService: () => ipcRenderer.invoke('service:local'),
   selectDirectory: () => ipcRenderer.invoke('dialog:selectDirectory'),
   openPath: (path: string) => ipcRenderer.invoke('shell:openPath', path),
+  skills: {
+    info: () => ipcRenderer.invoke('skills:info'),
+    save: (input: { name: string; description: string; body: string; overwrite?: boolean }) =>
+      ipcRenderer.invoke('skills:save', input),
+  },
 });
