@@ -18,6 +18,33 @@ function sockets(): Socket[] {
   return lan ? [relay, lan] : [relay];
 }
 
+type SocketHandler = (payload: unknown) => void;
+
+// 订阅通常发生在配对之前（Chat / PhoneConnect 挂载时），那时局域网 socket
+// 还不存在；用注册表把已有的订阅补挂到之后创建的 socket 上。
+const subscriptions = new Map<string, Set<SocketHandler>>();
+
+function bindAll(socket: Socket) {
+  for (const [event, handlers] of subscriptions) {
+    for (const handler of handlers) socket.on(event, handler);
+  }
+}
+
+function subscribe(event: string, handler: SocketHandler): () => void {
+  let handlers = subscriptions.get(event);
+  if (!handlers) {
+    handlers = new Set();
+    subscriptions.set(event, handlers);
+  }
+  handlers.add(handler);
+  for (const socket of sockets()) socket.on(event, handler);
+  return () => {
+    handlers.delete(handler);
+    if (!handlers.size) subscriptions.delete(event);
+    for (const socket of sockets()) socket.off(event, handler);
+  };
+}
+
 /** 本机在局域网里属于哪个连接码房间；未配对时是 no-op。 */
 export function joinPhoneRoom(code: string | null = sessionStorage.getItem(PHONE_CODE_KEY)) {
   if (!code) return;
@@ -36,6 +63,7 @@ export async function startLanAgent(): Promise<{ lan: string[]; token: string } 
     });
     socket.on('connect', () => joinPhoneRoom());
     lan = socket;
+    bindAll(socket);
     return { lan: info.candidates, token: info.token };
   } catch (cause) {
     console.error('局域网端点启动失败：', cause);
@@ -92,10 +120,7 @@ export function subscribePhoneMessages(onMessage: (text: string) => void): () =>
     if (code !== expected || typeof msg !== 'string' || !msg.trim()) return;
     onMessage(msg);
   };
-  for (const socket of sockets()) socket.on(EVENTS.chatMessage, onSocketMessage);
-  return () => {
-    for (const socket of sockets()) socket.off(EVENTS.chatMessage, onSocketMessage);
-  };
+  return subscribe(EVENTS.chatMessage, onSocketMessage);
 }
 
 /** 是否已经和手机配对。 */
@@ -127,10 +152,7 @@ export function subscribeFormAnswers(onAnswer: (answer: PhoneFormAnswer) => void
     if (!cancel && (!answer || typeof answer !== 'object' || Array.isArray(answer))) return;
     onAnswer({ formID, answer, cancel });
   };
-  for (const socket of sockets()) socket.on(EVENTS.formAnswer, handler);
-  return () => {
-    for (const socket of sockets()) socket.off(EVENTS.formAnswer, handler);
-  };
+  return subscribe(EVENTS.formAnswer, handler);
 }
 
 /** 手机请求一次快照时回调；只接受本机连接码。 */
@@ -141,8 +163,5 @@ export function subscribeAgentSync(onSync: () => void): () => void {
     const { code } = payload as { code?: unknown };
     if (code === expected) onSync();
   };
-  for (const socket of sockets()) socket.on(EVENTS.agentSync, handler);
-  return () => {
-    for (const socket of sockets()) socket.off(EVENTS.agentSync, handler);
-  };
+  return subscribe(EVENTS.agentSync, handler);
 }

@@ -13,7 +13,15 @@ if [[ ! -f package.json ]]; then
   exit 1
 fi
 
-echo "上传到 $HOST:$REMOTE_DIR ..."
+echo "构建 apps/mobile ..."
+bun run build
+
+if [[ ! -f dist/client/_shell.html ]]; then
+  echo "构建失败：找不到 dist/client/_shell.html" >&2
+  exit 1
+fi
+
+echo "上传到 ${HOST}:${REMOTE_DIR} ..."
 COPYFILE_DISABLE=1 tar czf - \
   --exclude='./node_modules' \
   --exclude='./.tanstack' \
@@ -22,4 +30,4 @@ COPYFILE_DISABLE=1 tar czf - \
   --exclude='.DS_Store' \
   . | ssh "$HOST" "mkdir -p '$REMOTE_DIR' && tar xzf - -C '$REMOTE_DIR'"
 
-echo "完成。源码和 dist 已上传到 $HOST:$REMOTE_DIR（nginx 的 root 指向 $REMOTE_DIR/dist/client）"
+echo "完成。源码和 dist 已上传到 ${HOST}:${REMOTE_DIR}（nginx 的 root 指向 ${REMOTE_DIR}/dist/client）"
