@@ -4,6 +4,14 @@
 
 仓库：<https://github.com/duandun/lane-agent>
 
+bun workspaces monorepo：
+
+- `apps/web` — 桌面端渲染界面（Vite + React，也可直接当浏览器版）
+- `apps/desktop` — Electron 主进程、打包脚本和内置资源
+- `apps/mobile` — 手机 Web（TanStack Start，扫码后使用的页面）
+- `apps/server` — 手机连接用的 Express + Socket.IO 服务（6060）
+- `packages/protocol` — web 与 mobile 共享的手机同步协议
+
 ```
 浏览器 (React + @opencode/client)
         │  HTTP + SSE，Basic Auth
@@ -39,6 +47,13 @@ OPENCODE_PASSWORD=your-secret \
 cd lane-agent
 bun install
 bun dev
+```
+
+手机端与中继服务（本地联调时另开终端）：
+
+```bash
+bun run dev:server   # apps/server，http://localhost:6060
+bun run dev:mobile   # apps/mobile，http://localhost:3000
 ```
 
 打开 http://localhost:5173 ，填：
@@ -83,18 +98,18 @@ OPENCODE_PASSWORD=your-secret \
 ```bash
 bun run electron:dev      # Vite + Electron 窗口，热更新
 bun run electron:start    # 构建 dist 后用 Electron 打开（离线）
-bun run electron:package      # 构建并打包 dist，产物在 release/
+bun run electron:package      # 构建并打包 dist，产物在 apps/desktop/release/
 bun run electron:package:linux  # 同上，出 Linux x64 AppImage
 bun run electron:package:win  # 同上，出 Windows x64 安装包（macOS 上可直接交叉构建）
 ```
 
-Windows 产物是 NSIS 安装包 `release/Lane Setup <版本>.exe`，未签名，首次运行会被 SmartScreen 拦一下（更多信息 → 仍要运行）。
+Windows 产物是 NSIS 安装包 `apps/desktop/release/Lane Setup <版本>.exe`，未签名，首次运行会被 SmartScreen 拦一下（更多信息 → 仍要运行）。
 
-主进程用 TypeScript（`src/app/*.ts`），`electron:*` 脚本会先用 `tsc -p tsconfig.electron.json` 编译到 `dist-electron/` 再启动或打包；该目录不进 git。只编译主进程用 `bun run build:app`。
+主进程用 TypeScript（`apps/desktop/src/*.ts`），`electron:*` 脚本会先用 `tsc -p apps/desktop/tsconfig.json` 编译到 `apps/desktop/dist-electron/` 再启动或打包；该目录不进 git。只编译主进程用 `bun run build:app`。
 
 生产环境把 dist 打进安装包，Electron 用固定的本地 HTTP 服务（`http://localhost:5173`）加载它。启动时还会用内置的 opencode CLI，通过 `@opencode/client/service` 的 `Service.ensure` 拉起本地 opencode 服务（`opencode serve --service`）；连接页会自动填入服务地址和生成的密码。agent 因此在本机执行，agent-desktop skill 和 CLI 都能直接用。
 
-内置 CLI 在打包前下载：`bun run bundle:cli`（默认当前平台，Linux/Windows 打包脚本会传 `OPENCODE_TARGET`）。它按目标平台从 `@opencode/cli-*@2.3.0` 取二进制，放到 `resources/opencode-cli/`（约 220–250MB），作为 extraResources 带进安装包；开发时没下载就退回 PATH 里的 `opencode`。
+内置 CLI 在打包前下载：`bun run bundle:cli`（默认当前平台，Linux/Windows 打包脚本会传 `OPENCODE_TARGET`）。它按目标平台从 `@opencode/cli-*@2.3.0` 取二进制，放到 `apps/desktop/resources/opencode-cli/`（约 220–250MB），作为 extraResources 带进安装包；开发时没下载就退回 PATH 里的 `opencode`。
 
 5173 被占用时静态服务会直接报错（不退回随机端口），避免页面 origin 变化导致本地服务的 CORS 失效。连接页底部的命令会按当前页面 origin 自动填好。
 
@@ -106,9 +121,9 @@ Windows 产物是 NSIS 安装包 `release/Lane Setup <版本>.exe`，未签名�
 
 渲染进程不直接拿 Node，主进程通过 IPC 提供受控能力：
 
-1. `src/app/ipc/*.ts` 用 `ipcMain.handle('app:xxx', ...)` 注册操作，新增能力就加一个文件并在 `ipc/index.ts` 里注册。
-2. `src/app/preload.cts` 在 `contextBridge` 里把对应方法暴露到 `window.appBridge`（编译为 `preload.cjs`）。
-3. `src/core/lib/bridge.ts` 补类型；浏览器里 `window.appBridge` 是 `undefined`，用之前先判断。
+1. `apps/desktop/src/ipc/*.ts` 用 `ipcMain.handle('app:xxx', ...)` 注册操作，新增能力就加一个文件并在 `ipc/index.ts` 里注册。
+2. `apps/desktop/src/preload.cts` 在 `contextBridge` 里把对应方法暴露到 `window.appBridge`（编译为 `preload.cjs`）。
+3. `apps/web/src/core/lib/bridge.ts` 补类型；浏览器里 `window.appBridge` 是 `undefined`，用之前先判断。
 
 目前提供：
 
@@ -120,7 +135,7 @@ Windows 产物是 NSIS 安装包 `release/Lane Setup <版本>.exe`，未签名�
 - `localService()`：返回本地 opencode 服务的 `{ url, username, password }`；Electron 启动时用内置 CLI 调 `Service.ensure`，连接页用它预填服务地址和密码。
 - `openPath(path)`：用系统文件管理器打开路径；聊天页点击顶栏的项目目录时使用。
 
-所有文件操作都限制在传入的 `root` 内（词法校验 + `realpath`，阻止 `../` 和软链接逃逸）。`exec.npx` 会执行任意包代码（包括 install 脚本），只对可信的包使用。打包时 `scripts/bundle-runtime.mjs` 会把 npm 和 agent-desktop 复制到 `.npm-bundle/`，再由 electron-builder 作为 extraResources 带进安装包。
+所有文件操作都限制在传入的 `root` 内（词法校验 + `realpath`，阻止 `../` 和软链接逃逸）。`exec.npx` 会执行任意包代码（包括 install 脚本），只对可信的包使用。打包时 `apps/desktop/scripts/bundle-runtime.mjs` 会把 npm 和 agent-desktop 复制到 `apps/desktop/.npm-bundle/`，再由 electron-builder 作为 extraResources 带进安装包。
 
 ## agent-desktop
 
@@ -153,52 +168,60 @@ Windows 产物是 NSIS 安装包 `release/Lane Setup <版本>.exe`，未签名�
 ## 代码结构
 
 ```
-src/
-  core/                web 和 app 共用的代码
-    components/
-      Messages.tsx       消息流 + 活动折叠 + diff 卡片
-      FileChange.tsx     文件改动 diff 卡片
-      CustomModelModal.tsx 自定义模型编辑
-      SkillPicker.tsx    输入框左下角的 skill 选择
-      PermissionModal.tsx / QuestionPrompt.tsx  授权与问题表单
-      companion/         小鹰 / 小猫 SVG、拖拽外壳和 companion.css
-    hooks/
-      useChatSession.ts  会话、SSE 事件流、发送 / 停止 / 重新生成
-      useThemeMode.ts    主题模式与 data-theme
-      useAttachments.tsx 附件写入工作目录
-    lib/
-      client.ts          Basic Auth 客户端
-      store.ts           zustand store（连接 / 主题 / 伙伴 / 模型，persist 到 lane.store）
-      blocks.ts          消息 block 映射
-      diff.ts            jsdiff 包装 + 工具输入解析
-      opencodeConfig.ts  opencode.json 读写与 provider 删除
-      theme.ts / prism.ts / error.ts / bridge.ts
-    styles.css           页面骨架样式和全局覆盖
-  web/                 Web 端
-    index.html           页面入口（首屏主题引导）
-    main.tsx             React 挂载
-    App.tsx              连接态切换
-    Connect.tsx          连接页（antd Form / Card / Alert）
-    Chat.tsx             聊天页（antdX Bubble.List / Sender / Prompts / Actions，模型下拉）
-  app/                 Electron 端（TypeScript，编译到 dist-electron）
-    main.ts              主进程：本地静态服务 + 打开窗口
-    service.ts           用内置 CLI 启动本地 opencode 服务
-    ipc/                 Node 能力：health / local / fs / exec / paths
-    preload.cts          contextBridge 暴露给渲染进程（编译为 preload.cjs）
-    skill.ts             把内置 agent-desktop CLI + skill 装到 OpenCode 全局目录
-assets/
-  favicon.svg          Lane 图标（网页 favicon 和页面内图标）
-  icon.png             打包图标
-  agent-desktop-skill/ 内置的 agent-desktop SKILL.md 和 references
-scripts/
-  bundle-runtime.mjs     把 npm / agent-desktop 复制到 .npm-bundle
-  bundle-opencode-cli.mjs 按目标平台下载 opencode CLI 到 resources/opencode-cli
-resources/opencode-cli/  打包时生成的内置 CLI（不提交）
+apps/
+  web/                 桌面端渲染界面
+    src/core/            组件 / hooks / lib / styles.css
+      components/
+        Messages.tsx       消息流 + 活动折叠 + diff 卡片
+        FileChange.tsx     文件改动 diff 卡片
+        CustomModelModal.tsx 自定义模型编辑
+        SkillPicker.tsx    输入框左下角的 skill 选择
+        PermissionModal.tsx / QuestionPrompt.tsx  授权与问题表单
+        companion/         小鹰 / 小猫 SVG、拖拽外壳和 companion.css
+      hooks/
+        useChatSession.ts  会话、SSE 事件流、发送 / 停止 / 重新生成
+        useThemeMode.ts    主题模式与 data-theme
+        useAttachments.tsx 附件写入工作目录
+      lib/
+        client.ts          Basic Auth 客户端
+        store.ts           zustand store（连接 / 主题 / 伙伴 / 模型，persist 到 lane.store）
+        blocks.ts          消息 block 映射
+        diff.ts            jsdiff 包装 + 工具输入解析
+        socket.ts / phone.ts / usePhoneSync  手机配对与同步
+        opencodeConfig.ts  opencode.json 读写与 provider 删除
+        theme.ts / prism.ts / error.ts / bridge.ts
+    src/web/              页面入口
+      index.html           页面入口（首屏主题引导）
+      main.tsx             React 挂载
+      App.tsx              连接态切换
+      Connect.tsx          连接页（antd Form / Card / Alert）
+      Chat.tsx             聊天页（antdX Bubble.List / Sender / Prompts / Actions，模型下拉）
+    src/assets/            favicon、Lane 图标
+    vite.config.ts         5173，输出 dist/
+    tsconfig.json
+  desktop/             Electron 端（TypeScript，编译到 dist-electron）
+    src/
+      main.ts              主进程：本地静态服务 + 打开窗口
+      service.ts           用内置 CLI 启动本地 opencode 服务
+      ipc/                 Node 能力：health / local / fs / exec / paths
+      preload.cts          contextBridge 暴露给渲染进程（编译为 preload.cjs）
+      skill.ts             把内置 agent-desktop CLI + skill 装到 OpenCode 全局目录
+    assets/
+      icon.png             打包图标
+      agent-desktop-skill/ 内置的 agent-desktop SKILL.md 和 references
+    scripts/
+      bundle-runtime.mjs     把 npm / agent-desktop 复制到 .npm-bundle
+      bundle-opencode-cli.mjs 按目标平台下载 opencode CLI 到 resources/opencode-cli
+    dist/、dist-electron/、resources/opencode-cli/  构建产物（不提交）
+  mobile/              手机 Web（原 lane-serve/web，TanStack Start SPA）
+  server/              中继服务（原 lane-serve/server，Express + Socket.IO）
+packages/
+  protocol/            手机同步协议：事件名、消息类型、限额
 ```
 
-Web 和 Electron 共用 `core`；Electron 加载的是 `web` 构建出来的 `dist`。跨目录引用用 `@core/*` 等别名，Vite 的 `resolve.alias` 和 tsconfig 的 `paths` 两边都要配。
+桌面端渲染界面和 Electron 共用 `apps/web/src/core`；Electron 加载的是 `apps/web` 构建出来的 `dist`（打包时拷到 `apps/desktop/dist`）。跨目录引用用 `@core/*` 等别名，Vite 的 `resolve.alias` 和 tsconfig 的 `paths` 两边都要配。
 
-样式用 Tailwind CSS v4（`@tailwindcss/vite`）。`src/core/styles.css` 放主题变量、antd 覆盖和页面骨架；智能伙伴的样式在 `src/core/components/companion/companion.css`。新组件优先写工具类，覆盖 antd 内置样式时用 `!`。
+样式用 Tailwind CSS v4（`@tailwindcss/vite`）。`apps/web/src/core/styles.css` 放主题变量、antd 覆盖和页面骨架；智能伙伴的样式在 `apps/web/src/core/components/companion/companion.css`。新组件优先写工具类，覆盖 antd 内置样式时用 `!`。
 
 事件流是 UI 的唯一数据源：`session.text.delta` 增量出字，`session.tool.*` 画工具卡片并保留原始 input 供 diff 渲染，`permission.asked` 弹授权框，`execution.*` 收尾。每次运行结束后用 `message.list` 重新对齐一次，避免客户端状态和服务端真值漂移。
 
@@ -215,7 +238,7 @@ Web 和 Electron 共用 `core`；Electron 加载的是 `web` 构建出来的 `di
 - `Welcome` + `Prompts`：空会话的引导和快捷任务。
 - `Actions`：助手消息的复制 / 重新生成按钮；弹窗、表单、状态灯用 antd。
 
-暗色主题在 `core/lib/theme.ts` 里用 antd token 表达，antdX 组件复用同一套 token。
+暗色主题在 `apps/web/src/core/lib/theme.ts` 里用 antd token 表达，antdX 组件复用同一套 token。
 
 ## 已知边界
 
@@ -224,4 +247,4 @@ Web 和 Electron 共用 `core`；Electron 加载的是 `web` 构建出来的 `di
 - 权限弹窗走 `permission.asked` 事件；如果服务器配置里权限全是 allow，就永远不会弹。
 - 局域网访问要三件事一起改：`opencode serve --hostname 0.0.0.0`、`vite --host`、以及把真实 origin 加进 `--cors`。
 - 自定义模型的「自定义」标记和编辑 / 删除按钮依赖本地 `customModels`（通过应用保存过的才会记录）；手工写进 `opencode.json` 的模型会出现在列表里，但没有这两个按钮。
-- 没有测试和 lint 脚本，类型检查用 `npx tsc -p tsconfig.json` 和 `npx tsc -p tsconfig.electron.json`。
+- 没有测试和 lint 脚本，类型检查用 `npx tsc -p apps/web/tsconfig.json`、`npx tsc -p apps/desktop/tsconfig.json` 和 `npx tsc --noEmit -p apps/mobile/tsconfig.json`。

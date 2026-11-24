@@ -2,3 +2,6 @@ dist
 release
 bun.lock
 dist-electron
+apps/mobile
+apps/server
+apps/desktop/assets/agent-desktop-skill

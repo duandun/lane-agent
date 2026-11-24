@@ -12,7 +12,7 @@
     "build:renderer": "(cd ../web && bun run build) && rm -rf dist && cp -R ../web/dist dist",
     "dev": "tsc -p tsconfig.json && ((cd ../web && bun run dev) & VITE_PID=$!; trap 'kill $VITE_PID' EXIT; electron . --dev)",
     "start": "bun run build:renderer && tsc -p tsconfig.json && electron .",
-    "package": "bun run build:renderer && tsc -p tsconfig.json && node scripts/bundle-runtime.mjs && node scripts/bundle-opencode-cli.mjs && electron-builder",
+    "package": "bun run build:renderer && tsc -p tsconfig.json && node scripts/bundle-runtime.mjs && node scripts/bundle-opencode-cli.mjs && ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ ELECTRON_BUILDER_BINARIES_MIRROR=https://npmmirror.com/mirrors/electron-builder-binaries/ electron-builder",
     "package:linux": "bun run build:renderer && tsc -p tsconfig.json && node scripts/bundle-runtime.mjs && OPENCODE_TARGET=linux-x64 node scripts/bundle-opencode-cli.mjs && ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ ELECTRON_BUILDER_BINARIES_MIRROR=https://npmmirror.com/mirrors/electron-builder-binaries/ electron-builder --linux AppImage --x64",
     "package:win": "bun run build:renderer && tsc -p tsconfig.json && node scripts/bundle-runtime.mjs && OPENCODE_TARGET=windows-x64 node scripts/bundle-opencode-cli.mjs && ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ ELECTRON_BUILDER_BINARIES_MIRROR=https://npmmirror.com/mirrors/electron-builder-binaries/ electron-builder --win --x64"
   },
