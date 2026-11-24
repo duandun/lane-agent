@@ -1,4 +1,4 @@
-import { access, lstat, mkdir, writeFile } from 'node:fs/promises';
+import { access, lstat, mkdir, realpath, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { ipcMain } from 'electron';
@@ -66,10 +66,12 @@ export function registerSkillsIpc() {
 
     const root = skillsRoot();
     await mkdir(root, { recursive: true });
+    // resolveWithin 需要 realpath 后的基址（调用方 fs.ts 也是先 rootPath）。
+    const base = await realpath(root);
 
     // 目录本身是软链接时直接拒绝，避免借软链接改写别处。
     try {
-      const stat = await lstat(join(root, name));
+      const stat = await lstat(join(base, name));
       if (stat.isSymbolicLink()) {
         return { ok: false, reason: 'symlink', message: '目标目录是软链接，已拒绝写入' };
       }
@@ -77,7 +79,7 @@ export function registerSkillsIpc() {
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
     }
 
-    const dir = await resolveWithin(root, name);
+    const dir = await resolveWithin(base, name);
     if (await exists(join(dir, '.installed'))) {
       return { ok: false, reason: 'managed', message: '该 skill 由 Lane 管理，不能覆盖' };
     }
