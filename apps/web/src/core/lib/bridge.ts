@@ -40,6 +40,12 @@ export type SaveSkillResult =
   | { ok: true; path: string }
   | { ok: false; reason: 'invalid' | 'managed' | 'exists' | 'symlink'; message?: string };
 
+export type PhoneLanInfo = {
+  port: number;
+  token: string;
+  candidates: string[];
+};
+
 export type AppBridge = {
   ping: () => Promise<string>;
   info: () => Promise<AppInfo>;
@@ -61,6 +67,11 @@ export type AppBridge = {
   skills: {
     info: () => Promise<SkillInfo>;
     save: (input: SaveSkillInput) => Promise<SaveSkillResult>;
+  };
+  lan: {
+    start: () => Promise<PhoneLanInfo>;
+    setCode: (code: string | null) => Promise<void>;
+    stop: () => Promise<void>;
   };
 };
 

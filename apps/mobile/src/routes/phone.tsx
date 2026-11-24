@@ -28,76 +28,130 @@ function Phone() {
   const [connected, setConnected] = useState(false)
   const [working, setWorking] = useState(false)
   const [text, setText] = useState('')
-  const [sending, setSending] = useState(false)
   const [status, setStatus] = useState('')
+  const [lanOrigins, setLanOrigins] = useState<string[]>([])
+  const [lanToken, setLanToken] = useState('')
+  const [transport, setTransport] = useState<'lan' | 'relay' | null>(null)
   const socketRef = useRef<Socket | null>(null)
   const endRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
-    setCode(new URLSearchParams(window.location.search).get('code')?.trim() ?? '')
+    const params = new URLSearchParams(window.location.search)
+    setCode(params.get('code')?.trim() ?? '')
+    setLanToken(params.get('token') ?? '')
+    setLanOrigins(
+      (params.get('lan') ?? '')
+        .split(',')
+        .map((item) => item.trim())
+        .filter(Boolean)
+    )
   }, [])
 
   useEffect(() => {
     if (!code) return
-    const socket = io()
-    socketRef.current = socket
+    let disposed = false
+    let current: Socket | null = null
+    let fellBack = false
 
-    socket.on('connect', () => {
-      setConnected(true)
-      socket.emit(EVENTS.phoneJoin, { code })
-      // 加入房间后请 agent 补一次当前对话。
-      socket.emit(EVENTS.agentSync, { code })
-    })
-    socket.on('disconnect', () => {
-      setConnected(false)
-      setWorking(false)
-    })
-    socket.on(EVENTS.agentMessages, (payload: { messages?: PhoneMessage[]; working?: boolean }) => {
-      setMessages(payload.messages ?? [])
-      setWorking(payload.working === true)
-    })
-    socket.on(EVENTS.agentForm, (payload: { form?: PhoneForm | null }) => {
-      const next = payload?.form
-      const ok =
-        next &&
-        typeof next.id === 'string' &&
-        Array.isArray(next.fields) &&
-        next.fields.every(
-          (field) => field && typeof field.key === 'string' && typeof field.type === 'string'
-        )
-      setForm(ok ? next : null)
-    })
+    function attach(socket: Socket, kind: 'lan' | 'relay') {
+      current = socket
+      socketRef.current = socket
+      setTransport(kind)
+      const onConnect = () => {
+        setConnected(true)
+        socket.emit(EVENTS.phoneJoin, { code })
+        // 加入房间后请 agent 补一次当前对话。
+        socket.emit(EVENTS.agentSync, { code })
+      }
+      // 局域网 socket 在探测成功后才 attach，此时已经连上，不会再触发 connect。
+      if (socket.connected) onConnect()
+      else socket.on('connect', onConnect)
+      socket.on('disconnect', () => {
+        setConnected(false)
+        setWorking(false)
+        if (kind === 'lan' && !disposed && !fellBack) {
+          fellBack = true
+          socket.disconnect()
+          attachRelay()
+        }
+      })
+      socket.on(EVENTS.agentMessages, (payload: { messages?: PhoneMessage[]; working?: boolean }) => {
+        setMessages(payload.messages ?? [])
+        setWorking(payload.working === true)
+      })
+      socket.on(EVENTS.agentForm, (payload: { form?: PhoneForm | null }) => {
+        const next = payload?.form
+        const ok =
+          next &&
+          typeof next.id === 'string' &&
+          Array.isArray(next.fields) &&
+          next.fields.every(
+            (field) => field && typeof field.key === 'string' && typeof field.type === 'string'
+          )
+        setForm(ok ? next : null)
+      })
+    }
+
+    function attachRelay() {
+      if (disposed) return
+      attach(io(), 'relay')
+    }
+
+    async function connectLan() {
+      for (const origin of lanOrigins) {
+        if (disposed) return
+        const socket = io(origin, {
+          transports: ['websocket'],
+          auth: { token: lanToken },
+          reconnection: false,
+          timeout: 1200,
+        })
+        const ok = await new Promise<boolean>((resolve) => {
+          const timer = setTimeout(() => resolve(false), 1600)
+          socket.once('connect', () => {
+            clearTimeout(timer)
+            resolve(true)
+          })
+          socket.once('connect_error', () => {
+            clearTimeout(timer)
+            resolve(false)
+          })
+        })
+        if (ok && !disposed) {
+          attach(socket, 'lan')
+          return
+        }
+        socket.close()
+      }
+      attachRelay()
+    }
+
+    if (lanOrigins.length && lanToken) void connectLan()
+    else attachRelay()
 
     return () => {
-      socket.disconnect()
+      disposed = true
+      current?.disconnect()
       socketRef.current = null
     }
-  }, [code])
+  }, [code, lanOrigins, lanToken])
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: 'end' })
   }, [messages, working])
 
-  async function send(e: React.FormEvent) {
+  function send(e: React.FormEvent) {
     e.preventDefault()
     const msg = text.trim()
-    if (!msg || !code || sending || working) return
-    setSending(true)
-    setStatus('发送中…')
-    try {
-      const res = await fetch('/api/broadcast', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ msg, code }),
-      })
-      const data = await res.json()
-      setStatus(res.ok ? '已发送，等待 agent 处理' : `失败：${data.error}`)
-      if (res.ok) setText('')
-    } catch (err) {
-      setStatus(`请求失败：${(err as Error).message}`)
-    } finally {
-      setSending(false)
+    if (!msg || !code || working) return
+    const socket = socketRef.current
+    if (!socket?.connected) {
+      setStatus('连接未就绪，请稍候')
+      return
     }
+    socket.emit(EVENTS.chatMessage, { msg, code })
+    setText('')
+    setStatus('已发送，等待 agent 处理')
   }
 
   function replyForm(answer: Record<string, PhoneFormValue>) {
@@ -118,7 +172,11 @@ function Phone() {
         <Flex align="center" justify="between" gap="3" wrap="wrap" mb="2">
           <Heading size="6">手机对话</Heading>
           <Badge size="2" color={connected ? 'green' : 'gray'} variant="soft">
-            {connected ? '已连接' : code ? '连接中…' : '缺少连接码'}
+            {connected
+              ? `已连接 · ${transport === 'lan' ? '局域网' : '中继'}`
+              : code
+                ? '连接中…'
+                : '缺少连接码'}
           </Badge>
         </Flex>
         <Text size="2" color="gray" as="p" mb="4">
@@ -196,7 +254,6 @@ function Phone() {
                   </Text>
                   <Button
                     type="submit"
-                    loading={sending}
                     disabled={!text.trim() || !code || working}
                   >
                     发送

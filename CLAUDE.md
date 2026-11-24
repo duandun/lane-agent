@@ -66,6 +66,7 @@ Electron 生产环境把 `apps/desktop/dist/`（构建时从 `apps/web/dist` 拷
 - 一轮运行结束的可靠信号是 `session.execution.succeeded / failed / interrupted`；`session.idle` 只表示会话安静，不能单独当作跑完。结束时用 `message.list`（limit 上限 200）从服务端重建 block 列表，抵消客户端的乐观状态漂移。
 - `@opencode/client/service` 只能在 Node 里用；渲染进程一律通过 `makeClient(conn)` 走 HTTP Basic Auth，用户名固定 `opencode`。
 - 手机同步：`packages/protocol` 定义事件名、`PhoneMessage` 和限额；web 端 `core/lib/socket.ts` / `phone.ts` 发送，mobile 端 `routes/phone.tsx` 接收，server 只做房间转发与校验。
+- 手机直连：桌面端配对时由 `apps/desktop/src/phoneLan.ts` 起一个局域网 Socket.IO 端点（token 鉴权、只转发同一连接码），`apps/web/core/lib/socket.ts` 同时接中继和本地端点；二维码里带 `lan` 候选和 `token`，手机端先探测直连、失败或断线回退中继。浏览器版没有 `appBridge`，只走中继。
 - 操作存为 skill：提取逻辑在 `apps/web/src/core/lib/skillDraft.ts`（自检 `apps/web/scripts/skill-draft.check.ts`），保存走 `apps/desktop/src/ipc/skills.ts` 的 `skills:info` / `skills:save`；只写 `~/.config/opencode/skills`，拒绝覆盖 `agent-desktop` 或带 `.installed` 的受管 skill。
 
 ### Node 能力（IPC）
