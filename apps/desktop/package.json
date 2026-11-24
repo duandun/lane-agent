@@ -10,7 +10,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "build:renderer": "(cd ../web && bun run build) && rm -rf dist && cp -R ../web/dist dist",
-    "dev": "tsc -p tsconfig.json && ((cd ../web && bun run dev) & VITE_PID=$!; trap 'kill $VITE_PID' EXIT; electron . --dev)",
+    "dev": "tsc -p tsconfig.json && ((cd ../web && exec bun run dev) & VITE_PID=$!; trap 'kill $VITE_PID' EXIT; electron . --dev)",
     "start": "bun run build:renderer && tsc -p tsconfig.json && electron .",
     "package": "bun run build:renderer && tsc -p tsconfig.json && node scripts/bundle-runtime.mjs && node scripts/bundle-opencode-cli.mjs && ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ ELECTRON_BUILDER_BINARIES_MIRROR=https://npmmirror.com/mirrors/electron-builder-binaries/ electron-builder",
     "package:linux": "bun run build:renderer && tsc -p tsconfig.json && node scripts/bundle-runtime.mjs && OPENCODE_TARGET=linux-x64 node scripts/bundle-opencode-cli.mjs && ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ ELECTRON_BUILDER_BINARIES_MIRROR=https://npmmirror.com/mirrors/electron-builder-binaries/ electron-builder --linux AppImage --x64",
