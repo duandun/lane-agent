@@ -143,7 +143,9 @@ export function draftSkill(
 
     if (block.status === 'error') {
       if (args.match(REF_RE)?.some((ref) => !refs.has(ref))) unresolved += 1;
-      pitfalls.push(`- 上次失败的命令：\`${bin} ${args}\`（输出：${block.detail.trim().slice(0, 200)}）`);
+      pitfalls.push(
+        `- 上次失败的命令：\`${bin} ${args}\`（输出：${block.detail.trim().slice(0, 200)}）`
+      );
       continue;
     }
 
@@ -183,8 +185,7 @@ export function draftSkill(
   const name = opts.name ?? slugify(app) ?? `desktop-task-${today()}`;
   const userText = firstUserText(blocks);
   const description =
-    opts.description ??
-    (userText || `在 ${app ?? '桌面应用'} 中完成一次操作。`).slice(0, 200);
+    opts.description ?? (userText || `在 ${app ?? '桌面应用'} 中完成一次操作。`).slice(0, 200);
 
   const body = [
     `# ${app ? `${app} 操作` : '桌面操作'}`,
@@ -193,7 +194,9 @@ export function draftSkill(
     '',
     '## 步骤',
     '',
-    steps.length ? steps.map((step, index) => `${index + 1}. ${step}`).join('\n') : '1. 重新观察目标应用后再执行。',
+    steps.length
+      ? steps.map((step, index) => `${index + 1}. ${step}`).join('\n')
+      : '1. 重新观察目标应用后再执行。',
     '',
     '## 验证',
     '',
