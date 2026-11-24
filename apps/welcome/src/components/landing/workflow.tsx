@@ -98,7 +98,7 @@ export default function Workflow() {
                 '流式输出，思考与工具调用即时出现',
                 '需要授权时自动暂停，由你决定下一步',
                 '运行结束后用服务端真值对齐整段对话',
-                '手机扫码即可跟进进度，也能直接发指令',
+                '手机扫码即可跟进进度，同一局域网直连、其他网络走中继',
               ].map((item) => (
                 <li key={item} className="flex gap-2">
                   <Check className="mt-1 size-3.5 shrink-0 text-ok" aria-hidden="true" />
