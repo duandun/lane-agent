@@ -13,7 +13,6 @@
     "paths": {
       "@core/*": ["./src/core/*"],
       "@web/*": ["./src/web/*"],
-      "@app/*": ["./src/app/*"],
       "@assets/*": ["./src/assets/*"]
     },
     "types": ["vite/client"]
