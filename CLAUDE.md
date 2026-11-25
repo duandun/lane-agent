@@ -68,6 +68,7 @@ Electron 生产环境把 `apps/desktop/dist/`（构建时从 `apps/web/dist` 拷
 - 手机同步：`packages/protocol` 定义事件名、`PhoneMessage` 和限额；web 端 `core/lib/socket.ts` / `phone.ts` 发送，mobile 端 `routes/phone.tsx` 接收，server 只做房间转发与校验。
 - 手机直连：桌面端配对时由 `apps/desktop/src/phoneLan.ts` 起一个局域网 Socket.IO 端点（token 鉴权、只转发同一连接码），`apps/web/core/lib/socket.ts` 同时接中继和本地端点；二维码里带 `lan` 候选和 `token`，手机端先探测直连、失败或断线回退中继。浏览器版没有 `appBridge`，只走中继。
 - 操作存为 skill：提取逻辑在 `apps/web/src/core/lib/skillDraft.ts`（自检 `apps/web/scripts/skill-draft.check.ts`），保存走 `apps/desktop/src/ipc/skills.ts` 的 `skills:info` / `skills:save`；只写 `~/.config/opencode/skills`，拒绝覆盖 `agent-desktop` 或带 `.installed` 的受管 skill。
+- 对话轨迹：`blocks.ts` 给 block 带 `meta`（时间/归属消息），`useChatSession` 用 `step.*` 事件维护 `steps` 和 `revision`；`useTrajectory` 用 `message.list` cursor 维护独立分页快照，并从 `session.context` 拉当前输入上下文；`core/lib/trajectory.ts` 做纯投影；`TrajectoryView` 渲染轨迹带/虚拟账本/检查器。自检：`bun run check:blocks`、`bun run check:trajectory`。
 
 ### Node 能力（IPC）
 
@@ -99,6 +100,7 @@ Electron 生产环境把 `apps/desktop/dist/`（构建时从 `apps/web/dist` 拷
 
 - 打开页面恢复当前目录最近更新的会话（`session.list` 首屏 30 个，可继续加载，排除子代理和归档会话）；运行中禁止切换。
 - 会话消息只加载最近 200 条（`message.list` 的 limit 上限），更早的消息不会显示在界面上。
+- 对话轨迹有独立 cursor 分页，但只搜索/统计已加载页面；轨迹带固定 18×14px、按输入/模型/工具三层排列，不表达时间间隔；切回对话再进入轨迹会重新拉第一页；没有图片灯箱。
 - 服务端 CORS 必须显式包含当前页面 origin（协议+主机+端口，无路径、无尾斜杠），多个 origin 重复传 `--cors`。
 - 权限弹窗依赖 `permission.asked` 事件；服务端权限全 allow 时不会出现。
 - `agent-desktop` skill 和新增 skill 文件会热加载（OpenCode 2.3.0 实测）：安装后只需刷新技能列表，无需重启 `opencode serve`。

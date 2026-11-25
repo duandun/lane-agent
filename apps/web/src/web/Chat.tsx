@@ -8,6 +8,7 @@ import {
   Dropdown,
   Flex,
   Select,
+  Segmented,
   Tag,
   Tooltip,
   Typography,
@@ -38,6 +39,7 @@ import QuestionPrompt from '@core/components/QuestionPrompt';
 import SaveSkillModal from '@core/components/SaveSkillModal';
 import SessionList from '@core/components/SessionList';
 import SkillPicker from '@core/components/SkillPicker';
+import TrajectoryView from '@core/components/TrajectoryView';
 import { useAttachments } from '@core/hooks/useAttachments';
 import { useChatSession, type ChatStatus, type ModelRef } from '@core/hooks/useChatSession';
 import { usePhoneSync } from '@core/hooks/usePhoneSync';
@@ -91,6 +93,8 @@ export default function Chat({ conn, onDisconnect }: { conn: Conn; onDisconnect:
     loadMore,
     agentID,
     blocks,
+    steps,
+    revision,
     status,
     busy,
     activity,
@@ -134,6 +138,7 @@ export default function Chat({ conn, onDisconnect }: { conn: Conn; onDisconnect:
   const [modelsReady, setModelsReady] = useState(false);
   const [customOpen, setCustomOpen] = useState(false);
   const [saveSkillOpen, setSaveSkillOpen] = useState(false);
+  const [view, setView] = useState<'chat' | 'trajectory'>('chat');
   const [editingModel, setEditingModel] = useState<CustomModel | null>(null);
   const customModels = useAppStore((state) => state.customModels);
   const removeCustomModel = useAppStore((state) => state.removeCustomModel);
@@ -524,6 +529,15 @@ export default function Chat({ conn, onDisconnect }: { conn: Conn; onDisconnect:
                 </Tag>
               </Tooltip>
             )}
+            <Segmented<'chat' | 'trajectory'>
+              size="small"
+              value={view}
+              onChange={setView}
+              options={[
+                { label: '对话', value: 'chat' },
+                { label: '轨迹', value: 'trajectory' },
+              ]}
+            />
             <Tooltip
               title={
                 !appBridge
@@ -580,7 +594,11 @@ export default function Chat({ conn, onDisconnect }: { conn: Conn; onDisconnect:
           </Flex>
         </header>
 
-        <main className="mx-auto flex min-h-0 w-full min-w-0 max-w-[900px] flex-col px-4 pt-3 max-sm:px-2.5 max-sm:pt-2">
+        <main
+          className={`mx-auto flex min-h-0 w-full min-w-0 flex-col px-4 pt-3 max-sm:px-2.5 max-sm:pt-2 ${
+            view === 'trajectory' ? 'max-w-none' : 'max-w-[900px]'
+          }`}
+        >
           {error && (
             <Alert
               className="mb-2.5"
@@ -591,19 +609,34 @@ export default function Chat({ conn, onDisconnect }: { conn: Conn; onDisconnect:
             />
           )}
 
-          <Messages
-            blocks={blocks}
-            busy={busy}
-            directory={conn.directory}
-            onSuggestion={(text) => {
-              setHistoryIndex(-1);
-              setDraft(text);
-            }}
-            onRegenerate={regenerate}
-          />
+          {view === 'trajectory' ? (
+            <TrajectoryView
+              client={client}
+              sessionID={sessionID}
+              blocks={blocks}
+              steps={steps}
+              busy={busy}
+              revision={revision}
+            />
+          ) : (
+            <Messages
+              blocks={blocks}
+              busy={busy}
+              directory={conn.directory}
+              onSuggestion={(text) => {
+                setHistoryIndex(-1);
+                setDraft(text);
+              }}
+              onRegenerate={regenerate}
+            />
+          )}
         </main>
 
-        <footer className="composer mx-auto w-full max-w-[900px] px-4 pb-[calc(14px+env(safe-area-inset-bottom))] pt-2.5 max-sm:px-2.5 max-sm:pb-[calc(10px+env(safe-area-inset-bottom))] max-sm:pt-2">
+        <footer
+          className={`composer mx-auto w-full px-4 pb-[calc(14px+env(safe-area-inset-bottom))] pt-2.5 max-sm:px-2.5 max-sm:pb-[calc(10px+env(safe-area-inset-bottom))] max-sm:pt-2 ${
+            view === 'trajectory' ? 'max-w-none' : 'max-w-[900px]'
+          }`}
+        >
           {forms[0] ? (
             <QuestionPrompt
               form={forms[0]}

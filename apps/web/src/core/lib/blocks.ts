@@ -1,11 +1,49 @@
-import type { SessionMessageInfo } from '@opencode/client';
+import type { SessionMessageInfo, TokenUsageInfo } from '@opencode/client';
+
+/** block 的时间与归属信息，供轨迹视图使用；对话渲染不依赖它。 */
+export type BlockMeta = {
+  at?: number;
+  end?: number;
+  messageID?: string;
+};
 
 export type Block =
-  | { id: string; kind: 'user'; text: string; skills?: SkillTag[]; files?: string[] }
-  | { id: string; kind: 'text'; text: string }
-  | { id: string; kind: 'reasoning'; text: string; duration?: number }
-  | { id: string; kind: 'tool'; name: string; status: ToolStatus; detail: string; input?: unknown }
-  | { id: string; kind: 'notice'; text: string };
+  | {
+      id: string;
+      kind: 'user';
+      text: string;
+      skills?: SkillTag[];
+      files?: string[];
+      meta?: BlockMeta;
+    }
+  | { id: string; kind: 'text'; text: string; meta?: BlockMeta }
+  | { id: string; kind: 'reasoning'; text: string; duration?: number; meta?: BlockMeta }
+  | {
+      id: string;
+      kind: 'tool';
+      name: string;
+      status: ToolStatus;
+      detail: string;
+      input?: unknown;
+      meta?: BlockMeta;
+    }
+  | { id: string; kind: 'notice'; text: string; meta?: BlockMeta };
+
+/** 一次 assistant step 的汇总信息：来自服务端消息或 step.* 事件。 */
+export type StepInfo = {
+  messageID: string;
+  agent?: string;
+  model?: string;
+  started?: number;
+  firstToken?: number;
+  streamed?: number;
+  ended?: number;
+  finish?: string;
+  tokens?: TokenUsageInfo;
+  cost?: number;
+  error?: string;
+  interrupted?: boolean;
+};
 
 export type SkillTag = { id: string; name: string };
 
@@ -72,6 +110,7 @@ export function blocksFromMessages(messages: SessionMessageInfo[]): Block[] {
           text: message.text,
           skills: message.skills?.map(({ id, name }) => ({ id, name })),
           files: message.files?.map((file) => file.name ?? '附件'),
+          meta: { at: message.time.created },
         });
       }
       continue;
@@ -79,10 +118,21 @@ export function blocksFromMessages(messages: SessionMessageInfo[]): Block[] {
 
     if (message.type !== 'assistant') continue;
 
+    const shared = {
+      messageID: message.id,
+      at: message.time.created,
+      end: message.time.completed ?? message.time.streamed,
+    };
+
     message.content.forEach((part, index) => {
       if (part.type === 'text') {
         if (!part.text.trim()) return;
-        blocks.push({ id: `msg:${message.id}:t${index}`, kind: 'text', text: part.text });
+        blocks.push({
+          id: `msg:${message.id}:t${index}`,
+          kind: 'text',
+          text: part.text,
+          meta: shared,
+        });
         return;
       }
 
@@ -94,6 +144,7 @@ export function blocksFromMessages(messages: SessionMessageInfo[]): Block[] {
           kind: 'reasoning',
           text: part.text,
           duration: time?.completed ? time.completed - time.created : undefined,
+          meta: { ...shared, at: time?.created ?? shared.at, end: time?.completed ?? shared.end },
         });
         return;
       }
@@ -106,10 +157,32 @@ export function blocksFromMessages(messages: SessionMessageInfo[]): Block[] {
           status: toolStatus(part.state?.status),
           detail: toolDetail(part.state),
           input: part.state?.input,
+          meta: { ...shared, at: part.time.created, end: part.time.completed },
         });
       }
     });
   }
 
   return blocks;
+}
+
+/** 从服务端消息整理每个 assistant step 的耗时与用量，供轨迹视图合并实时事件。 */
+export function stepsFromMessages(messages: SessionMessageInfo[]): Record<string, StepInfo> {
+  const steps: Record<string, StepInfo> = {};
+  for (const message of messages) {
+    if (message.type !== 'assistant') continue;
+    steps[message.id] = {
+      messageID: message.id,
+      agent: message.agent,
+      model: `${message.model.providerID}/${message.model.id}`,
+      started: message.time.created,
+      firstToken: message.time.firstToken,
+      streamed: message.time.streamed,
+      ended: message.time.completed,
+      finish: message.finish,
+      tokens: message.tokens,
+      cost: message.cost,
+    };
+  }
+  return steps;
 }

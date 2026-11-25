@@ -4,9 +4,11 @@ import type { Client, Conn } from '../lib/client';
 import {
   blocksFromMessages,
   patch,
+  stepsFromMessages,
   upsert,
   type Block,
   type SkillTag,
+  type StepInfo,
   type ToolStatus,
 } from '../lib/blocks';
 import { errorText } from '../lib/error';
@@ -47,6 +49,8 @@ export function useChatSession(conn: Conn, client: Client) {
   const [loadingMore, setLoadingMore] = useState(false);
   const [agentID, setAgentID] = useState<string | null>(null);
   const [blocks, setBlocks] = useState<Block[]>([]);
+  const [steps, setSteps] = useState<Record<string, StepInfo>>({});
+  const [revision, setRevision] = useState(0);
   const [status, setStatus] = useState<ChatStatus>('connecting');
   const [busy, setBusy] = useState(false);
   const [activity, setActivity] = useState<AgentActivity>('idle');
@@ -64,7 +68,16 @@ export function useChatSession(conn: Conn, client: Client) {
   async function reload(id: string) {
     // 服务端 limit 上限 200；取最新的一页再反转为时间顺序，否则长会话只会拿到最早的 200 条。
     const response = await client.message.list({ sessionID: id, order: 'desc', limit: 200 });
-    setBlocks(blocksFromMessages([...response.data].reverse()));
+    const messages = [...response.data].reverse();
+    setBlocks(blocksFromMessages(messages));
+    setSteps(stepsFromMessages(messages));
+  }
+
+  function patchStep(messageID: string, update: Partial<StepInfo>) {
+    setSteps((current) => ({
+      ...current,
+      [messageID]: { ...(current[messageID] ?? { messageID }), ...update },
+    }));
   }
 
   // 旧版本把所有会话标题固定写成 Lane，这里用第一条提问在本地修正显示。
@@ -147,6 +160,7 @@ export function useChatSession(conn: Conn, client: Client) {
     setSessionID(id);
     setAgentID(info?.agent ?? null);
     setBlocks([]);
+    setSteps({});
     setForms([]);
     setError(null);
     await reload(id);
@@ -255,7 +269,14 @@ export function useChatSession(conn: Conn, client: Client) {
             case 'session.text.started': {
               if (event.data.sessionID !== sessionRef.current) break;
               const id = `text:${event.data.assistantMessageID}:${event.data.ordinal}`;
-              setBlocks((current) => upsert(current, { id, kind: 'text', text: '' }));
+              setBlocks((current) =>
+                upsert(current, {
+                  id,
+                  kind: 'text',
+                  text: '',
+                  meta: { at: event.created, messageID: event.data.assistantMessageID },
+                })
+              );
               setActivity('talking');
               break;
             }
@@ -263,19 +284,19 @@ export function useChatSession(conn: Conn, client: Client) {
             case 'session.text.delta': {
               if (event.data.sessionID !== sessionRef.current) break;
               const id = `text:${event.data.assistantMessageID}:${event.data.ordinal}`;
-              setBlocks((current) =>
-                upsert(current, {
-                  id,
-                  kind: 'text',
-                  text:
-                    (current.find((b) => b.id === id) as { text?: string } | undefined)?.text ?? '',
-                })
-              );
-              setBlocks((current) =>
-                patch(current, id, (block) =>
+              setBlocks((current) => {
+                if (!current.some((block) => block.id === id)) {
+                  return upsert(current, {
+                    id,
+                    kind: 'text',
+                    text: event.data.delta,
+                    meta: { at: event.created, messageID: event.data.assistantMessageID },
+                  });
+                }
+                return patch(current, id, (block) =>
                   block.kind === 'text' ? { ...block, text: block.text + event.data.delta } : block
-                )
-              );
+                );
+              });
               setActivity('talking');
               break;
             }
@@ -283,7 +304,29 @@ export function useChatSession(conn: Conn, client: Client) {
             case 'session.text.ended': {
               if (event.data.sessionID !== sessionRef.current) break;
               const id = `text:${event.data.assistantMessageID}:${event.data.ordinal}`;
-              setBlocks((current) => upsert(current, { id, kind: 'text', text: event.data.text }));
+              setBlocks((current) => {
+                if (!current.some((block) => block.id === id)) {
+                  return upsert(current, {
+                    id,
+                    kind: 'text',
+                    text: event.data.text,
+                    meta: {
+                      at: event.created,
+                      end: event.created,
+                      messageID: event.data.assistantMessageID,
+                    },
+                  });
+                }
+                return patch(current, id, (block) =>
+                  block.kind === 'text'
+                    ? {
+                        ...block,
+                        text: event.data.text,
+                        meta: { ...block.meta, end: event.created },
+                      }
+                    : block
+                );
+              });
               setActivity('thinking');
               break;
             }
@@ -291,7 +334,14 @@ export function useChatSession(conn: Conn, client: Client) {
             case 'session.reasoning.started': {
               if (event.data.sessionID !== sessionRef.current) break;
               const id = `reasoning:${event.data.assistantMessageID}:${event.data.ordinal}`;
-              setBlocks((current) => upsert(current, { id, kind: 'reasoning', text: '' }));
+              setBlocks((current) =>
+                upsert(current, {
+                  id,
+                  kind: 'reasoning',
+                  text: '',
+                  meta: { at: event.created, messageID: event.data.assistantMessageID },
+                })
+              );
               setActivity('thinking');
               break;
             }
@@ -299,18 +349,31 @@ export function useChatSession(conn: Conn, client: Client) {
             case 'session.reasoning.delta': {
               if (event.data.sessionID !== sessionRef.current) break;
               const id = `reasoning:${event.data.assistantMessageID}:${event.data.ordinal}`;
-              setBlocks((current) =>
-                upsert(current, {
-                  id,
-                  kind: 'reasoning',
-                  text:
-                    (current.find((b) => b.id === id) as { text?: string } | undefined)?.text ?? '',
-                })
-              );
+              setBlocks((current) => {
+                if (!current.some((block) => block.id === id)) {
+                  return upsert(current, {
+                    id,
+                    kind: 'reasoning',
+                    text: event.data.delta,
+                    meta: { at: event.created, messageID: event.data.assistantMessageID },
+                  });
+                }
+                return patch(current, id, (block) =>
+                  block.kind === 'reasoning'
+                    ? { ...block, text: block.text + event.data.delta }
+                    : block
+                );
+              });
+              break;
+            }
+
+            case 'session.reasoning.ended': {
+              if (event.data.sessionID !== sessionRef.current) break;
+              const id = `reasoning:${event.data.assistantMessageID}:${event.data.ordinal}`;
               setBlocks((current) =>
                 patch(current, id, (block) =>
                   block.kind === 'reasoning'
-                    ? { ...block, text: block.text + event.data.delta }
+                    ? { ...block, meta: { ...block.meta, end: event.created } }
                     : block
                 )
               );
@@ -327,6 +390,7 @@ export function useChatSession(conn: Conn, client: Client) {
                   name: event.data.name,
                   status: 'running',
                   detail: '',
+                  meta: { at: event.created, messageID: event.data.assistantMessageID },
                 })
               );
               break;
@@ -357,6 +421,7 @@ export function useChatSession(conn: Conn, client: Client) {
                         ...block,
                         status: 'ok' as ToolStatus,
                         detail: textOf(event.data.content) || block.detail,
+                        meta: { ...block.meta, end: event.created },
                       }
                     : block
                 )
@@ -373,10 +438,54 @@ export function useChatSession(conn: Conn, client: Client) {
                         ...block,
                         status: 'error' as ToolStatus,
                         detail: textOf(event.data.content) || errorText(event.data.error),
+                        meta: { ...block.meta, end: event.created },
                       }
                     : block
                 )
               );
+              break;
+            }
+
+            case 'session.step.started': {
+              if (event.data.sessionID !== sessionRef.current) break;
+              patchStep(event.data.assistantMessageID, {
+                agent: event.data.agent,
+                model: `${event.data.model.providerID}/${event.data.model.id}`,
+                started: event.data.started,
+              });
+              break;
+            }
+
+            case 'session.step.first-token':
+              if (event.data.sessionID !== sessionRef.current) break;
+              patchStep(event.data.assistantMessageID, { firstToken: event.created });
+              break;
+
+            case 'session.step.streamed':
+              if (event.data.sessionID !== sessionRef.current) break;
+              patchStep(event.data.assistantMessageID, { streamed: event.created });
+              break;
+
+            case 'session.step.ended': {
+              if (event.data.sessionID !== sessionRef.current) break;
+              patchStep(event.data.assistantMessageID, {
+                ended: event.created,
+                finish: event.data.finish,
+                tokens: event.data.tokens,
+                cost: event.data.cost,
+              });
+              break;
+            }
+
+            case 'session.step.failed': {
+              if (event.data.sessionID !== sessionRef.current) break;
+              patchStep(event.data.assistantMessageID, {
+                ended: event.created,
+                finish: 'error',
+                tokens: event.data.tokens,
+                cost: event.data.cost,
+                error: JSON.stringify(event.data.error),
+              });
               break;
             }
 
@@ -411,12 +520,29 @@ export function useChatSession(conn: Conn, client: Client) {
             // `session.idle` 只表示会话安静下来，并不稳定代表一轮结束；
             // 真正的结束信号是 execution.*，因此在这几个事件上收尾。
             case 'session.execution.succeeded':
-            case 'session.execution.interrupted':
             case 'session.idle': {
               if (event.data.sessionID !== sessionRef.current) break;
               setBusy(false);
               setActivity('idle');
               await reload(event.data.sessionID);
+              void refreshSessions();
+              break;
+            }
+
+            case 'session.execution.interrupted': {
+              if (event.data.sessionID !== sessionRef.current) break;
+              setBusy(false);
+              setActivity('idle');
+              await reload(event.data.sessionID);
+              // 服务端消息不保留中断标记；没有完成时间的 step 视为被中断。
+              setSteps((current) =>
+                Object.fromEntries(
+                  Object.entries(current).map(([id, step]) => [
+                    id,
+                    step.ended ? step : { ...step, interrupted: true },
+                  ])
+                )
+              );
               void refreshSessions();
               break;
             }
@@ -507,7 +633,13 @@ export function useChatSession(conn: Conn, client: Client) {
     setError(null);
     setBlocks((current) => [
       ...current,
-      { id: `local:${Date.now()}`, kind: 'user', text: value, skills },
+      {
+        id: `local:${Date.now()}`,
+        kind: 'user',
+        text: value,
+        skills,
+        meta: { at: Date.now() },
+      },
     ]);
     try {
       await client.session.prompt({
@@ -541,6 +673,8 @@ export function useChatSession(conn: Conn, client: Client) {
     });
     try {
       await client.session.revert.stage({ sessionID, messageID: userMessageID, files: false });
+      // 轨迹快照需要丢弃被截断的旧回答。
+      setRevision((value) => value + 1);
       await client.session.prompt({ sessionID, text });
     } catch (cause) {
       setBusy(false);
@@ -635,6 +769,8 @@ export function useChatSession(conn: Conn, client: Client) {
     loadMore: loadMoreSessions,
     agentID,
     blocks,
+    steps,
+    revision,
     status,
     busy,
     activity,
