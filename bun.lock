@@ -65,6 +65,7 @@
       "dependencies": {
         "@lane/protocol": "workspace:*",
         "@opencode/client": "^2.3.0",
+        "@tanstack/react-virtual": "^3.14.28",
         "diff": "^9.0.0",
         "react-helmet-async": "^3.1.0",
         "refractor": "^5.0.0",
@@ -687,6 +688,8 @@
 
     "@tanstack/react-store": ["@tanstack/react-store@0.11.4", "https://registry.npmmirror.com/@tanstack/react-store/-/react-store-0.11.4.tgz", { "dependencies": { "@tanstack/store": "0.11.3", "use-sync-external-store": "^1.6.0" }, "peerDependencies": { "@types/react": "*", "react": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0", "react-dom": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0" }, "optionalPeers": ["@types/react"] }, "sha512-JAQz7LcABVRbxZ6qCd4u/KqDaqBc1qmcOWz7XBTdav1Ib363HQdihCQF1A755nDhoi9VEd6UqZ5thWVKTwIIXw=="],
 
+    "@tanstack/react-virtual": ["@tanstack/react-virtual@3.14.28", "https://registry.npmmirror.com/@tanstack/react-virtual/-/react-virtual-3.14.28.tgz", { "dependencies": { "@tanstack/virtual-core": "3.19.13" }, "peerDependencies": { "react": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0", "react-dom": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0" } }, "sha512-zoM4eddIVUsOsunOe26ur+h6YJQbvdzU10a2tKzIovThu5P4SvEyQ+cRx0mbeKfgnR0Mz7KR/NwrZ3GzVnUF/g=="],
+
     "@tanstack/router-core": ["@tanstack/router-core@1.171.39", "https://registry.npmmirror.com/@tanstack/router-core/-/router-core-1.171.39.tgz", { "dependencies": { "@tanstack/history": "1.162.5", "cookie-es": "^3.0.0", "seroval": "^1.6.7", "seroval-plugins": "^1.6.7" } }, "sha512-qUhoJ0meuSUqGYQbHbcJYdASr06YtK+bulbj6vtrhKYFkLgkSsZ6tXmMyym7sFxiSJSPYgasgozrL01LyyR/6A=="],
 
     "@tanstack/router-devtools-core": ["@tanstack/router-devtools-core@1.168.3", "https://registry.npmmirror.com/@tanstack/router-devtools-core/-/router-devtools-core-1.168.3.tgz", { "dependencies": { "clsx": "^2.1.1", "goober": "^2.1.16" }, "peerDependencies": { "@tanstack/router-core": "^1.171.39", "csstype": "^3.0.10" }, "optionalPeers": ["csstype"] }, "sha512-NJh7lWkvShucJU/pXtf5JWLqprL+8j6L5m82qcFuCvS4azOfknYr+KVIb3uEyVpLTrMpAvw+/hJEgAGULs21HA=="],
@@ -708,6 +711,8 @@
     "@tanstack/start-storage-context": ["@tanstack/start-storage-context@1.167.41", "https://registry.npmmirror.com/@tanstack/start-storage-context/-/start-storage-context-1.167.41.tgz", { "dependencies": { "@tanstack/router-core": "1.171.39" } }, "sha512-MY+Z4cZBPbH7hjORcROMX7K3kV1X25ArFKmRbks+EukPP9UVwCXbZFVzYkTt1u0AHthvQTcpa4J9B9i0o6fEnA=="],
 
     "@tanstack/store": ["@tanstack/store@0.11.3", "https://registry.npmmirror.com/@tanstack/store/-/store-0.11.3.tgz", {}, "sha512-/Mt3h2Qe67HmRMc5SJ+8jM2Fp7O4fBbwOlS0ujUvx34KgAvkvdLSHrJatv0PJG5fbvlDsACTawMMY4ptCpVI8w=="],
+
+    "@tanstack/virtual-core": ["@tanstack/virtual-core@3.19.13", "https://registry.npmmirror.com/@tanstack/virtual-core/-/virtual-core-3.19.13.tgz", {}, "sha512-CyCvMm7m5JuvPW6eMPZkZBZk6diySrlUQNNRpQPiEnh2vakyghx82Hw3wW2THFUsl6xJ6uM4lSUaiA2T0oYW8w=="],
 
     "@tanstack/virtual-file-routes": ["@tanstack/virtual-file-routes@1.162.0", "https://registry.npmmirror.com/@tanstack/virtual-file-routes/-/virtual-file-routes-1.162.0.tgz", {}, "sha512-uhOeFyxLcU41HzvrxsGpiWdcMbScY1EDgbZ5K7DVRMYInbLYWAC0EA/kx9wXAoSM8q82bUG2hRl8+EAjE6XAbA=="],
 

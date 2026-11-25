@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
-import { Avatar, App as AntdApp } from 'antd';
+import { useEffect, useMemo, useRef, useState, type ComponentRef } from 'react';
+import { Avatar, App as AntdApp, Button } from 'antd';
 import {
   Actions,
   Bubble,
@@ -173,6 +173,29 @@ export default function Messages({
   onRegenerate: (messageID: string, text: string, userBlockID: string) => void;
 }) {
   const { message } = AntdApp.useApp();
+  const listRef = useRef<ComponentRef<typeof Bubble.List>>(null);
+  const [atBottom, setAtBottom] = useState(true);
+
+  // 监听 Bubble.List 的滚动容器，离开底部时显示「回到最新」。
+  // Bubble.List 内部的滚动节点在首次 commit 后才就绪，延后一拍再挂监听。
+  useEffect(() => {
+    let el: HTMLDivElement | undefined;
+    let onScroll: (() => void) | undefined;
+    const timer = window.setTimeout(() => {
+      el = listRef.current?.scrollBoxNativeElement;
+      if (!el) return;
+      onScroll = () => {
+        // autoScroll 模式下滚动条是 column-reverse：scrollTop 0 就是底部，向上滚为负值。
+        setAtBottom(Math.abs(el!.scrollTop) < 80);
+      };
+      el.addEventListener('scroll', onScroll, { passive: true });
+      onScroll();
+    }, 0);
+    return () => {
+      window.clearTimeout(timer);
+      if (el && onScroll) el.removeEventListener('scroll', onScroll);
+    };
+  }, []);
 
   const bubbleItems = useMemo<BubbleItemType[]>(() => {
     const copy = async (text: string) => {
@@ -309,11 +332,28 @@ export default function Messages({
   }
 
   return (
-    <Bubble.List
-      className="bubbles h-full min-h-0 flex-1"
-      items={bubbleItems}
-      role={ROLES}
-      autoScroll
-    />
+    <div className="relative flex min-h-0 flex-1 flex-col">
+      <Bubble.List
+        ref={listRef}
+        className="bubbles h-full min-h-0 flex-1"
+        items={bubbleItems}
+        role={ROLES}
+        autoScroll
+      />
+      {!atBottom && (
+        <div className="pointer-events-none absolute inset-x-0 bottom-2 flex justify-center">
+          <Button
+            size="small"
+            className="pointer-events-auto shadow"
+            onClick={() => {
+              setAtBottom(true);
+              listRef.current?.scrollTo({ top: 'bottom', behavior: 'smooth' });
+            }}
+          >
+            回到最新
+          </Button>
+        </div>
+      )}
+    </div>
   );
 }
