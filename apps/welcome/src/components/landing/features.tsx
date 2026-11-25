@@ -17,6 +17,7 @@ import {
   Sun,
   Terminal,
   Users,
+  Waypoints,
   Zap,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
@@ -189,6 +190,37 @@ export default function Features() {
             </ul>
           </div>
           <SessionVisual />
+        </article>
+
+        <article className="bento reveal mt-4 grid gap-6 p-6 sm:p-8 lg:grid-cols-[1fr_1.05fr] lg:items-center">
+          <div>
+            <div className="flex items-center gap-2 text-xs font-bold text-ink-soft">
+              <Waypoints className="size-4 text-brand" aria-hidden="true" />
+              对话轨迹
+            </div>
+            <h3 className="mt-3 text-2xl font-extrabold tracking-tight text-ink">
+              每一步，都有迹可循。
+            </h3>
+            <p className="mt-2 max-w-lg text-sm leading-6 text-ink-soft">
+              切到「轨迹」就能看到一轮对话里每次模型调用、思考、回复和工具调用的完整记录。顶部输入 /
+              模型 /
+              工具三条泳道按先后顺序对齐，点任意记录查看耗时、TTFT、token、成本和完整输入输出。
+            </p>
+            <ul className="mt-5 space-y-2.5 text-sm leading-6 text-ink-soft">
+              {[
+                '轮次、模型调用、工具调用分层展示，支持搜索和折叠',
+                '输入 / 模型 / 工具三层轨迹带，固定宽度按顺序排列',
+                '检查器看耗时、TTFT、token、成本、输入输出与输入上下文',
+                '运行中实时跟随，长会话可继续加载更早记录',
+              ].map((item) => (
+                <li key={item} className="flex gap-2">
+                  <Check className="mt-1 size-3.5 shrink-0 text-ok" aria-hidden="true" />
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </div>
+          <TrajectoryVisual />
         </article>
 
         <article className="bento reveal mt-4 grid gap-6 p-6 sm:p-8 lg:grid-cols-[1fr_280px] lg:items-center">
@@ -493,6 +525,106 @@ function PhoneVisual() {
           局域网直连
         </span>
         <span className="mt-0.5 block font-mono text-sm tracking-[0.2em] text-ink">123456</span>
+      </div>
+    </div>
+  );
+}
+
+function TrajectoryVisual() {
+  const lanes = [
+    {
+      label: '输入',
+      cells: [
+        'bg-line',
+        null,
+        null,
+        'bg-line',
+        null,
+        null,
+        null,
+        'bg-line',
+        null,
+        null,
+        null,
+        'bg-line',
+        null,
+      ],
+    },
+    {
+      label: '模型',
+      cells: [
+        null,
+        'bg-brand',
+        'bg-violet-400',
+        null,
+        'bg-brand',
+        'bg-sky-400',
+        null,
+        'bg-brand',
+        'bg-violet-400',
+        null,
+        'bg-brand',
+        null,
+        'bg-sky-400',
+      ],
+    },
+    {
+      label: '工具',
+      cells: [
+        null,
+        null,
+        null,
+        'bg-emerald-500',
+        null,
+        null,
+        'bg-emerald-500',
+        null,
+        null,
+        'bg-amber-400',
+        null,
+        'bg-emerald-500',
+        null,
+      ],
+    },
+  ];
+
+  return (
+    <div className="rounded-2xl border border-line bg-surface-2/70 p-4">
+      <div className="flex flex-col gap-1.5">
+        {lanes.map((lane) => (
+          <div key={lane.label} className="flex items-center gap-2">
+            <span className="w-7 shrink-0 text-[10px] text-ink-soft">{lane.label}</span>
+            <div className="flex gap-[3px]">
+              {lane.cells.map((color, index) => (
+                <span
+                  key={index}
+                  className={`h-3 w-[14px] rounded-[2px] ${color ?? 'bg-transparent'}`}
+                />
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-3 space-y-1 border-t border-line pt-3">
+        <div className="flex items-center gap-2 text-xs">
+          <span className="size-1.5 rounded-full bg-brand" />
+          <span className="font-semibold text-ink">模型调用 1</span>
+          <span className="font-mono text-[10px] text-ink-soft">4.5s</span>
+          <span className="ml-auto rounded-full border border-line bg-surface px-2 py-0.5 text-[10px] text-ink-soft">
+            TTFT 350ms
+          </span>
+        </div>
+        <div className="flex items-center gap-2 rounded-md bg-surface px-2 py-1 text-[11px] text-ink-soft">
+          <Check className="size-3 text-ok" aria-hidden="true" /> 思考 · 976ms
+        </div>
+        <div className="flex items-center gap-2 rounded-md bg-surface px-2 py-1 text-[11px] text-ink-soft">
+          <Terminal className="size-3 text-brand" aria-hidden="true" /> bash · npm run check · 400ms
+        </div>
+      </div>
+
+      <div className="mt-2 rounded-lg border border-line bg-surface p-2 font-mono text-[10px] text-ink-soft">
+        检查器：1.2k in / 340 out · $0.0023 · 输入上下文 2 条
       </div>
     </div>
   );

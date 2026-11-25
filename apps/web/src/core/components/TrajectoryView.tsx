@@ -1,7 +1,8 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Button, Input, Segmented, Spin, Tag, Typography } from 'antd';
 import {
-  BulbOutlined,
+  CheckOutlined,
+  CodeOutlined,
   DatabaseOutlined,
   DownOutlined,
   FileTextOutlined,
@@ -10,7 +11,6 @@ import {
   RightOutlined,
   RobotOutlined,
   SearchOutlined,
-  ToolOutlined,
   UserOutlined,
 } from '@ant-design/icons';
 import { useVirtualizer } from '@tanstack/react-virtual';
@@ -38,8 +38,8 @@ const KIND_META: Record<TrajectoryRecord['kind'], { label: string; icon: ReactNo
   context: { label: '输入上下文', icon: <DatabaseOutlined /> },
   step: { label: '模型调用', icon: <RobotOutlined /> },
   text: { label: '回复', icon: <FileTextOutlined /> },
-  reasoning: { label: '思考', icon: <BulbOutlined /> },
-  tool: { label: '工具', icon: <ToolOutlined /> },
+  reasoning: { label: '思考', icon: <CheckOutlined /> },
+  tool: { label: '工具', icon: <CodeOutlined /> },
   compaction: { label: '上下文压缩', icon: <FolderOutlined /> },
   system: { label: '系统', icon: <InfoCircleOutlined /> },
 };
@@ -316,6 +316,7 @@ export default function TrajectoryView({
                       key={item.key}
                       data-index={item.index}
                       ref={virtualizer.measureElement}
+                      className="pb-2"
                       style={{
                         position: 'absolute',
                         top: 0,
@@ -442,78 +443,117 @@ function RecordRow({
   onSelect: () => void;
   onToggle: () => void;
 }) {
-  const meta = KIND_META[record.kind];
   const isStep = record.kind === 'step';
   const detail = mode === 'detail';
+  const meta = KIND_META[record.kind];
+  const child = record.kind === 'reasoning' || record.kind === 'text' || record.kind === 'tool';
+  const statusTag =
+    record.status === 'ok' ? null : (
+      <Tag
+        color={
+          record.status === 'error' ? 'red' : record.status === 'interrupted' ? 'orange' : 'gold'
+        }
+        className="m-0! shrink-0 text-[10px]!"
+      >
+        {statusLabel(record.status)}
+      </Tag>
+    );
 
-  return (
-    <div
-      className={`relative flex items-start gap-2 rounded-md px-2 py-1.5 text-xs transition-colors transition-none ${
-        selected ? 'bg-(--panel-2) ring-1 ring-(--accent) ring-inset' : 'hover:bg-(--panel-2)'
-      }`}
-    >
-      {selected && (
-        <span className="absolute bottom-1 left-0 top-1 w-[2px] rounded-full bg-(--accent)" />
-      )}
-      {isStep ? (
+  if (isStep) {
+    return (
+      <div
+        className={`group flex items-center gap-2 rounded-md px-2 py-1.5 text-xs transition-colors ${
+          selected ? 'bg-(--panel-2) ring-1 ring-(--accent) ring-inset' : 'hover:bg-(--panel-2)'
+        }`}
+      >
         <button
           type="button"
-          className="mt-0.5 border-0 bg-transparent p-0 text-(--muted) hover:text-(--text)"
+          className="border-0 bg-transparent p-0 text-(--muted) hover:text-(--text)"
           onClick={onToggle}
           aria-label={collapsed ? '展开模型调用' : '折叠模型调用'}
         >
           {collapsed ? <RightOutlined /> : <DownOutlined />}
         </button>
-      ) : (
-        <span className="mt-0.5 w-3" />
-      )}
-      <span className={`mt-0.5 ${statusColor(record.status)}`}>{meta.icon}</span>
-      <button
-        type="button"
-        className="min-w-0 flex-1 border-0 bg-transparent p-0 text-left text-inherit"
-        onClick={onSelect}
-      >
-        <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+        <span
+          className={`size-2 shrink-0 rounded-full ${
+            record.status === 'error'
+              ? 'bg-red-500'
+              : record.status === 'interrupted'
+                ? 'bg-orange-500'
+                : record.status === 'running'
+                  ? 'bg-amber-400'
+                  : 'bg-(--accent)'
+          }`}
+        />
+        <button
+          type="button"
+          className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-0.5 border-0 bg-transparent p-0 text-left text-inherit"
+          onClick={onSelect}
+        >
           <span className="font-semibold text-(--text)">{record.title}</span>
-          {record.model && (
+          {record.duration !== undefined && (
+            <span className="text-[10px] text-(--muted)">{formatDuration(record.duration)}</span>
+          )}
+          {detail && record.model && (
             <span className="font-mono text-[10px] text-(--muted)">{record.model}</span>
           )}
-          {detail && record.kind === 'step' && (
+          {detail && (
             <span className="text-[10px] text-(--muted)">TTFT {formatDuration(record.ttft)}</span>
           )}
-          {detail && record.kind === 'step' && record.tokens && (
+          {detail && record.tokens && (
             <span className="text-[10px] text-(--muted)">
               {record.tokens.input} in / {record.tokens.output} out
             </span>
           )}
-          {detail && record.kind === 'step' && record.cost !== undefined && (
+          {detail && record.cost !== undefined && (
             <span className="text-[10px] text-(--muted)">${record.cost.toFixed(4)}</span>
-          )}
-          {record.duration !== undefined && (
-            <span className="text-[10px] text-(--muted)">{formatDuration(record.duration)}</span>
-          )}
-          {record.status !== 'ok' && (
-            <Tag
-              color={
-                record.status === 'error'
-                  ? 'red'
-                  : record.status === 'interrupted'
-                    ? 'orange'
-                    : 'gold'
-              }
-              className="m-0! text-[10px]!"
-            >
-              {statusLabel(record.status)}
-            </Tag>
           )}
           {detail && record.at !== undefined && (
             <span className="text-[10px] text-(--muted)">{formatClock(record.at)}</span>
           )}
-        </span>
-        {!isStep && record.preview && (
-          <span className="mt-0.5 line-clamp-1 block text-(--muted)">{record.preview}</span>
+          {statusTag}
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={`flex items-center gap-2 rounded-lg border border-(--line) bg-(--panel) px-3 py-2 text-xs transition-colors ${
+        child ? 'ml-5' : ''
+      } ${selected ? 'ring-1 ring-(--accent)' : 'hover:bg-(--panel-2)'}`}
+    >
+      <span className={`shrink-0 ${iconColor(record)}`}>{meta.icon}</span>
+      <button
+        type="button"
+        className="flex min-w-0 flex-1 items-center gap-1.5 border-0 bg-transparent p-0 text-left text-inherit"
+        onClick={onSelect}
+      >
+        <span className="shrink-0 font-medium text-(--text)">{record.title}</span>
+        {record.preview && (
+          <>
+            <span className="shrink-0 text-(--muted)">·</span>
+            <span className="truncate text-(--muted)">{record.preview}</span>
+          </>
         )}
+        {record.duration !== undefined && (
+          <>
+            <span className="shrink-0 text-(--muted)">·</span>
+            <span className="shrink-0 text-[10px] text-(--muted)">
+              {formatDuration(record.duration)}
+            </span>
+          </>
+        )}
+        {statusTag}
       </button>
     </div>
   );
+}
+
+function iconColor(record: TrajectoryRecord): string {
+  if (record.kind === 'reasoning') return 'text-emerald-500';
+  if (record.kind === 'text') return 'text-sky-500';
+  if (record.kind === 'context') return 'text-teal-400';
+  if (record.kind === 'tool') return statusColor(record.status);
+  return 'text-(--muted)';
 }
