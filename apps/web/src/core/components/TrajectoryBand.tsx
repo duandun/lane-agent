@@ -21,7 +21,7 @@ const KIND_LABEL: Record<TrajectoryRecord['kind'], string> = {
 const LANES: { key: string; label: string; kinds: TrajectoryKind[] }[] = [
   { key: 'input', label: '输入', kinds: ['user', 'context'] },
   { key: 'model', label: '模型', kinds: ['step', 'text', 'reasoning', 'compaction'] },
-  { key: 'tool', label: '工具', kinds: ['tool'] },
+  { key: 'tool', label: '工具', kinds: ['tool', 'system'] },
 ];
 
 function segmentColor(record: TrajectoryRecord): string {
@@ -50,8 +50,8 @@ export default function TrajectoryBand({
   onSelect: (record: TrajectoryRecord) => void;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
-  // system 不在轨迹带展示，但保留其余记录的全局顺序。
-  const visible = records.filter((record) => record.kind !== 'system');
+  // 所有记录都占一列，系统操作也进入工具泳道，保证顺序轴完整。
+  const visible = records;
 
   useLayoutEffect(() => {
     const el = scrollRef.current;
