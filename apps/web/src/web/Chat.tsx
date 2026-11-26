@@ -731,6 +731,8 @@ export default function Chat({ conn, onDisconnect }: { conn: Conn; onDisconnect:
         <SaveSkillModal
           open={saveSkillOpen}
           blocks={blocks}
+          client={client}
+          model={model}
           onClose={() => setSaveSkillOpen(false)}
           onSaved={(saved) => void handleSkillSaved(saved)}
         />

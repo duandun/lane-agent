@@ -71,6 +71,38 @@ function today(): string {
   return new Date().toISOString().slice(0, 10).replace(/-/g, '');
 }
 
+function firstLine(text: string, max = 40): string {
+  const line = text.trim().split('\n')[0];
+  return line.length > max ? `${line.slice(0, max)}…` : line;
+}
+
+function clip(text: string, max: number): string {
+  return text.length > max ? `${text.slice(0, max)}…` : text;
+}
+
+/** 命令动词转成步骤标题里的中文动作，未知动词保留原文。 */
+const ACTION_LABELS: Record<string, string> = {
+  click: '点击',
+  type: '输入',
+  press: '按键',
+  focus: '聚焦',
+  clear: '清空',
+  launch: '打开',
+  wait: '等待',
+  screenshot: '截图',
+  find: '查找',
+  scroll: '滚动',
+  drag: '拖拽',
+  get: '读取',
+  is: '检查',
+  clipboard: '剪贴板',
+};
+
+function actionLabel(args: string): string {
+  const verb = args.trim().split(/\s+/)[0] ?? '';
+  return ACTION_LABELS[verb] ?? (verb || '执行');
+}
+
 function firstUserText(blocks: Block[]): string {
   const user = blocks.find((block) => block.kind === 'user');
   return user && user.kind === 'user' ? user.text.trim() : '';
@@ -140,6 +172,9 @@ export function draftSkill(
     for (const match of args.matchAll(/(?:^|\s)(\/[^\s"'`]+)/g)) {
       params.add(`- {{path}}：本次值 "${match[1]}"`);
     }
+    // 输入过的文本（歌名、文件名等）是最常变的参数。
+    const typed = args.match(/\btype\s+(?:\S+\s+)?(['"])(.*?)\1/);
+    if (typed) params.add(`- {{text}}：本次值 "${typed[2]}"`);
 
     if (block.status === 'error') {
       if (args.match(REF_RE)?.some((ref) => !refs.has(ref))) unresolved += 1;
@@ -150,13 +185,13 @@ export function draftSkill(
     }
 
     if (/^snapshot\b/.test(args)) {
-      steps.push(`观察当前界面：\`${bin} ${args}\``);
+      steps.push(`**观察界面**：\`${bin} ${args}\``);
       continue;
     }
 
     const matches = [...args.matchAll(REF_RE)];
     if (!matches.length) {
-      steps.push(`执行：\`${bin} ${args}\``);
+      steps.push(`**${actionLabel(args)}**：\`${bin} ${args}\``);
       continue;
     }
 
@@ -171,9 +206,13 @@ export function draftSkill(
       if (info.role) find.push('--role', info.role);
       if (info.name) find.push('--name', JSON.stringify(info.name));
       const label = info.name ?? info.role ?? '目标元素';
-      steps.push(`定位「${label}」：\`${find.join(' ')}\`，再执行 \`${bin} ${action}\``);
+      steps.push(
+        `**${actionLabel(args)}「${label}」**：先 \`${find.join(' ')}\`，再执行 \`${bin} ${action}\``
+      );
     } else {
-      steps.push(`执行：\`${bin} ${action}\`（原 ref 无法还原，请手动确认定位方式）`);
+      steps.push(
+        `**${actionLabel(args)}**：\`${bin} ${action}\`（原 ref 无法还原，先重新 snapshot 确认定位方式）`
+      );
     }
   }
 
@@ -184,38 +223,132 @@ export function draftSkill(
   const app = scopeApp;
   const name = opts.name ?? slugify(app) ?? `desktop-task-${today()}`;
   const userText = firstUserText(blocks);
-  const description =
-    opts.description ?? (userText || `在 ${app ?? '桌面应用'} 中完成一次操作。`).slice(0, 200);
+  const scenario = userText || `在 ${app ?? '桌面应用'} 中完成一次操作。`;
+  const description = opts.description ?? scenario.slice(0, 200);
+
+  // 结构对齐手写的 music-play：场景 → 执行循环 → 完整序列 → 参数 → 反模式。
+  const title = userText ? firstLine(userText) : app ? `${app} 操作` : '桌面操作';
+  const sequence = picked.flatMap((block) => {
+    const command = commandOf(block);
+    const parsed = command ? parseCommand(command) : null;
+    if (!parsed || block.status === 'error') return [];
+    return [`${bin} ${parsed.args.replace(REF_RE, '<ref>')}`];
+  });
 
   const body = [
-    `# ${app ? `${app} 操作` : '桌面操作'}`,
+    `# ${title}`,
     '',
-    `前置：${app ? `确保 ${app} 已打开，` : ''}界面处于操作开始前的状态。`,
+    `使用场景：${scenario}`,
     '',
-    '## 步骤',
+    '## 执行循环',
     '',
     steps.length
-      ? steps.map((step, index) => `${index + 1}. ${step}`).join('\n')
-      : '1. 重新观察目标应用后再执行。',
+      ? steps.map((step, index) => `${index + 1}. ${step}`).join('\n\n')
+      : '1. 重新观察目标界面后再执行。',
     '',
-    '## 验证',
+    '## 已验证的完整序列',
     '',
-    '重新 snapshot 或对目标元素执行 `is` / `get` 检查，确认结果符合预期；涉及文件时确认文件存在且内容正确。',
+    sequence.length
+      ? ['```bash', ...sequence, '```'].join('\n')
+      : '（本次没有成功保留的命令，先手动跑通一次再补到这里。）',
     '',
-    '## 参数',
+    '## 输入参数',
     '',
     params.size ? [...params].join('\n') : '- 无显式参数；需要时直接修改上面的命令。',
     '',
-    '## 错误处理',
+    '## 反模式',
     '',
-    '- `STALE_REF` / `AMBIGUOUS_TARGET`：重新 snapshot 或 find 定位，不复用旧 ref。',
+    '- 不要复用上一次 snapshot 的 ref：编号每次都会变，先重新 `find` / `snapshot` 定位。',
+    '- `STALE_REF` / `AMBIGUOUS_TARGET`：不要盲目重复点击，重新观察界面后再动手。',
     '- 只有 `error.disposition.retry === "safe"` 才重试；其余先读取当前状态再决定。',
-    pitfalls.length ? `\n### 已知坑\n\n${pitfalls.join('\n')}` : '',
+    pitfalls.length ? `\n### 本次失败的命令\n\n${pitfalls.join('\n')}` : '',
   ]
     .join('\n')
     .trimEnd();
 
   return { name, description, body, steps: picked.length, warnings };
+}
+
+const PROMPT_LIMIT = 24_000;
+
+/** 喂给模型的对话片段：只保留用户、助手、思考和有 agent-desktop 命令的工具调用。 */
+function transcript(blocks: Block[]): string {
+  const lines: string[] = [];
+  for (const block of blocks) {
+    if (block.kind === 'user') lines.push(`用户：${clip(block.text.trim(), 1500)}`);
+    else if (block.kind === 'text') lines.push(`助手：${clip(block.text.trim(), 1500)}`);
+    else if (block.kind === 'reasoning') lines.push(`思考：${clip(block.text.trim(), 1200)}`);
+    else if (block.kind === 'tool') {
+      const command = commandOf(block);
+      if (!command?.includes('agent-desktop')) continue;
+      const failure =
+        block.status === 'error' ? `（失败）输出：${clip(block.detail.trim(), 400)}` : '';
+      lines.push(`命令：${command}${failure}`);
+    }
+  }
+  return clip(lines.filter(Boolean).join('\n'), PROMPT_LIMIT);
+}
+
+/** 让当前模型按 music-play 的写法重写草稿。 */
+export function skillPrompt(
+  blocks: Block[],
+  opts: { bin?: string; draft?: SkillDraft } = {}
+): string {
+  const bin = opts.bin ?? 'agent-desktop';
+  const draft = opts.draft ?? draftSkill(blocks, { bin });
+  return [
+    '把下面这次 agent-desktop 桌面操作整理成一个可复用的 SKILL.md。',
+    '',
+    '要求：',
+    `- 命令统一用绝对路径 \`${bin}\`；元素用 \`find --app/--role/--name\` 定位，ref 写 \`<ref>\` 占位。`,
+    '- 只输出文件内容：YAML frontmatter（name 用 kebab-case，description 一句话写清做什么和触发词）加正文；不要用代码块包住整个文件，不要解释。',
+    '- 正文按顺序写：# 标题、使用场景、## 执行循环、## 已验证的完整序列、## 输入参数、## 反模式。',
+    '- 从对话和失败输出里提炼真实踩过的坑写进「反模式」；没发生过的不要编造，不确定的地方标「待确认」。',
+    '- 中文书写，命令和界面元素名保持原文。',
+    '',
+    '<对话记录>',
+    transcript(blocks),
+    '</对话记录>',
+    '',
+    '<参考草稿>',
+    draft.body,
+    '</参考草稿>',
+  ].join('\n');
+}
+
+/** 解析模型返回的 SKILL.md；没有 frontmatter 或正文时返回 null。 */
+export function parseSkill(
+  text: string
+): { name?: string; description?: string; body: string } | null {
+  const content = text
+    .trim()
+    .replace(/^```(?:markdown|md)?\s*\n/, '')
+    .replace(/\n```$/, '')
+    .trim();
+  const lines = content.split('\n');
+  if (lines[0]?.trim() !== '---') return null;
+  const end = lines.findIndex((line, index) => index > 0 && line.trim() === '---');
+  if (end < 0) return null;
+  const body = lines
+    .slice(end + 1)
+    .join('\n')
+    .trim();
+  if (!body) return null;
+  const field = (key: string): string | undefined => {
+    const line = lines.slice(1, end).find((item) => item.startsWith(`${key}:`));
+    if (!line) return undefined;
+    const value = line.slice(key.length + 1).trim();
+    // 多行块（| / >）不是单值，留给原描述，避免把符号本身写进 skill。
+    if (!value || value === '|' || value === '>') return undefined;
+    try {
+      const parsed = JSON.parse(value);
+      if (typeof parsed === 'string') return parsed;
+    } catch {
+      // 不是 JSON 时按纯文本处理。
+    }
+    return value.replace(/^['"]|['"]$/g, '') || undefined;
+  };
+  return { name: field('name'), description: field('description'), body };
 }
 
 /** 技能列表里是否已有该 skill：id 通常等于目录名，name 来自 frontmatter。 */
