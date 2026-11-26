@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "@lane/protocol": "workspace:*",
-    "@opencode/client": "^2.3.0",
+    "@opencode/client": "2.4.2",
     "@tanstack/react-virtual": "^3.14.28",
     "diff": "^9.0.0",
     "react-helmet-async": "^3.1.0",
