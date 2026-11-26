@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { Alert, App as AntdApp, Flex, Input, Modal, Typography } from 'antd';
+import { Alert, App as AntdApp, Button, Flex, Input, Modal, Typography } from 'antd';
 import { appBridge, type SaveSkillResult } from '../lib/bridge';
 import type { Block } from '../lib/blocks';
+import type { Client } from '../lib/client';
 import { errorText } from '../lib/error';
-import { draftSkill } from '../lib/skillDraft';
+import { draftSkill, parseSkill, skillPrompt } from '../lib/skillDraft';
+import type { SavedModel } from '../lib/store';
 import Field from './Field';
 
 const NAME_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
@@ -15,11 +17,15 @@ const NAME_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
 export default function SaveSkillModal({
   open,
   blocks,
+  client,
+  model,
   onClose,
   onSaved,
 }: {
   open: boolean;
   blocks: Block[];
+  client?: Client;
+  model?: SavedModel | null;
   onClose: () => void;
   onSaved: (saved: { path: string; name: string }) => void;
 }) {
@@ -30,8 +36,10 @@ export default function SaveSkillModal({
   const [warnings, setWarnings] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [rewriting, setRewriting] = useState(false);
   // 打开时快照 blocks，流式输出继续追加也不能覆盖用户已经改过的草稿。
   const blocksRef = useRef(blocks);
+  const binRef = useRef<string | undefined>(undefined);
   const touchedRef = useRef(false);
 
   useEffect(() => {
@@ -53,6 +61,7 @@ export default function SaveSkillModal({
     void appBridge?.skills
       .info()
       .then((info) => {
+        binRef.current = info.agentDesktopBin ?? undefined;
         if (cancelled || touchedRef.current || !info.agentDesktopBin) return;
         const next = draftSkill(blocksRef.current, { bin: info.agentDesktopBin });
         setName(next.name);
@@ -66,6 +75,32 @@ export default function SaveSkillModal({
       cancelled = true;
     };
   }, [open]);
+
+  // 让当前模型看完整对话重写草稿；失败时保留手动可编辑的规则草稿。
+  async function rewrite() {
+    if (!client) return;
+    setRewriting(true);
+    setError(null);
+    try {
+      const base = draftSkill(blocksRef.current, { bin: binRef.current });
+      const result = await client.experimental.generate.text({
+        prompt: skillPrompt(blocksRef.current, { bin: binRef.current, draft: base }),
+        model: model ? { providerID: model.providerID, id: model.id } : undefined,
+      });
+      const parsed = parseSkill(result.text);
+      if (!parsed) throw new Error('模型返回的内容不是 SKILL.md，请重试或手动编辑');
+      if (parsed.name) setName(parsed.name);
+      if (parsed.description) setDescription(parsed.description);
+      setBody(parsed.body);
+      setWarnings([]);
+      touchedRef.current = true;
+      message.success('已用 AI 重写草稿');
+    } catch (cause) {
+      setError(errorText(cause));
+    } finally {
+      setRewriting(false);
+    }
+  }
 
   async function save(overwrite = false) {
     if (!appBridge) return;
@@ -114,14 +149,24 @@ export default function SaveSkillModal({
       cancelText="取消"
       width={720}
       confirmLoading={saving}
-      okButtonProps={{ disabled: !appBridge }}
+      okButtonProps={{ disabled: !appBridge || rewriting }}
       onCancel={onClose}
       onOk={() => void save()}
     >
       <Flex vertical gap={12}>
-        <Typography.Text type="secondary" className="text-xs!">
-          把本次 agent-desktop 操作写成可复用的 skill；保存后刷新技能列表即可使用。
-        </Typography.Text>
+        <Flex justify="space-between" align="center" gap={12}>
+          <Typography.Text type="secondary" className="text-xs!">
+            把本次 agent-desktop 操作写成可复用的 skill；保存后刷新技能列表即可使用。
+          </Typography.Text>
+          <Button
+            size="small"
+            loading={rewriting}
+            disabled={!client}
+            onClick={() => void rewrite()}
+          >
+            用 AI 重写
+          </Button>
+        </Flex>
 
         {warnings.length > 0 && (
           <Alert
