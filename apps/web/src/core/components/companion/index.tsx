@@ -1,10 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
-import type { CompanionKind } from '@core/lib/store';
+import { Popover, Segmented } from 'antd';
+import { useAppStore, type CompanionKind } from '@core/lib/store';
 import CatFigure from './Cat';
 import EagleFigure from './Eagle';
 import './companion.css';
 
 const SIZE = 96;
+
+const KINDS: { value: CompanionKind; label: string }[] = [
+  { value: 'eagle', label: '小鹰' },
+  { value: 'cat', label: '小猫' },
+];
 
 export type CompanionState =
   'idle' | 'takeoff' | 'thinking' | 'talking' | 'reading' | 'soaring' | 'waiting' | 'error';
@@ -25,6 +31,8 @@ export default function Companion({
   }));
   const [dragging, setDragging] = useState(false);
   const offset = useRef<Pos | null>(null);
+  const anchor = useRef<HTMLDivElement>(null);
+  const setCompanion = useAppStore((state) => state.setCompanion);
 
   useEffect(() => {
     const clamp = () =>
@@ -61,18 +69,34 @@ export default function Companion({
   }
 
   return (
-    <div
-      className={`companion ${kind} state-${state}${dragging ? ' dragging' : ''}`}
-      style={{ left: pos.x, top: pos.y }}
-      onPointerDown={down}
-      onPointerMove={move}
-      onPointerUp={up}
-      onPointerCancel={up}
-      title="按住拖动"
-      role="img"
-      aria-label={kind === 'cat' ? '小猫助手' : '鹰助手'}
+    <Popover
+      trigger="hover"
+      placement="top"
+      mouseEnterDelay={0.15}
+      getPopupContainer={() => anchor.current ?? document.body}
+      content={
+        <Segmented
+          size="small"
+          value={kind}
+          options={KINDS}
+          onChange={(value) => setCompanion(value as CompanionKind)}
+        />
+      }
     >
-      {kind === 'cat' ? <CatFigure /> : <EagleFigure />}
-    </div>
+      <div
+        ref={anchor}
+        className={`companion ${kind} state-${state}${dragging ? ' dragging' : ''}`}
+        style={{ left: pos.x, top: pos.y }}
+        onPointerDown={down}
+        onPointerMove={move}
+        onPointerUp={up}
+        onPointerCancel={up}
+        title="按住拖动"
+        role="group"
+        aria-label={kind === 'cat' ? '小猫助手' : '鹰助手'}
+      >
+        {kind === 'cat' ? <CatFigure /> : <EagleFigure />}
+      </div>
+    </Popover>
   );
 }

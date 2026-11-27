@@ -50,7 +50,7 @@ import { errorText } from '@core/lib/error';
 import { deleteProviderModel } from '@core/lib/opencodeConfig';
 import { hasTurnOperation, isSkillLoaded } from '@core/lib/skillDraft';
 import { stopLanAgent } from '@core/lib/socket';
-import { useAppStore, type CompanionKind, type CustomModel } from '@core/lib/store';
+import { useAppStore, type CustomModel } from '@core/lib/store';
 
 type ModelOption = {
   value: string;
@@ -84,7 +84,6 @@ export default function Chat({ conn, onDisconnect }: { conn: Conn; onDisconnect:
   const themeMode = useAppStore((state) => state.themeMode);
   const setThemeMode = useAppStore((state) => state.setThemeMode);
   const companion = useAppStore((state) => state.companion);
-  const setCompanion = useAppStore((state) => state.setCompanion);
   const client = useMemo(() => makeClient(conn), [conn]);
   const {
     sessionID,
@@ -510,15 +509,6 @@ export default function Chat({ conn, onDisconnect }: { conn: Conn; onDisconnect:
             </Tooltip>
           </Flex>
           <Flex align="center" gap={8} className="shrink-0">
-            <Select<CompanionKind>
-              value={companion}
-              onChange={setCompanion}
-              options={[
-                { value: 'eagle', label: '小鹰' },
-                { value: 'cat', label: '小猫' },
-              ]}
-              popupMatchSelectWidth={false}
-            />
             <AgentPicker
               client={client}
               directory={conn.directory}
