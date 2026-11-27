@@ -5,7 +5,12 @@ import type { AgentInfo } from '@opencode/client';
 import type { Client } from '../lib/client';
 import { DEFAULT_AGENTS, type DefaultAgent } from '../lib/defaultAgents';
 import { errorText } from '../lib/error';
-import { deleteAgentConfig, saveAgentConfig, seedDefaultAgents } from '../lib/opencodeConfig';
+import {
+  deleteAgentConfig,
+  saveAgentConfig,
+  seedDefaultAgents,
+  seedLaneIdentity,
+} from '../lib/opencodeConfig';
 import { useAppStore, type CustomAgent } from '../lib/store';
 import CustomAgentModal from './CustomAgentModal';
 
@@ -69,6 +74,10 @@ export default function AgentPicker({
           // 写入失败不标记，下次连接重试；选中模板时仍会补写。
         }
       }
+      // 身份指令独立于角色播种：老目录也要补上，文件已存在时不覆盖。
+      await seedLaneIdentity(client, directory).catch(() => {
+        // 写入失败不影响聊天，下次打开页面重试。
+      });
       if (cancelled) return;
       await reloadAgents().catch(() => {
         // 角色列表属于可选 UI；拉取失败时保留空列表。

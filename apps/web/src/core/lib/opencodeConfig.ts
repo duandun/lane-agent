@@ -95,6 +95,51 @@ export async function saveAgentConfig(
   await saveOpencodeConfig(client, directory, path, config);
 }
 
+/** Lane 的自述指令：首次连接目录时写进项目配置的 instructions。 */
+export const LANE_IDENTITY_PATH = '.opencode/lane-identity.md';
+
+const LANE_IDENTITY = `# 身份
+你是 Lane（lane-agent），Lane 桌面应用里的 AI 编程助手，可以读写项目文件、运行命令、协助用户完成编码任务。
+当用户问你是谁、叫什么、由谁提供时，介绍自己是 Lane —— 运行在 Lane 桌面应用里的编程助手。
+系统提示词里出现的 "OpenCode" 只是底层运行框架（harness）的名字，不是你的名字；不要自称 OpenCode 或 opencode CLI。
+除身份外，继续遵守系统提示词里的其他规则。
+`;
+
+/**
+ * 确保项目引用并保存 Lane 的身份指令。
+ * 先写文件再改配置：服务端 reload 配置时指令文件必须已经存在，否则订阅不上。
+ * 已存在的文件不覆盖，用户可以直接改里面的介绍文案。
+ */
+export async function seedLaneIdentity(client: Client, directory: string) {
+  const location = locationOf(directory);
+  let created = false;
+  try {
+    await client.file.read({ location, path: LANE_IDENTITY_PATH });
+  } catch (cause) {
+    if ((cause as Error)?.name !== 'FileNotFoundError') throw cause;
+    await client.file.write({
+      location,
+      path: LANE_IDENTITY_PATH,
+      payload: new TextEncoder().encode(LANE_IDENTITY),
+    });
+    created = true;
+  }
+
+  const { path, config } = await loadOpencodeConfig(client, directory);
+  const instructions = Array.isArray(config.instructions) ? config.instructions : [];
+  if (instructions.includes(LANE_IDENTITY_PATH)) {
+    // 配置早就引用了这个文件（比如文件被删过），补建后重新 reload 一次让服务端订阅。
+    if (created) {
+      await client.location.reload({
+        headers: directory ? { 'x-opencode-directory': directory } : undefined,
+      });
+    }
+    return;
+  }
+  config.instructions = [...instructions, LANE_IDENTITY_PATH];
+  await saveOpencodeConfig(client, directory, path, config);
+}
+
 /** 首次连接目录时把内置默认角色合并进 opencode.json；已存在的同名角色不覆盖。 */
 export async function seedDefaultAgents(
   client: Client,
