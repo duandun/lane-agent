@@ -24,6 +24,10 @@ contextBridge.exposeInMainWorld('appBridge', {
     save: (input: { name: string; description: string; body: string; overwrite?: boolean }) =>
       ipcRenderer.invoke('skills:save', input),
   },
+  opencodeConfig: {
+    read: () => ipcRenderer.invoke('config:read'),
+    write: (content: string) => ipcRenderer.invoke('config:write', content),
+  },
   lan: {
     start: () => ipcRenderer.invoke('lan:start'),
     setCode: (code: string | null) => ipcRenderer.invoke('lan:setCode', code),

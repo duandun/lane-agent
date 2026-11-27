@@ -1,3 +1,4 @@
+import { registerConfigIpc } from './config.js';
 import { registerDialogIpc } from './dialog.js';
 import { registerExecIpc } from './exec.js';
 import { registerFsIpc } from './fs.js';
@@ -19,5 +20,6 @@ export function registerIpc() {
   registerDialogIpc();
   registerShellIpc();
   registerSkillsIpc();
+  registerConfigIpc();
   registerLanIpc();
 }

@@ -1,3 +1,4 @@
+import { appBridge } from './bridge';
 import type { Client } from './client';
 
 /** opencode.json 里的 provider 配置，只声明用到的字段。 */
@@ -60,6 +61,35 @@ export async function saveOpencodeConfig(
   await client.location.reload({
     headers: directory ? { 'x-opencode-directory': directory } : undefined,
   });
+}
+
+/** 读取自定义模型所在的配置：桌面端用 app 数据目录里的全局配置，浏览器版退回项目配置。 */
+export async function loadModelConfig(client: Client, directory: string) {
+  if (appBridge) {
+    const text = await appBridge.opencodeConfig.read();
+    if (!text.trim()) return {} as OpenCodeConfig;
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      throw new Error('app 配置不是合法 JSON，请检查应用数据目录里的 opencode.json');
+    }
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      throw new Error('app 配置格式不正确，请检查应用数据目录里的 opencode.json');
+    }
+    return parsed as OpenCodeConfig;
+  }
+  return (await loadOpencodeConfig(client, directory)).config;
+}
+
+/** 写回自定义模型配置；桌面端文件由内嵌服务端监听，改完自动热加载。 */
+export async function saveModelConfig(client: Client, directory: string, config: OpenCodeConfig) {
+  if (appBridge) {
+    await appBridge.opencodeConfig.write(`${JSON.stringify(config, null, 2)}\n`);
+    return;
+  }
+  const { path } = await loadOpencodeConfig(client, directory);
+  await saveOpencodeConfig(client, directory, path, config);
 }
 
 /** opencode.json 里的 agent 配置，只声明用到的字段。 */
@@ -169,15 +199,15 @@ export async function deleteAgentConfig(client: Client, directory: string, agent
   await saveOpencodeConfig(client, directory, path, config);
 }
 
-/** 从项目配置里删掉一个自定义模型；Provider 下没有模型了就一并移除。 */
+/** 从配置里删掉一个自定义模型；Provider 下没有模型了就一并移除。 */
 export async function deleteProviderModel(
   client: Client,
   directory: string,
   providerID: string,
   modelID: string
 ) {
-  const { path, config } = await loadOpencodeConfig(client, directory);
-  const providers = { ...(config.providers as Record<string, ProviderConfig> | undefined) };
+  const config = await loadModelConfig(client, directory);
+  const providers = { ...((config.providers as Record<string, ProviderConfig> | undefined) ?? {}) };
   const provider = providers[providerID];
   if (!provider) return;
 
@@ -187,5 +217,5 @@ export async function deleteProviderModel(
   else delete providers[providerID];
 
   config.providers = providers;
-  await saveOpencodeConfig(client, directory, path, config);
+  await saveModelConfig(client, directory, config);
 }

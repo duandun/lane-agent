@@ -3,7 +3,7 @@ import { App as AntdApp, Flex, Input, Modal, Typography } from 'antd';
 import type { Client } from '../lib/client';
 import { useAppStore, type CustomModel } from '../lib/store';
 import { errorText } from '../lib/error';
-import { loadOpencodeConfig, saveOpencodeConfig, type ProviderConfig } from '../lib/opencodeConfig';
+import { loadModelConfig, saveModelConfig, type ProviderConfig } from '../lib/opencodeConfig';
 import Field from './Field';
 
 const PACKAGE = '@opencode/ai/providers/openai-compatible';
@@ -66,7 +66,7 @@ export default function CustomModelModal({
 
     setSaving(true);
     try {
-      const { path, config } = await loadOpencodeConfig(client, directory);
+      const config = await loadModelConfig(client, directory);
       const providers = {
         ...((config.providers as Record<string, ProviderConfig> | undefined) ?? {}),
       };
@@ -95,7 +95,7 @@ export default function CustomModelModal({
         });
       }
 
-      await saveOpencodeConfig(client, directory, path, config);
+      await saveModelConfig(client, directory, config);
 
       const saved: CustomModel = {
         providerID: pid,

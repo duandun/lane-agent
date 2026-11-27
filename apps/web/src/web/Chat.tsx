@@ -211,6 +211,8 @@ export default function Chat({ conn, onDisconnect }: { conn: Conn; onDisconnect:
       modelID: item.id,
     }));
     setModelOptions(options);
+    // 空列表说明 provider 目录还在加载，先保留偏好，等下一轮重试。
+    if (!options.length) return options;
 
     // 保存的模型如果已不在目录里，清掉偏好并退回服务端默认模型。
     const valid = (ref: ModelRef) =>
@@ -225,12 +227,32 @@ export default function Chat({ conn, onDisconnect }: { conn: Conn; onDisconnect:
     }
 
     setModelsReady(true);
+    return options;
+  }
+
+  // 服务端 provider 目录在启动和配置 reload 后会短暂返回空列表或旧列表，轮询到满足条件为止。
+  // shortcut: 最多等 30 秒，超时保持当前列表，重开页面才会刷新。
+  async function reloadModelsWhenReady(
+    selected: ModelRef | null,
+    ready: (options: ModelOption[]) => boolean = (options) => options.length > 0,
+    alive: () => boolean = () => true
+  ) {
+    for (let attempt = 0; attempt < 60 && alive(); attempt++) {
+      try {
+        if (ready(await reloadModels(selected))) return;
+      } catch {
+        // 模型列表属于可选 UI；拉取失败时仍使用服务端默认模型。
+      }
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    }
   }
 
   useEffect(() => {
-    reloadModels(useAppStore.getState().model).catch(() => {
-      // 模型列表属于可选 UI；拉取失败时仍使用服务端默认模型。
-    });
+    let alive = true;
+    void reloadModelsWhenReady(useAppStore.getState().model, undefined, () => alive);
+    return () => {
+      alive = false;
+    };
   }, [client, conn.directory]);
 
   // 会话创建 / 切换后补一次模型切换，避免默认模型比会话晚返回。
@@ -262,7 +284,14 @@ export default function Chat({ conn, onDisconnect }: { conn: Conn; onDisconnect:
       await deleteProviderModel(client, conn.directory, custom.providerID, custom.modelID);
       removeCustomModel(custom);
       message.success('自定义模型已删除');
-      await reloadModels(model);
+      // 等删掉的模型从目录里消失，避免 reload 期间拿到旧列表留在下拉里。
+      await reloadModelsWhenReady(
+        model,
+        (options) =>
+          !options.some(
+            (item) => item.providerID === custom.providerID && item.modelID === custom.modelID
+          )
+      );
     } catch (cause) {
       message.error(errorText(cause));
     }
@@ -727,7 +756,12 @@ export default function Chat({ conn, onDisconnect }: { conn: Conn; onDisconnect:
             setEditingModel(null);
           }}
           onSaved={async (saved) => {
-            await reloadModels(model);
+            // 等新模型真的出现在目录里再切换，reload 期间列表会短暂为空或还是旧的。
+            await reloadModelsWhenReady(model, (options) =>
+              options.some(
+                (item) => item.providerID === saved.providerID && item.modelID === saved.modelID
+              )
+            );
             const ref = { providerID: saved.providerID, id: saved.modelID };
             setModel(ref);
             await switchModel(ref);

@@ -68,6 +68,11 @@ export type AppBridge = {
     info: () => Promise<SkillInfo>;
     save: (input: SaveSkillInput) => Promise<SaveSkillResult>;
   };
+  /** app 数据目录里的 opencode 配置（自定义模型等），桌面端独有。 */
+  opencodeConfig: {
+    read: () => Promise<string>;
+    write: (content: string) => Promise<void>;
+  };
   lan: {
     start: () => Promise<PhoneLanInfo>;
     setCode: (code: string | null) => Promise<void>;

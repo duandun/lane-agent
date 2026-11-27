@@ -40,12 +40,16 @@ async function start(message: StartMessage): Promise<void> {
   const program = Effect.scoped(
     Effect.gen(function* () {
       const server = yield* ServerProcess.start<never, never>({
-        app: { name: 'lane-desktop', version: '0.1.0' },
+        // 免费额度网关按 User-Agent 里的 opencode 版本判断，传的必须是内嵌 server 的版本
+        // （≥1.18.0），升级 @opencode/server 时这里一起改。
+        app: { name: 'lane-desktop', version: '2.4.2' },
         hostname: '127.0.0.1',
         port: 0,
         password: message.password,
         cors: message.cors,
         database: { path: join(message.dataDir, 'opencode.db') },
+        // 自定义模型等 app 级配置写在这个文件里（不影响项目目录），服务端会监听它热加载。
+        config: { file: join(message.dataDir, 'opencode.json') },
       });
       const url = HttpServer.formatAddress(server.address);
       console.log(`embedded opencode server listening on ${url}`);

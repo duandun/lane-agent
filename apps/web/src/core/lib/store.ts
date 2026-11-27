@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
+import { appBridge } from './bridge';
 import type { Conn } from './client';
 
 export type ThemeMode = 'auto' | 'light' | 'dark';
@@ -12,6 +13,8 @@ const STORE_KEY = 'lane.store';
 
 type AppState = {
   conn: Conn | null;
+  /** 上次连接的项目目录；桌面端不持久化凭据，启动时只靠它恢复工作目录。 */
+  directory: string;
   themeMode: ThemeMode;
   companion: CompanionKind;
   model: SavedModel | null;
@@ -38,13 +41,14 @@ export const useAppStore = create<AppState & AppActions>()(
   persist(
     (set) => ({
       conn: null,
+      directory: '',
       themeMode: 'auto',
       companion: 'eagle',
       model: null,
       customModels: [],
       customAgents: [],
       seededAgentDirs: [],
-      connect: (conn) => set({ conn }),
+      connect: (conn) => set((state) => ({ conn, directory: conn.directory || state.directory })),
       disconnect: () => set({ conn: null }),
       setThemeMode: (themeMode) => set({ themeMode }),
       setCompanion: (companion) => set({ companion }),
@@ -95,6 +99,7 @@ export const useAppStore = create<AppState & AppActions>()(
       // 只持久化数据，不写入 action。
       partialize: ({
         conn,
+        directory,
         themeMode,
         companion,
         model,
@@ -102,7 +107,9 @@ export const useAppStore = create<AppState & AppActions>()(
         customAgents,
         seededAgentDirs,
       }) => ({
-        conn,
+        // 桌面端的内嵌服务每次启动都换端口和密码，凭据不落盘；地址由主进程启动时下发。
+        conn: appBridge ? null : conn,
+        directory,
         themeMode,
         companion,
         model,
