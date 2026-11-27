@@ -85,6 +85,7 @@ Electron 生产环境把 `apps/desktop/dist/`（构建时从 `apps/web/dist` 拷
 ### 样式与主题
 
 - Tailwind CSS v4（`@tailwindcss/vite`），`apps/web/src/core/styles.css` 用 `@source '../'` 扫描源码。新代码优先写工具类；覆盖 antd 内置样式时用 `!`（例如 `text-xs!`）。
+- 需要伪元素/渐变这类工具类不好表达的样式用 `styled-components`（目前只有 `SaveSkillModal` 的「用 AI 重写」按钮）。
 - 页面骨架颜色走 CSS 变量（`--bg`、`--panel`、`--line`、`--muted` 等），写法如 `text-(--muted)`；暗/亮主题通过 `:root[data-theme]` 切换。
 - antd / antdX 组件的颜色和字体走 `apps/web/src/core/lib/theme.ts` 的 token（`darkTheme` / `lightTheme`），两套主题必须同步改。
 - 跨目录 import 用 `@core/*`、`@web/*`、`@assets/*`；新增别名时 `apps/web/vite.config.ts` 的 `resolve.alias` 和 `apps/web/tsconfig.json` 的 `paths` 要一起改。

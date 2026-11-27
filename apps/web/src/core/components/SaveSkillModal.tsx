@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Alert, App as AntdApp, Button, Flex, Input, Modal, Typography } from 'antd';
+import { styled } from 'styled-components';
 import { appBridge, type SaveSkillResult } from '../lib/bridge';
 import type { Block } from '../lib/blocks';
 import type { Client } from '../lib/client';
@@ -9,6 +10,29 @@ import type { SavedModel } from '../lib/store';
 import Field from './Field';
 
 const NAME_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
+
+// 「用 AI 重写」按钮：主色渐变底，hover 时退回 antd 默认主按钮样式。
+const GradientButton = styled(Button)`
+  &.ant-btn-primary:not([disabled]):not(.ant-btn-dangerous) {
+    > span {
+      position: relative;
+    }
+
+    &::before {
+      content: '';
+      background: var(--ai-avatar);
+      position: absolute;
+      inset: -1px;
+      opacity: 1;
+      transition: all 0.3s;
+      border-radius: inherit;
+    }
+
+    &:hover::before {
+      opacity: 0;
+    }
+  }
+`;
 
 /**
  * 把当前轮次的操作整理成 SKILL.md 草稿，
@@ -158,14 +182,15 @@ export default function SaveSkillModal({
           <Typography.Text type="secondary" className="text-xs!">
             把本轮操作写成可复用的 skill；保存后刷新技能列表即可使用。
           </Typography.Text>
-          <Button
+          <GradientButton
             size="small"
+            type="primary"
             loading={rewriting}
             disabled={!client}
-            onClick={() => void rewrite()}
+            onClick={() => rewrite()}
           >
             用 AI 重写
-          </Button>
+          </GradientButton>
         </Flex>
 
         {warnings.length > 0 && (
