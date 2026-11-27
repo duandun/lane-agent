@@ -21,7 +21,7 @@ export default function Companion({
 }) {
   const [pos, setPos] = useState<Pos>(() => ({
     x: Math.max(0, window.innerWidth - SIZE - 24),
-    y: Math.max(0, window.innerHeight - SIZE - 24),
+    y: Math.max(0, window.innerHeight - 220 - 24),
   }));
   const [dragging, setDragging] = useState(false);
   const offset = useRef<Pos | null>(null);
