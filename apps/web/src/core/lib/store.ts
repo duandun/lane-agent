@@ -6,7 +6,13 @@ import type { Conn } from './client';
 export type ThemeMode = 'auto' | 'light' | 'dark';
 export type CompanionKind = 'eagle' | 'cat';
 export type SavedModel = { providerID: string; id: string };
-export type CustomModel = { providerID: string; modelID: string; name: string; baseURL: string };
+export type CustomModel = {
+  providerID: string;
+  modelID: string;
+  name: string;
+  baseURL: string;
+  apiKey: string;
+};
 export type CustomAgent = { id: string; description: string; system: string; model: string };
 
 const STORE_KEY = 'lane.store';

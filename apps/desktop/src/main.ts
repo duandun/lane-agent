@@ -1,5 +1,6 @@
 import { app, BrowserWindow, dialog } from 'electron';
 import { createServer } from 'node:http';
+import { mkdirSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { extname, join, normalize, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -70,6 +71,16 @@ async function load(win: BrowserWindow, url: string, retries = 100): Promise<voi
     if (retries === 0) throw error;
     setTimeout(() => void load(win, url, retries - 1), 300);
   }
+}
+
+// 免安装版把配置和数据库放在 exe 旁边（portable target 注入这个变量），否则仍在 AppData。
+// setPath 要求目录已存在；sessionData 不跟着 userData 自动改，否则 localStorage 仍留在 AppData。
+const portableDir = process.env.PORTABLE_EXECUTABLE_DIR;
+if (portableDir) {
+  const data = join(portableDir, 'data');
+  mkdirSync(data, { recursive: true });
+  app.setPath('userData', data);
+  app.setPath('sessionData', data);
 }
 
 const dev = process.argv.includes('--dev');

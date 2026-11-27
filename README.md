@@ -102,8 +102,23 @@ OPENCODE_PASSWORD=your-secret \
 ```
 
 - 同一个 provider 下可以放多个模型，编辑 / 删除会同步合并或移除对应条目；provider 没有模型后会整块删掉。
-- API Key 保存在服务端凭据库，不写进 `opencode.json`。
+- API Key 以明文写进同一份配置的 `settings.apiKey`（留空时沿用已保存的 Key）；没有凭据库的环境也能直接用。
 - 模型列表来自服务端的 `GET /api/model?types=chat`，所以保存后必须让服务端重新加载配置才会出现。
+
+### 配置文件在哪
+
+桌面端写的是 app 数据目录（Electron `app.getPath('userData')`，目录名取 package `name`），浏览器版写项目目录；opencode 自身的全局目录按 XDG 规则推导，Windows 上也用用户目录下的 `.config`，不读 `%APPDATA%`，可用 `OPENCODE_CONFIG_DIR` / `XDG_CONFIG_HOME` 覆盖：
+
+| 内容                        | macOS                                                                        | Windows                                                  |
+| --------------------------- | ---------------------------------------------------------------------------- | -------------------------------------------------------- |
+| 自定义模型配置（含 apiKey） | `~/Library/Application Support/lane-desktop/opencode-embedded/opencode.json` | `%APPDATA%\lane-desktop\opencode-embedded\opencode.json` |
+| 内嵌服务数据库              | 同目录 `opencode.db`                                                         | 同目录 `opencode.db`                                     |
+| opencode 全局配置           | `~/.config/opencode/opencode.json`                                           | `C:\Users\<用户>\.config\opencode\opencode.json`         |
+| 全局数据 / 缓存 / 状态      | `~/.local/share/opencode`、`~/.cache/opencode`、`~/.local/state/opencode`    | 同上，根目录换成 `C:\Users\<用户>`                       |
+| Skill 安装目录              | `~/.config/opencode/skills`                                                  | `C:\Users\<用户>\.config\opencode\skills`                |
+| 项目级                      | `<项目>/opencode.json`、`<项目>/.opencode/lane-identity.md`                  | 同左                                                     |
+
+Windows 免安装版（portable）会把整个数据目录指到 exe 同级的 `data\`，上表前两行随之变成 `<exe 目录>\data\opencode-embedded\opencode.json` 和 `...\opencode.db`，localStorage 也在 `<exe 目录>\data\` 下；全局配置、skill 和项目级文件仍在用户目录 / 项目里。
 
 ## Electron 桌面壳
 
@@ -113,9 +128,10 @@ bun run electron:start    # 构建 dist 后用 Electron 打开（离线）
 bun run electron:package      # 构建并打包 dist，产物在 apps/desktop/release/
 bun run electron:package:linux  # 同上，出 Linux x64 AppImage
 bun run electron:package:win  # 同上，出 Windows x64 安装包（macOS 上可直接交叉构建）
+bun run electron:package:win:portable  # 同上，出 Windows x64 免安装版
 ```
 
-Windows 产物是 NSIS 安装包 `apps/desktop/release/Lane Setup <版本>.exe`，未签名，首次运行会被 SmartScreen 拦一下（更多信息 → 仍要运行）。
+Windows 产物是 NSIS 安装包 `apps/desktop/release/Lane Setup <版本>.exe`，未签名，首次运行会被 SmartScreen 拦一下（更多信息 → 仍要运行）。免安装版是单文件 `apps/desktop/release/Lane <版本>.exe`，配置和数据库放在 exe 同级的 `data\` 目录，拷走 exe 和 `data\` 就能带走全部状态；`data\` 放在只读位置（如 Program Files、网络盘）时会启动失败。
 
 主进程用 TypeScript（`apps/desktop/src/*.ts`），`electron:*` 脚本会先清理并编译到 `apps/desktop/dist-electron/` 再启动或打包；该目录不进 git。只编译主进程用 `bun run build:app`。
 

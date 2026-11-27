@@ -1,5 +1,5 @@
 import { lazy, useEffect, useState } from 'react';
-import { App as AntdApp } from 'antd';
+import { App as AntdApp, Spin } from 'antd';
 import zhCN from 'antd/locale/zh_CN';
 import xZhCN from '@ant-design/x/locale/zh_CN';
 import { XProvider } from '@ant-design/x';
@@ -61,8 +61,9 @@ export default function App() {
       <XProvider theme={resolved === 'dark' ? darkTheme : lightTheme} locale={locale}>
         <AntdApp component={false}>
           {!ready ? (
-            <div className="flex h-full items-center justify-center text-sm text-(--muted)">
-              正在启动本地服务…
+            <div className="flex h-full flex-col items-center justify-center gap-3 text-sm text-(--muted)">
+              <Spin size="large" />
+              <span>正在启动…</span>
             </div>
           ) : conn ? (
             <LazyChat conn={conn} onDisconnect={disconnect} />

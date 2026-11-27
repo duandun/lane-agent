@@ -44,7 +44,7 @@ export default function CustomModelModal({
     setModelID(editing?.modelID ?? '');
     setName(editing?.name ?? '');
     setBaseURL(editing?.baseURL ?? '');
-    setApiKey('');
+    setApiKey(editing?.apiKey ?? '');
   }, [open, editing]);
 
   async function save() {
@@ -72,6 +72,8 @@ export default function CustomModelModal({
       };
       const existing = providers[pid] ?? {};
       const models = { ...existing.models };
+      // 留空时沿用之前保存的 Key。
+      const key = apiKey.trim() || '';
       // 编辑时改了模型 ID，就把旧模型从配置里挪走，避免留下失效条目。
       if (editing && editing.modelID !== mid) delete models[editing.modelID];
       models[mid] = { name: mid };
@@ -81,19 +83,10 @@ export default function CustomModelModal({
         name: name.trim() || existing.name || pid,
         env: [`${pid.replace(/[^A-Za-z0-9]+/g, '_').toUpperCase()}_API_KEY`],
         package: PACKAGE,
-        settings: { ...existing.settings, baseURL: url },
+        settings: { ...existing.settings, baseURL: url, ...(key ? { apiKey: key } : {}) },
         models,
       };
       config.providers = providers;
-
-      if (apiKey.trim()) {
-        await client.credential.create({
-          integrationID: pid,
-          label: pid,
-          value: { type: 'key', key: apiKey.trim() },
-          activate: true,
-        });
-      }
 
       await saveModelConfig(client, directory, config);
 
@@ -102,6 +95,7 @@ export default function CustomModelModal({
         modelID: mid,
         name: name.trim() || pid,
         baseURL: url,
+        apiKey: key,
       };
       saveCustomModel(saved, editing ?? undefined);
       message.success('自定义模型已保存');
@@ -170,7 +164,7 @@ export default function CustomModelModal({
         </Field>
         <Typography.Text type="secondary" className="text-xs!">
           保存会合并写入自定义模型配置并重新加载（桌面端在 app 数据目录，浏览器版在
-          {directory || 'server 默认目录'}/opencode.json）；Key 存在 server 凭据库。
+          {directory || 'server 默认目录'}/opencode.json）；Key 写进该配置。
         </Typography.Text>
       </Flex>
     </Modal>

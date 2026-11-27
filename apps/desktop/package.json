@@ -16,6 +16,7 @@
     "package": "bun run build:renderer && bun run build && node scripts/bundle-runtime.mjs && ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ ELECTRON_BUILDER_BINARIES_MIRROR=https://npmmirror.com/mirrors/electron-builder-binaries/ electron-builder",
     "package:linux": "bun run build:renderer && bun run build && node scripts/bundle-runtime.mjs && ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ ELECTRON_BUILDER_BINARIES_MIRROR=https://npmmirror.com/mirrors/electron-builder-binaries/ electron-builder --linux AppImage --x64",
     "package:win": "bun run build:renderer && bun run build && node scripts/bundle-runtime.mjs && ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ ELECTRON_BUILDER_BINARIES_MIRROR=https://npmmirror.com/mirrors/electron-builder-binaries/ electron-builder --win --x64",
+    "package:win:portable": "bun run build:renderer && bun run build && node scripts/bundle-runtime.mjs && ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ ELECTRON_BUILDER_BINARIES_MIRROR=https://npmmirror.com/mirrors/electron-builder-binaries/ electron-builder --win portable --x64",
     "check:embedded": "electron scripts/embedded.check.mjs",
     "clean": "node -e \"require('node:fs').rmSync('dist-electron',{recursive:true,force:true})\""
   },
