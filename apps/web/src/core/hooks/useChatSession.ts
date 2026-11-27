@@ -47,6 +47,7 @@ export function useChatSession(conn: Conn, client: Client) {
   const [sessions, setSessions] = useState<SessionInfo[]>([]);
   const [sessionCursor, setSessionCursor] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [loadingMessages, setLoadingMessages] = useState(false);
   const [agentID, setAgentID] = useState<string | null>(null);
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [steps, setSteps] = useState<Record<string, StepInfo>>({});
@@ -60,6 +61,8 @@ export function useChatSession(conn: Conn, client: Client) {
   const [error, setError] = useState<string | null>(null);
 
   const sessionRef = useRef<string | null>(null);
+  // 连续切换会话时，只让最后一次 openSession 收起 loading。
+  const openSeq = useRef(0);
 
   useEffect(() => {
     sessionRef.current = sessionID;
@@ -163,7 +166,13 @@ export function useChatSession(conn: Conn, client: Client) {
     setSteps({});
     setForms([]);
     setError(null);
-    await reload(id);
+    const seq = ++openSeq.current;
+    setLoadingMessages(true);
+    try {
+      await reload(id);
+    } finally {
+      if (seq === openSeq.current) setLoadingMessages(false);
+    }
     if (!info?.agent) {
       try {
         const detail = await client.session.get({ sessionID: id });
@@ -766,6 +775,7 @@ export function useChatSession(conn: Conn, client: Client) {
     sessions,
     hasMore: sessionCursor !== null,
     loadingMore,
+    loadingMessages,
     loadMore: loadMoreSessions,
     agentID,
     blocks,

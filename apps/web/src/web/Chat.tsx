@@ -9,6 +9,7 @@ import {
   Flex,
   Select,
   Segmented,
+  Spin,
   Tag,
   Tooltip,
   Typography,
@@ -90,6 +91,7 @@ export default function Chat({ conn, onDisconnect }: { conn: Conn; onDisconnect:
     sessions,
     hasMore,
     loadingMore,
+    loadingMessages,
     loadMore,
     agentID,
     blocks,
@@ -618,6 +620,10 @@ export default function Chat({ conn, onDisconnect }: { conn: Conn; onDisconnect:
               busy={busy}
               revision={revision}
             />
+          ) : loadingMessages ? (
+            <div className="flex min-h-0 flex-1 items-center justify-center">
+              <Spin />
+            </div>
           ) : (
             <Messages
               blocks={blocks}

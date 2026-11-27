@@ -345,7 +345,8 @@ export default function Messages({
           <Button
             size="small"
             className="pointer-events-auto shadow"
-            onClick={() => {
+            onClick={(evt) => {
+              evt.stopPropagation();
               setAtBottom(true);
               listRef.current?.scrollTo({ top: 'bottom', behavior: 'smooth' });
             }}

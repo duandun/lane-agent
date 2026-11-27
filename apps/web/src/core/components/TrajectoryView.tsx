@@ -374,11 +374,12 @@ export default function TrajectoryView({
           </div>
 
           {!stick && (
-            <div className="pointer-events-none sticky bottom-2 flex justify-center">
+            <div className="pointer-events-none absolute inset-x-0 bottom-2 flex justify-center">
               <Button
                 size="small"
                 className="pointer-events-auto shadow"
-                onClick={() => {
+                onClick={(evt) => {
+                  evt.stopPropagation();
                   setStick(true);
                   const el = scrollRef.current;
                   if (el) el.scrollTop = el.scrollHeight;
