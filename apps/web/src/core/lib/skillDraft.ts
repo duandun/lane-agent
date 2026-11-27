@@ -103,8 +103,17 @@ function actionLabel(args: string): string {
   return ACTION_LABELS[verb] ?? (verb || '执行');
 }
 
-function firstUserText(blocks: Block[]): string {
-  const user = blocks.find((block) => block.kind === 'user');
+/** 一轮 = 最后一条用户消息及其之后的助手/工具输出。 */
+function lastTurn(blocks: Block[]): Block[] {
+  let start = 0;
+  blocks.forEach((block, index) => {
+    if (block.kind === 'user') start = index;
+  });
+  return blocks.slice(start);
+}
+
+function lastUserText(blocks: Block[]): string {
+  const user = [...blocks].reverse().find((block) => block.kind === 'user');
   return user && user.kind === 'user' ? user.text.trim() : '';
 }
 
@@ -123,12 +132,10 @@ function refMap(blocks: Block[]): Map<string, RefInfo> {
   return map;
 }
 
-export function hasAgentDesktopRun(blocks: Block[]): boolean {
-  return blocks.some(
-    (block) =>
-      block.kind === 'tool' &&
-      block.status !== 'running' &&
-      (commandOf(block)?.includes('agent-desktop') ?? false)
+/** 当前轮次里至少有一条执行完的命令 */
+export function hasTurnOperation(blocks: Block[]): boolean {
+  return lastTurn(blocks).some(
+    (block) => block.kind === 'tool' && block.status !== 'running' && Boolean(commandOf(block))
   );
 }
 
@@ -137,14 +144,13 @@ export function draftSkill(
   opts: { name?: string; description?: string; bin?: string } = {}
 ): SkillDraft {
   const bin = opts.bin ?? 'agent-desktop';
-  const refs = refMap(blocks);
+  const turn = lastTurn(blocks);
+  const refs = refMap(turn);
   const warnings: string[] = [];
 
-  const tools = blocks.filter(
+  const tools = turn.filter(
     (block): block is ToolBlock =>
-      block.kind === 'tool' &&
-      block.status !== 'running' &&
-      (commandOf(block)?.includes('agent-desktop') ?? false)
+      block.kind === 'tool' && block.status !== 'running' && Boolean(commandOf(block))
   );
   const picked = tools.slice(0, MAX_STEPS);
   if (tools.length > MAX_STEPS) {
@@ -160,8 +166,21 @@ export function draftSkill(
 
   for (const block of picked) {
     const command = commandOf(block);
-    const parsed = command ? parseCommand(command) : null;
-    if (!parsed) continue;
+    if (!command) continue;
+    const parsed = parseCommand(command);
+
+    // 非 agent-desktop 的普通命令（npm / git / 脚本）原样当步骤。
+    if (!parsed) {
+      if (block.status === 'error') {
+        pitfalls.push(
+          `- 上次失败的命令：\`${command}\`（输出：${clip(block.detail.trim(), 200)}）`
+        );
+      } else {
+        steps.push(`**执行**：\`${command}\``);
+      }
+      continue;
+    }
+
     const { args } = parsed;
 
     const app = flagValue(args, '--app');
@@ -221,8 +240,8 @@ export function draftSkill(
   }
 
   const app = scopeApp;
-  const name = opts.name ?? slugify(app) ?? `desktop-task-${today()}`;
-  const userText = firstUserText(blocks);
+  const name = opts.name ?? slugify(app) ?? `task-${today()}`;
+  const userText = lastUserText(turn);
   const scenario = userText || `在 ${app ?? '桌面应用'} 中完成一次操作。`;
   const description = opts.description ?? scenario.slice(0, 200);
 
@@ -230,9 +249,9 @@ export function draftSkill(
   const title = userText ? firstLine(userText) : app ? `${app} 操作` : '桌面操作';
   const sequence = picked.flatMap((block) => {
     const command = commandOf(block);
-    const parsed = command ? parseCommand(command) : null;
-    if (!parsed || block.status === 'error') return [];
-    return [`${bin} ${parsed.args.replace(REF_RE, '<ref>')}`];
+    if (!command || block.status === 'error') return [];
+    const parsed = parseCommand(command);
+    return [parsed ? `${bin} ${parsed.args.replace(REF_RE, '<ref>')}` : command];
   });
 
   const body = [
@@ -258,8 +277,16 @@ export function draftSkill(
     '',
     '## 反模式',
     '',
-    '- 不要复用上一次 snapshot 的 ref：编号每次都会变，先重新 `find` / `snapshot` 定位。',
-    '- `STALE_REF` / `AMBIGUOUS_TARGET`：不要盲目重复点击，重新观察界面后再动手。',
+    // ref / 无障碍标签这些坑只对 agent-desktop 命令成立。
+    ...(picked.some((block) => {
+      const command = commandOf(block);
+      return command ? parseCommand(command) !== null : false;
+    })
+      ? [
+          '- 不要复用上一次 snapshot 的 ref：编号每次都会变，先重新 `find` / `snapshot` 定位。',
+          '- `STALE_REF` / `AMBIGUOUS_TARGET`：不要盲目重复点击，重新观察界面后再动手。',
+        ]
+      : []),
     '- 只有 `error.disposition.retry === "safe"` 才重试；其余先读取当前状态再决定。',
     pitfalls.length ? `\n### 本次失败的命令\n\n${pitfalls.join('\n')}` : '',
   ]
@@ -271,16 +298,16 @@ export function draftSkill(
 
 const PROMPT_LIMIT = 24_000;
 
-/** 喂给模型的对话片段：只保留用户、助手、思考和有 agent-desktop 命令的工具调用。 */
+/** 喂给模型的对话片段：当前轮次的用户、助手、思考和所有工具命令。 */
 function transcript(blocks: Block[]): string {
   const lines: string[] = [];
-  for (const block of blocks) {
+  for (const block of lastTurn(blocks)) {
     if (block.kind === 'user') lines.push(`用户：${clip(block.text.trim(), 1500)}`);
     else if (block.kind === 'text') lines.push(`助手：${clip(block.text.trim(), 1500)}`);
     else if (block.kind === 'reasoning') lines.push(`思考：${clip(block.text.trim(), 1200)}`);
     else if (block.kind === 'tool') {
       const command = commandOf(block);
-      if (!command?.includes('agent-desktop')) continue;
+      if (!command) continue;
       const failure =
         block.status === 'error' ? `（失败）输出：${clip(block.detail.trim(), 400)}` : '';
       lines.push(`命令：${command}${failure}`);
@@ -297,10 +324,10 @@ export function skillPrompt(
   const bin = opts.bin ?? 'agent-desktop';
   const draft = opts.draft ?? draftSkill(blocks, { bin });
   return [
-    '把下面这次 agent-desktop 桌面操作整理成一个可复用的 SKILL.md。',
+    '把下面这一轮的操作整理成一个可复用的 SKILL.md。',
     '',
     '要求：',
-    `- 命令统一用绝对路径 \`${bin}\`；元素用 \`find --app/--role/--name\` 定位，ref 写 \`<ref>\` 占位。`,
+    `- agent-desktop 命令统一用绝对路径 \`${bin}\`，元素用 \`find --app/--role/--name\` 定位，ref 写 \`<ref>\` 占位；其他命令保留原文。`,
     '- 只输出文件内容：YAML frontmatter（name 用 kebab-case，description 一句话写清做什么和触发词）加正文；不要用代码块包住整个文件，不要解释。',
     '- 正文按顺序写：# 标题、使用场景、## 执行循环、## 已验证的完整序列、## 输入参数、## 反模式。',
     '- 从对话和失败输出里提炼真实踩过的坑写进「反模式」；没发生过的不要编造，不确定的地方标「待确认」。',

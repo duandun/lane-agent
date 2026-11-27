@@ -11,7 +11,7 @@ import Field from './Field';
 const NAME_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
 
 /**
- * 把本次会话里的 agent-desktop 操作整理成 SKILL.md 草稿，
+ * 把当前轮次的操作整理成 SKILL.md 草稿，
  * 用户确认后写入 ~/.config/opencode/skills/<name>/SKILL.md。
  */
 export default function SaveSkillModal({
@@ -156,7 +156,7 @@ export default function SaveSkillModal({
       <Flex vertical gap={12}>
         <Flex justify="space-between" align="center" gap={12}>
           <Typography.Text type="secondary" className="text-xs!">
-            把本次 agent-desktop 操作写成可复用的 skill；保存后刷新技能列表即可使用。
+            把本轮操作写成可复用的 skill；保存后刷新技能列表即可使用。
           </Typography.Text>
           <Button
             size="small"
