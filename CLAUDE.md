@@ -34,16 +34,17 @@ bun run electron:package # 打包当前平台产物到 apps/desktop/release/
 bun run electron:package:linux
 bun run electron:package:win
 
-bun run bundle:cli       # 下载内置 opencode CLI 到 apps/desktop/resources/opencode-cli/
 bun run bundle:runtime   # 复制 npm / agent-desktop 到 apps/desktop/.npm-bundle/
+bun run test             # vitest run（注意不是 bun test）
 bun run format           # Prettier（apps/mobile、apps/server 在 .prettierignore 里）
 bun run format:check
 ```
 
-没有测试和 lint 脚本。类型检查：
+单元测试用根目录的 vitest，测试文件在 `apps/web/test/*.test.ts`；`apps/desktop` 里需要 Electron 的集成检查仍是 `check:embedded`、`check:phone-lan`。没有 lint 脚本。类型检查：
 
 ```bash
 npx tsc -p apps/web/tsconfig.json
+npx tsc -p apps/web/tsconfig.test.json  # test 目录（含被引用的 src）
 npx tsc -p apps/desktop/tsconfig.json
 npx tsc --noEmit -p apps/mobile/tsconfig.json
 ```
@@ -54,7 +55,7 @@ npx tsc --noEmit -p apps/mobile/tsconfig.json
 
 - `apps/web/src/web/` — 渲染进程入口与页面：`App`（连接态切换）、`Connect`、`Chat`。
 - `apps/web/src/core/` — 渲染侧共用代码：`components/`、`hooks/`（`useChatSession`、`useThemeMode`、`usePhoneSync`）、`lib/`（客户端、block 映射、主题 token、电话同步）、`styles.css`。
-- `apps/desktop/src/` — Electron 主进程（独立 tsconfig，NodeNext，`rootDir: src`，编译到 `dist-electron`）：静态服务、本地 opencode 服务、IPC、agent-desktop skill 安装。
+- `apps/desktop/src/` — Electron 主进程（独立 tsconfig，NodeNext，`rootDir: src`，编译到 `dist-electron`）：静态服务、IPC、agent-desktop skill 安装；本地 opencode 服务由 `embedded.ts` 通过 `utilityProcess` 启动 `embedded-host.ts`（内嵌 `@opencode/server`，不再使用 opencode CLI）。
 - `apps/mobile/` — 原 lane-serve/web 全量拷入；`src/routes/{index,phone}.tsx` 是监控页和手机页，`vite.config.ts` 把 `/api`、`/socket.io` 代理到 6060。
 - `apps/server/src/server.js` — Express 5 + Socket.IO；事件名与限额在这里保留一份，不引 `@lane/protocol`（部署时要能脱离 monorepo 独立 `npm ci`）。
 
@@ -64,7 +65,7 @@ Electron 生产环境把 `apps/desktop/dist/`（构建时从 `apps/web/dist` 拷
 
 - `useChatSession` 是聊天状态的唯一来源：每次打开页面新建一个 session，订阅 `client.event.subscribe()` 的 SSE 事件，增量维护 `Block[]`。
 - 一轮运行结束的可靠信号是 `session.execution.succeeded / failed / interrupted`；`session.idle` 只表示会话安静，不能单独当作跑完。结束时用 `message.list`（limit 上限 200）从服务端重建 block 列表，抵消客户端的乐观状态漂移。
-- `@opencode/client/service` 只能在 Node 里用；渲染进程一律通过 `makeClient(conn)` 走 HTTP Basic Auth，用户名固定 `opencode`。
+- 本地服务由 `@opencode/server` 在 utilityProcess 里监听 `127.0.0.1` 随机端口；渲染进程一律通过 `makeClient(conn)` 走 HTTP Basic Auth，用户名固定 `opencode`。
 - 手机同步：`packages/protocol` 定义事件名、`PhoneMessage` 和限额；web 端 `core/lib/socket.ts` / `phone.ts` 发送，mobile 端 `routes/phone.tsx` 接收，server 只做房间转发与校验。
 - 手机直连：桌面端配对时由 `apps/desktop/src/phoneLan.ts` 起一个局域网 Socket.IO 端点（token 鉴权、只转发同一连接码），`apps/web/core/lib/socket.ts` 同时接中继和本地端点；二维码里带 `lan` 候选和 `token`，手机端先探测直连、失败或断线回退中继。浏览器版没有 `appBridge`，只走中继。
 - 操作存为 skill：只取当前轮次（最后一条用户消息之后）有命令的已完成工具调用，普通命令也算，不限于 agent-desktop；提取逻辑在 `apps/web/src/core/lib/skillDraft.ts`（自检 `apps/web/scripts/skill-draft.check.ts`），保存走 `apps/desktop/src/ipc/skills.ts` 的 `skills:info` / `skills:save`；只写 `~/.config/opencode/skills`，拒绝覆盖 `agent-desktop` 或带 `.installed` 的受管 skill。弹窗里的「用 AI 重写」走 `client.experimental.generate.text`（当前模型 + 当前轮次对话），失败时保留规则草稿。
@@ -100,6 +101,7 @@ Electron 生产环境把 `apps/desktop/dist/`（构建时从 `apps/web/dist` 拷
 
 - 打开页面恢复当前目录最近更新的会话（`session.list` 首屏 30 个，可继续加载，排除子代理和归档会话）；运行中禁止切换。
 - 会话消息只加载最近 200 条（`message.list` 的 limit 上限），更早的消息不会显示在界面上。
+- 内嵌 server（2.4.2）没有 `/health`，`serverHealth` 只用于日志会拿到 404；需要健康检查时改用实际 API。
 - 对话轨迹有独立 cursor 分页，但只搜索/统计已加载页面；轨迹带固定 18×14px、按输入/模型/工具三层排列，不表达时间间隔；切回对话再进入轨迹会重新拉第一页；没有图片灯箱。
 - 服务端 CORS 必须显式包含当前页面 origin（协议+主机+端口，无路径、无尾斜杠），多个 origin 重复传 `--cors`。
 - 权限弹窗依赖 `permission.asked` 事件；服务端权限全 allow 时不会出现。

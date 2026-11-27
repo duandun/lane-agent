@@ -8,14 +8,16 @@
   "type": "module",
   "main": "dist-electron/main.js",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "bun run clean && tsc -p tsconfig.json",
     "check:phone-lan": "bun scripts/phone-lan.check.ts",
     "build:renderer": "(cd ../web && bun run build) && rm -rf dist && cp -R ../web/dist dist",
-    "dev": "tsc -p tsconfig.json && ((cd ../web && exec bun run dev) & VITE_PID=$!; trap 'kill $VITE_PID' EXIT; electron . --dev)",
-    "start": "bun run build:renderer && tsc -p tsconfig.json && electron .",
-    "package": "bun run build:renderer && tsc -p tsconfig.json && node scripts/bundle-runtime.mjs && node scripts/bundle-opencode-cli.mjs && ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ ELECTRON_BUILDER_BINARIES_MIRROR=https://npmmirror.com/mirrors/electron-builder-binaries/ electron-builder",
-    "package:linux": "bun run build:renderer && tsc -p tsconfig.json && node scripts/bundle-runtime.mjs && OPENCODE_TARGET=linux-x64 node scripts/bundle-opencode-cli.mjs && ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ ELECTRON_BUILDER_BINARIES_MIRROR=https://npmmirror.com/mirrors/electron-builder-binaries/ electron-builder --linux AppImage --x64",
-    "package:win": "bun run build:renderer && tsc -p tsconfig.json && node scripts/bundle-runtime.mjs && OPENCODE_TARGET=windows-x64 node scripts/bundle-opencode-cli.mjs && ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ ELECTRON_BUILDER_BINARIES_MIRROR=https://npmmirror.com/mirrors/electron-builder-binaries/ electron-builder --win --x64"
+    "dev": "bun run build && ((cd ../web && exec bun run dev) & VITE_PID=$!; trap 'kill $VITE_PID' EXIT; electron . --dev)",
+    "start": "bun run build:renderer && bun run build && electron .",
+    "package": "bun run build:renderer && bun run build && node scripts/bundle-runtime.mjs && ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ ELECTRON_BUILDER_BINARIES_MIRROR=https://npmmirror.com/mirrors/electron-builder-binaries/ electron-builder",
+    "package:linux": "bun run build:renderer && bun run build && node scripts/bundle-runtime.mjs && ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ ELECTRON_BUILDER_BINARIES_MIRROR=https://npmmirror.com/mirrors/electron-builder-binaries/ electron-builder --linux AppImage --x64",
+    "package:win": "bun run build:renderer && bun run build && node scripts/bundle-runtime.mjs && ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ ELECTRON_BUILDER_BINARIES_MIRROR=https://npmmirror.com/mirrors/electron-builder-binaries/ electron-builder --win --x64",
+    "check:embedded": "electron scripts/embedded.check.mjs",
+    "clean": "node -e \"require('node:fs').rmSync('dist-electron',{recursive:true,force:true})\""
   },
   "build": {
     "appId": "com.lane.web",
@@ -43,10 +45,6 @@
         "filter": [
           "**/*"
         ]
-      },
-      {
-        "from": "resources/opencode-cli",
-        "to": "opencode-cli"
       }
     ],
     "linux": {
@@ -55,8 +53,12 @@
     }
   },
   "dependencies": {
+    "@effect/platform-node": "4.1.0",
     "@lane/protocol": "workspace:*",
-    "@opencode/client": "^2.3.0",
+    "@opencode/client": "2.4.2",
+    "@opencode/server": "2.4.2",
+    "@opencode/util": "2.4.2",
+    "effect": "4.1.0",
     "socket.io": "^4.8.4"
   },
   "devDependencies": {

@@ -9,6 +9,7 @@
   ],
   "scripts": {
     "dev": "cd apps/web && bun run dev",
+    "test": "vitest run",
     "build": "cd apps/web && bun run build",
     "dev:web": "cd apps/web && bun run dev",
     "dev:mobile": "cd apps/mobile && bun run dev",
@@ -21,7 +22,6 @@
     "electron:package": "cd apps/desktop && bun run package",
     "electron:package:linux": "cd apps/desktop && bun run package:linux",
     "electron:package:win": "cd apps/desktop && bun run package:win",
-    "bundle:cli": "cd apps/desktop && node scripts/bundle-opencode-cli.mjs",
     "bundle:runtime": "cd apps/desktop && node scripts/bundle-runtime.mjs",
     "upload:mobile": "cd apps/mobile && ./upload.sh",
     "upload:server": "cd apps/server && ./upload.sh",
@@ -29,6 +29,7 @@
     "format:check": "prettier --check ."
   },
   "devDependencies": {
-    "prettier": "^3.10.1"
+    "prettier": "^3.10.1",
+    "vitest": "^5.1.2"
   }
 }

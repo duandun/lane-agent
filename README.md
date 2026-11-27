@@ -117,11 +117,9 @@ bun run electron:package:win  # 同上，出 Windows x64 安装包（macOS 上�
 
 Windows 产物是 NSIS 安装包 `apps/desktop/release/Lane Setup <版本>.exe`，未签名，首次运行会被 SmartScreen 拦一下（更多信息 → 仍要运行）。
 
-主进程用 TypeScript（`apps/desktop/src/*.ts`），`electron:*` 脚本会先用 `tsc -p apps/desktop/tsconfig.json` 编译到 `apps/desktop/dist-electron/` 再启动或打包；该目录不进 git。只编译主进程用 `bun run build:app`。
+主进程用 TypeScript（`apps/desktop/src/*.ts`），`electron:*` 脚本会先清理并编译到 `apps/desktop/dist-electron/` 再启动或打包；该目录不进 git。只编译主进程用 `bun run build:app`。
 
-生产环境把 dist 打进安装包，Electron 用固定的本地 HTTP 服务（`http://localhost:5173`）加载它。启动时还会用内置的 opencode CLI，通过 `@opencode/client/service` 的 `Service.ensure` 拉起本地 opencode 服务（`opencode serve --service`）；连接页会自动填入服务地址和生成的密码。agent 因此在本机执行，agent-desktop skill 和 CLI 都能直接用。
-
-内置 CLI 在打包前下载：`bun run bundle:cli`（默认当前平台，Linux/Windows 打包脚本会传 `OPENCODE_TARGET`）。它按目标平台从 `@opencode/cli-*@2.3.0` 取二进制，放到 `apps/desktop/resources/opencode-cli/`（约 220–250MB），作为 extraResources 带进安装包；开发时没下载就退回 PATH 里的 `opencode`。
+生产环境把 dist 打进安装包，Electron 用固定的本地 HTTP 服务（`http://localhost:5173`）加载它。本地 opencode 服务由 `@opencode/server` 在 Electron `utilityProcess` 里内嵌启动（监听 `127.0.0.1` 随机端口、随机密码），不再打包或调用 opencode CLI；渲染进程仍然用 `@opencode/client` + SSE，连接页会自动填入服务地址和密码。agent 因此在本机执行，agent-desktop skill 和 CLI 都能直接用。
 
 5173 被占用时静态服务会直接报错（不退回随机端口），避免页面 origin 变化导致本地服务的 CORS 失效。连接页底部的命令会按当前页面 origin 自动填好。
 
@@ -270,8 +268,9 @@ apps/
       agent-desktop-skill/ 内置的 agent-desktop SKILL.md 和 references
     scripts/
       bundle-runtime.mjs     把 npm / agent-desktop 复制到 .npm-bundle
-      bundle-opencode-cli.mjs 按目标平台下载 opencode CLI 到 resources/opencode-cli
-    dist/、dist-electron/、resources/opencode-cli/  构建产物（不提交）
+    embedded.ts            utilityProcess 管理器（主进程，Promise）
+    embedded-host.ts       utility 进程入口，启动 @opencode/server
+    dist/、dist-electron/  构建产物（不提交）
   mobile/              手机 Web（原 lane-serve/web，TanStack Start SPA）
   server/              中继服务（原 lane-serve/server，Express + Socket.IO）
   welcome/             产品官网（TanStack Start SSR + Nitro，Vercel 部署）
