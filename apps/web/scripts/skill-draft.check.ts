@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import type { Block } from '../src/core/lib/blocks';
 import {
   draftSkill,
-  hasAgentDesktopRun,
+  hasTurnOperation,
   isSkillLoaded,
   parseSkill,
   skillPrompt,
@@ -64,18 +64,19 @@ const blocks: Block[] = [
 
 const draft = draftSkill(blocks, { bin: '/opt/bin/agent-desktop' });
 
-assert.equal(hasAgentDesktopRun(blocks), true);
-assert.equal(hasAgentDesktopRun([blocks[0], blocks[4]]), false);
+assert.equal(hasTurnOperation(blocks), true);
+assert.equal(hasTurnOperation([blocks[0], blocks[5]]), false); // 只有 running，不算完成
+assert.equal(hasTurnOperation([blocks[0]]), false);
 
 assert.equal(draft.name, 'preview');
 assert.match(draft.description, /导出成 PDF/);
-assert.equal(draft.steps, 3);
+assert.equal(draft.steps, 4);
 assert.ok(draft.body.includes('/opt/bin/agent-desktop'));
 assert.match(draft.body, /find --app "Preview" --role button --name "导出"/);
 assert.ok(!draft.body.includes('@s1:e1'));
 assert.ok(draft.body.includes('本次失败的命令'));
 assert.ok(draft.body.includes('report.pdf'));
-assert.ok(!draft.body.includes('ls -la'));
+assert.ok(draft.body.includes('ls -la'));
 assert.ok(draft.warnings.some((item) => item.includes('<ref>')));
 
 // 结构对齐 music-play
@@ -112,7 +113,42 @@ const chineseOnly: Block[] = [
   },
 ];
 
-assert.match(draftSkill(chineseOnly).name, /^desktop-task-\d{8}$/);
+// 只看最后一条用户消息之后的操作；普通命令也进步骤
+const multiTurn: Block[] = [
+  { id: 'u0', kind: 'user', text: '上一次：把报告导出' },
+  {
+    id: 'a0',
+    kind: 'tool',
+    name: 'bash',
+    status: 'ok',
+    detail: '',
+    input: { command: 'agent-desktop click @s1:e1' },
+  },
+  { id: 'u1', kind: 'user', text: '这次运行测试' },
+  {
+    id: 'a1',
+    kind: 'tool',
+    name: 'bash',
+    status: 'ok',
+    detail: '',
+    input: { command: 'npm test' },
+  },
+];
+const turnDraft = draftSkill(multiTurn, { bin: '/opt/bin/agent-desktop' });
+assert.equal(turnDraft.steps, 1);
+assert.ok(turnDraft.body.includes('npm test'));
+assert.ok(turnDraft.body.includes('**执行**'));
+assert.ok(!turnDraft.body.includes('@s1:e1'));
+assert.ok(turnDraft.body.startsWith('# 这次运行测试'));
+assert.equal(turnDraft.description, '这次运行测试');
+assert.match(turnDraft.name, /^task-\d{8}$/);
+assert.ok(!turnDraft.body.includes('STALE_REF'));
+assert.equal(hasTurnOperation(multiTurn), true);
+
+// 最后一条用户消息之后没有操作时，不能存为技能
+assert.equal(hasTurnOperation([multiTurn[0], multiTurn[1], multiTurn[2]]), false);
+
+assert.match(draftSkill(chineseOnly).name, /^task-\d{8}$/);
 
 assert.equal(isSkillLoaded([{ id: 'x', name: 'probe' }], 'probe'), true);
 assert.equal(isSkillLoaded([{ id: 'probe', name: 'Probe' }], 'probe'), true);
@@ -139,12 +175,18 @@ assert.ok(parsed?.body.startsWith('# 打开音乐并播放歌曲'));
 assert.equal(parseSkill('没有 frontmatter 的一段话'), null);
 assert.equal(parseSkill('---\nname: x\n---\n'), null);
 
-// 重写 prompt：带真实命令、失败原因和参考草稿，不带无关命令
+// 重写 prompt：带当前轮次的所有命令、失败原因和参考草稿
 const prompt = skillPrompt(blocks, { bin: '/opt/bin/agent-desktop' });
 assert.ok(prompt.includes('命令：agent-desktop click @s1:e1'));
 assert.ok(prompt.includes('（失败）输出：boom'));
-assert.ok(!prompt.includes('ls -la'));
+assert.ok(prompt.includes('命令：ls -la'));
 assert.ok(prompt.includes('/opt/bin/agent-desktop'));
 assert.ok(prompt.includes('<参考草稿>'));
+
+// prompt 只看当前轮次
+const turnPrompt = skillPrompt(multiTurn, { bin: '/opt/bin/agent-desktop' });
+assert.ok(turnPrompt.includes('命令：npm test'));
+assert.ok(!turnPrompt.includes('@s1:e1'));
+assert.ok(!turnPrompt.includes('把报告导出'));
 
 console.log('skillDraft check: ok');

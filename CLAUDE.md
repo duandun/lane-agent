@@ -67,7 +67,7 @@ Electron 生产环境把 `apps/desktop/dist/`（构建时从 `apps/web/dist` 拷
 - `@opencode/client/service` 只能在 Node 里用；渲染进程一律通过 `makeClient(conn)` 走 HTTP Basic Auth，用户名固定 `opencode`。
 - 手机同步：`packages/protocol` 定义事件名、`PhoneMessage` 和限额；web 端 `core/lib/socket.ts` / `phone.ts` 发送，mobile 端 `routes/phone.tsx` 接收，server 只做房间转发与校验。
 - 手机直连：桌面端配对时由 `apps/desktop/src/phoneLan.ts` 起一个局域网 Socket.IO 端点（token 鉴权、只转发同一连接码），`apps/web/core/lib/socket.ts` 同时接中继和本地端点；二维码里带 `lan` 候选和 `token`，手机端先探测直连、失败或断线回退中继。浏览器版没有 `appBridge`，只走中继。
-- 操作存为 skill：提取逻辑在 `apps/web/src/core/lib/skillDraft.ts`（自检 `apps/web/scripts/skill-draft.check.ts`），保存走 `apps/desktop/src/ipc/skills.ts` 的 `skills:info` / `skills:save`；只写 `~/.config/opencode/skills`，拒绝覆盖 `agent-desktop` 或带 `.installed` 的受管 skill。弹窗里的「用 AI 重写」走 `client.experimental.generate.text`（当前模型 + 对话摘要），失败时保留规则草稿。
+- 操作存为 skill：只取当前轮次（最后一条用户消息之后）有命令的已完成工具调用，普通命令也算，不限于 agent-desktop；提取逻辑在 `apps/web/src/core/lib/skillDraft.ts`（自检 `apps/web/scripts/skill-draft.check.ts`），保存走 `apps/desktop/src/ipc/skills.ts` 的 `skills:info` / `skills:save`；只写 `~/.config/opencode/skills`，拒绝覆盖 `agent-desktop` 或带 `.installed` 的受管 skill。弹窗里的「用 AI 重写」走 `client.experimental.generate.text`（当前模型 + 当前轮次对话），失败时保留规则草稿。
 - 对话轨迹：`blocks.ts` 给 block 带 `meta`（时间/归属消息），`useChatSession` 用 `step.*` 事件维护 `steps` 和 `revision`；`useTrajectory` 用 `message.list` cursor 维护独立分页快照，并从 `session.context` 拉当前输入上下文；`core/lib/trajectory.ts` 做纯投影；`TrajectoryView` 渲染轨迹带/虚拟账本/检查器。自检：`bun run check:blocks`、`bun run check:trajectory`。
 
 ### Node 能力（IPC）

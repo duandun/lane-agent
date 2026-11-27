@@ -47,7 +47,7 @@ import { appBridge } from '@core/lib/bridge';
 import { makeClient, type Conn } from '@core/lib/client';
 import { errorText } from '@core/lib/error';
 import { deleteProviderModel } from '@core/lib/opencodeConfig';
-import { hasAgentDesktopRun, isSkillLoaded } from '@core/lib/skillDraft';
+import { hasTurnOperation, isSkillLoaded } from '@core/lib/skillDraft';
 import { stopLanAgent } from '@core/lib/socket';
 import { useAppStore, type CompanionKind, type CustomModel } from '@core/lib/store';
 
@@ -145,7 +145,7 @@ export default function Chat({ conn, onDisconnect }: { conn: Conn; onDisconnect:
   const { message } = AntdApp.useApp();
   const [skills, setSkills] = useState<SkillInfo[]>([]);
   const [selectedSkill, setSelectedSkill] = useState<SkillInfo | null>(null);
-  const canSaveSkill = useMemo(() => hasAgentDesktopRun(blocks), [blocks]);
+  const canSaveSkill = useMemo(() => hasTurnOperation(blocks), [blocks]);
   const senderRef = useRef<ComponentRef<typeof Sender>>(null);
   const attachments = useAttachments({
     directory: conn.directory,
@@ -543,8 +543,8 @@ export default function Chat({ conn, onDisconnect }: { conn: Conn; onDisconnect:
                 !appBridge
                   ? '仅桌面端支持存为技能'
                   : canSaveSkill
-                    ? '把本次操作存为技能'
-                    : '本次会话还没有 agent-desktop 操作'
+                    ? '把本轮操作存为技能'
+                    : '当前轮次还没有可复用的操作'
               }
             >
               <span>
