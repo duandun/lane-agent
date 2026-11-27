@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Alert, Button, Card, Flex, Form, Input, Typography } from 'antd';
+import { Alert, Button, Card, Form, Input, Typography } from 'antd';
 import { Welcome } from '@ant-design/x';
 import { LockOutlined, FolderOpenOutlined, LinkOutlined } from '@ant-design/icons';
 import { appBridge } from '@core/lib/bridge';
@@ -18,18 +18,12 @@ export default function Connect({
   const [form] = Form.useForm<Conn>();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [bridgeChecking, setBridgeChecking] = useState(false);
-  const [bridgeResult, setBridgeResult] = useState<{ ok: boolean; text: string } | null>(null);
-  const [fsChecking, setFsChecking] = useState(false);
-  const [fsResult, setFsResult] = useState<{ ok: boolean; text: string } | null>(null);
-  const [npxChecking, setNpxChecking] = useState(false);
-  const [npxResult, setNpxResult] = useState<{ ok: boolean; text: string } | null>(null);
 
   // Electron 端会启动内置 CLI 的本地服务；没有保存过其它地址时自动填上。
   useEffect(() => {
     if (!appBridge) return;
     let alive = true;
-    void appBridge.localService().then((service) => {
+    appBridge.localService().then((service) => {
       if (!alive || !service) return;
       const current = String(form.getFieldValue('baseUrl') ?? '');
       if (current && current !== DEFAULT_CONN.baseUrl) return;
@@ -39,66 +33,6 @@ export default function Connect({
       alive = false;
     };
   }, [form]);
-
-  async function checkBridge() {
-    if (!appBridge) return;
-    setBridgeChecking(true);
-    try {
-      const [pong, info] = await Promise.all([appBridge.ping(), appBridge.info()]);
-      setBridgeResult({
-        ok: true,
-        text: `${pong} · Electron ${info.versions.electron} · Node ${info.versions.node} · ${info.platform}/${info.arch}`,
-      });
-    } catch (cause) {
-      setBridgeResult({ ok: false, text: errorText(cause) });
-    } finally {
-      setBridgeChecking(false);
-    }
-  }
-
-  async function listWorkspace() {
-    if (!appBridge) return;
-    const root = String(form.getFieldValue('directory') ?? '').trim();
-    if (!root) {
-      setFsResult({ ok: false, text: '项目目录为空' });
-      return;
-    }
-    setFsChecking(true);
-    try {
-      const entries = await appBridge.fs.list(root);
-      const names = entries.slice(0, 8).map((entry) => (entry.dir ? `${entry.name}/` : entry.name));
-      setFsResult({
-        ok: true,
-        text: `共 ${entries.length} 项${names.length ? `：${names.join('、')}${entries.length > names.length ? '…' : ''}` : ''}`,
-      });
-    } catch (cause) {
-      setFsResult({ ok: false, text: errorText(cause) });
-    } finally {
-      setFsChecking(false);
-    }
-  }
-
-  async function testNpx() {
-    if (!appBridge) return;
-    const root = String(form.getFieldValue('directory') ?? '').trim();
-    if (!root) {
-      setNpxResult({ ok: false, text: '项目目录为空' });
-      return;
-    }
-    setNpxChecking(true);
-    try {
-      const result = await appBridge.exec.npx(root, ['--version']);
-      const output = (result.stdout || result.stderr).trim().split('\n')[0] ?? '';
-      setNpxResult({
-        ok: result.code === 0,
-        text: `code ${result.code}${output ? ` · ${output}` : ''}`,
-      });
-    } catch (cause) {
-      setNpxResult({ ok: false, text: errorText(cause) });
-    } finally {
-      setNpxChecking(false);
-    }
-  }
 
   async function pickDirectory() {
     if (!appBridge) return;
@@ -227,55 +161,6 @@ export default function Connect({
   opencode serve --hostname 0.0.0.0 --port 4096 --cors https://ai.cr123.life`}</pre>
         </Card>
       )}
-
-      {/*{appBridge && (*/}
-      {/*  <Card*/}
-      {/*    className="w-full max-w-[480px] border! border-(--line)! bg-(--panel)! [&_.ant-card-body]:grid! [&_.ant-card-body]:gap-2!"*/}
-      {/*    size="small"*/}
-      {/*    variant="borderless"*/}
-      {/*  >*/}
-      {/*    <Flex align="center" justify="space-between" gap={8}>*/}
-      {/*      <Typography.Text type="secondary" className="text-xs!">*/}
-      {/*        App 通道*/}
-      {/*      </Typography.Text>*/}
-      {/*      <Flex gap={8} wrap>*/}
-      {/*        <Button size="small" loading={bridgeChecking} onClick={() => void checkBridge()}>*/}
-      {/*          检测 IPC*/}
-      {/*        </Button>*/}
-      {/*        <Button size="small" loading={fsChecking} onClick={() => void listWorkspace()}>*/}
-      {/*          列出文件*/}
-      {/*        </Button>*/}
-      {/*        <Button size="small" loading={npxChecking} onClick={() => void testNpx()}>*/}
-      {/*          测试 npx*/}
-      {/*        </Button>*/}
-      {/*      </Flex>*/}
-      {/*    </Flex>*/}
-      {/*    {bridgeResult && (*/}
-      {/*      <Typography.Text*/}
-      {/*        className="block break-all text-xs!"*/}
-      {/*        type={bridgeResult.ok ? 'success' : 'danger'}*/}
-      {/*      >*/}
-      {/*        {bridgeResult.ok ? `正常：${bridgeResult.text}` : `失败：${bridgeResult.text}`}*/}
-      {/*      </Typography.Text>*/}
-      {/*    )}*/}
-      {/*    {fsResult && (*/}
-      {/*      <Typography.Text*/}
-      {/*        className="block break-all text-xs!"*/}
-      {/*        type={fsResult.ok ? 'success' : 'danger'}*/}
-      {/*      >*/}
-      {/*        {fsResult.ok ? `fs:list ${fsResult.text}` : `fs:list 失败：${fsResult.text}`}*/}
-      {/*      </Typography.Text>*/}
-      {/*    )}*/}
-      {/*    {npxResult && (*/}
-      {/*      <Typography.Text*/}
-      {/*        className="block break-all text-xs!"*/}
-      {/*        type={npxResult.ok ? 'success' : 'danger'}*/}
-      {/*      >*/}
-      {/*        {npxResult.ok ? `npx ${npxResult.text}` : `npx 失败：${npxResult.text}`}*/}
-      {/*      </Typography.Text>*/}
-      {/*    )}*/}
-      {/*  </Card>*/}
-      {/*)}*/}
     </div>
   );
 }
