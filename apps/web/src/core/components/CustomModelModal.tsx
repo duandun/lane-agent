@@ -120,6 +120,7 @@ export default function CustomModelModal({
       onCancel={onClose}
       onOk={() => void save()}
       width={460}
+      mask={{ closable: false }}
     >
       <Flex vertical gap={12}>
         <Typography.Text type="secondary" className="text-xs!">

@@ -87,6 +87,7 @@ export default function CustomAgentModal({
       onCancel={onClose}
       onOk={() => void save()}
       width={520}
+      mask={{ closable: false }}
     >
       <Flex vertical gap={12}>
         <Field label="角色名称">

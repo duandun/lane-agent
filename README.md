@@ -131,7 +131,11 @@ bun run electron:package:win  # 同上，出 Windows x64 安装包（macOS 上�
 bun run electron:package:win:portable  # 同上，出 Windows x64 免安装版
 ```
 
-Windows 产物是 NSIS 安装包 `apps/desktop/release/Lane Setup <版本>.exe`，未签名，首次运行会被 SmartScreen 拦一下（更多信息 → 仍要运行）。免安装版是单文件 `apps/desktop/release/Lane <版本>.exe`，配置和数据库放在 exe 同级的 `data\` 目录，拷走 exe 和 `data\` 就能带走全部状态；`data\` 放在只读位置（如 Program Files、网络盘）时会启动失败。
+产物按平台命名（`artifactName: lane-agent-${os}.${ext}`）：macOS 是 `apps/desktop/release/lane-agent-mac.dmg` + `lane-agent-mac.zip`，Windows 是 NSIS 安装包 `lane-agent-win.exe`，Linux 是 `lane-agent-linux.AppImage`，Windows 免安装版单独叫 `lane-agent-win-portable.exe`。安装包都未签名，首次运行会被 SmartScreen / Gatekeeper 拦一下（Windows 更多信息 → 仍要运行；macOS 右键 → 打开）。
+
+安装包里只保留 `zh-CN` / `en-US` 两个 Electron locale（`build.electronLanguages`）：Windows / Linux 的 `locales/*.pak` 从 55 个（未压缩约 49 MB）降到 2 个，macOS 的 `.lproj` 也只留 `en` / `zh_CN`。界面文案本身只有中文，英文 locale 是给 Electron 自身菜单和系统对话框用的；需要繁体再加 `zh-TW`。
+
+免安装版把配置和数据库放在 exe 同级的 `data\` 目录（启动时用 `attrib +h` 设为隐藏），拷走 exe 和 `data\` 就能带走全部状态；`data\` 放在只读位置（如 Program Files、网络盘）时会启动失败。
 
 主进程用 TypeScript（`apps/desktop/src/*.ts`），`electron:*` 脚本会先清理并编译到 `apps/desktop/dist-electron/` 再启动或打包；该目录不进 git。只编译主进程用 `bun run build:app`。
 
@@ -141,7 +145,7 @@ Windows 产物是 NSIS 安装包 `apps/desktop/release/Lane Setup <版本>.exe`�
 
 连接页的项目目录在桌面端可以点「选择」打开系统文件夹选择器，也可以手动输入；Web 端不可修改，固定使用 `/Users/cr/opencode-workspace`。
 
-`electron:package` 在 macOS 上出 dmg + zip，未做代码签名（没有 Apple 证书），拷到别的机器首次打开要右键 → 打开。脚本里写死了 npmmirror 的 Electron 下载镜像；网络能直连 GitHub 的话删掉那两个环境变量即可。
+打包脚本里写死了 npmmirror 的 Electron 下载镜像；网络能直连 GitHub 的话删掉那两个环境变量即可。
 
 ## 部署到 Vercel（官网 + 桌面端 Web）
 

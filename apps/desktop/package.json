@@ -23,6 +23,11 @@
   "build": {
     "appId": "com.lane.web",
     "productName": "Lane",
+    "artifactName": "lane-agent-${os}.${ext}",
+    "electronLanguages": [
+      "zh-CN",
+      "en-US"
+    ],
     "directories": {
       "output": "release",
       "buildResources": "assets"
@@ -51,6 +56,9 @@
     "linux": {
       "category": "Development",
       "syncDesktopName": true
+    },
+    "portable": {
+      "artifactName": "lane-agent-${os}-portable.${ext}"
     }
   },
   "dependencies": {

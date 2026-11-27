@@ -1,4 +1,5 @@
 import { app, BrowserWindow, dialog } from 'electron';
+import { execFile } from 'node:child_process';
 import { createServer } from 'node:http';
 import { mkdirSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
@@ -81,6 +82,8 @@ if (portableDir) {
   mkdirSync(data, { recursive: true });
   app.setPath('userData', data);
   app.setPath('sessionData', data);
+  // Windows 隐藏属性要每条启动都设一次（用户可能手动取消）；失败只是外观问题，不管。
+  if (process.platform === 'win32') execFile('attrib', ['+h', data], () => {});
 }
 
 const dev = process.argv.includes('--dev');
