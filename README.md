@@ -118,7 +118,7 @@ OPENCODE_PASSWORD=your-secret \
 | Skill 安装目录              | `~/.config/opencode/skills`                                                  | `C:\Users\<用户>\.config\opencode\skills`                |
 | 项目级                      | `<项目>/opencode.json`、`<项目>/.opencode/lane-identity.md`                  | 同左                                                     |
 
-Windows 免安装版（portable）会把整个数据目录指到 exe 同级的 `data\`，上表前两行随之变成 `<exe 目录>\data\opencode-embedded\opencode.json` 和 `...\opencode.db`，localStorage 也在 `<exe 目录>\data\` 下；全局配置、skill 和项目级文件仍在用户目录 / 项目里。
+Windows 免安装版（portable）会把整个数据目录指到 exe 同级的 `lane-agent-data\`，上表前两行随之变成 `<exe 目录>\lane-agent-data\opencode-embedded\opencode.json` 和 `...\opencode.db`，localStorage 也在 `<exe 目录>\lane-agent-data\` 下；全局配置、skill 和项目级文件仍在用户目录 / 项目里。
 
 ## Electron 桌面壳
 
@@ -135,7 +135,7 @@ bun run electron:package:win:portable  # 同上，出 Windows x64 免安装版
 
 安装包里只保留 `zh-CN` / `en-US` 两个 Electron locale（`build.electronLanguages`）：Windows / Linux 的 `locales/*.pak` 从 55 个（未压缩约 49 MB）降到 2 个，macOS 的 `.lproj` 也只留 `en` / `zh_CN`。界面文案本身只有中文，英文 locale 是给 Electron 自身菜单和系统对话框用的；需要繁体再加 `zh-TW`。
 
-免安装版把配置和数据库放在 exe 同级的 `data\` 目录（启动时用 `attrib +h` 设为隐藏），拷走 exe 和 `data\` 就能带走全部状态；`data\` 放在只读位置（如 Program Files、网络盘）时会启动失败。
+免安装版把配置和数据库放在 exe 同级的 `lane-agent-data\` 目录（启动时用 `attrib +h` 设为隐藏），拷走 exe 和 `lane-agent-data\` 就能带走全部状态；`lane-agent-data\` 放在只读位置（如 Program Files、网络盘）时会启动失败。
 
 主进程用 TypeScript（`apps/desktop/src/*.ts`），`electron:*` 脚本会先清理并编译到 `apps/desktop/dist-electron/` 再启动或打包；该目录不进 git。只编译主进程用 `bun run build:app`。
 

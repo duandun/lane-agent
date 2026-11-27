@@ -78,7 +78,7 @@ async function load(win: BrowserWindow, url: string, retries = 100): Promise<voi
 // setPath 要求目录已存在；sessionData 不跟着 userData 自动改，否则 localStorage 仍留在 AppData。
 const portableDir = process.env.PORTABLE_EXECUTABLE_DIR;
 if (portableDir) {
-  const data = join(portableDir, 'data');
+  const data = join(portableDir, 'lane-agent-data');
   mkdirSync(data, { recursive: true });
   app.setPath('userData', data);
   app.setPath('sessionData', data);
