@@ -169,8 +169,8 @@ export default function CustomModelModal({
           />
         </Field>
         <Typography.Text type="secondary" className="text-xs!">
-          保存会合并写入 {directory || 'server 默认目录'}/opencode.json 并重新加载配置；Key 存在
-          server 凭据库。
+          保存会合并写入自定义模型配置并重新加载（桌面端在 app 数据目录，浏览器版在
+          {directory || 'server 默认目录'}/opencode.json）；Key 存在 server 凭据库。
         </Typography.Text>
       </Flex>
     </Modal>

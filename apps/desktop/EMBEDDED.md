@@ -10,6 +10,7 @@
 - 数据库：`app.getPath('userData')/opencode-embedded/opencode.db`。
 - CORS：`http://localhost:5173` + `ELECTRON_START_URL` 的 origin。
 - `@opencode/client` / `@opencode/server` 统一为 2.4.2（`effect` / `@effect/platform-node` 4.1.0）。
+- `redis` 是 `@effect/platform-node` 的可选 peer，但它的 barrel（`index.js`）会 import `NodeRedis`，而 `@opencode/server` 正好从 barrel 引 `NodeHttpServer`。所以 `redis` 必须是 desktop 的直接依赖，否则打包后 utility 进程 import 直接失败：`ensureLocalService` 返回 null，Connect 退回默认 `127.0.0.1:4096`，如果本机正好有带密码的 `opencode serve` 就会看到 401。
 
 ## 验证
 
