@@ -82,6 +82,14 @@ export async function loadModelConfig(client: Client, directory: string) {
   return (await loadOpencodeConfig(client, directory)).config;
 }
 
+/** 配置里声明的自定义模型，形如 `providerID/modelID`；用来判断服务端目录是否加载完。 */
+export function configuredModelValues(config: OpenCodeConfig): string[] {
+  const providers = (config.providers ?? {}) as Record<string, ProviderConfig>;
+  return Object.entries(providers).flatMap(([providerID, provider]) =>
+    Object.keys(provider.models ?? {}).map((modelID) => `${providerID}/${modelID}`)
+  );
+}
+
 /** 写回自定义模型配置；桌面端文件由内嵌服务端监听，改完自动热加载。 */
 export async function saveModelConfig(client: Client, directory: string, config: OpenCodeConfig) {
   if (appBridge) {

@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { Client } from '@core/lib/client';
-import { LANE_IDENTITY_PATH, seedLaneIdentity } from '@core/lib/opencodeConfig';
+import {
+  LANE_IDENTITY_PATH,
+  configuredModelValues,
+  seedLaneIdentity,
+} from '@core/lib/opencodeConfig';
 
 /** 内存文件系统，记录调用顺序，模拟 opencode 的 file / location API。 */
 function fakeClient(files: Record<string, string>) {
@@ -29,6 +33,21 @@ function fakeClient(files: Record<string, string>) {
   };
   return { client: client as unknown as Client, calls };
 }
+
+describe('configuredModelValues', () => {
+  it('列出所有 provider 下的模型，没有配置时返回空数组', () => {
+    expect(configuredModelValues({})).toEqual([]);
+    expect(configuredModelValues({ providers: { empty: {} } })).toEqual([]);
+    expect(
+      configuredModelValues({
+        providers: {
+          'custom-a': { models: { one: {}, two: {} } },
+          'custom-b': { models: { three: {} } },
+        },
+      })
+    ).toEqual(['custom-a/one', 'custom-a/two', 'custom-b/three']);
+  });
+});
 
 describe('seedLaneIdentity', () => {
   it('先写身份文件再追加 instructions 并 reload', async () => {

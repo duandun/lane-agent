@@ -47,7 +47,11 @@ import { usePhoneSync } from '@core/hooks/usePhoneSync';
 import { appBridge } from '@core/lib/bridge';
 import { makeClient, type Conn } from '@core/lib/client';
 import { errorText } from '@core/lib/error';
-import { deleteProviderModel } from '@core/lib/opencodeConfig';
+import {
+  configuredModelValues,
+  deleteProviderModel,
+  loadModelConfig,
+} from '@core/lib/opencodeConfig';
 import { hasTurnOperation, isSkillLoaded } from '@core/lib/skillDraft';
 import { stopLanAgent } from '@core/lib/socket';
 import { useAppStore, type CustomModel } from '@core/lib/store';
@@ -197,7 +201,10 @@ export default function Chat({ conn, onDisconnect }: { conn: Conn; onDisconnect:
   const modelSyncedFor = useRef<string | null>(null);
 
   // 当前目录可用的模型，以及服务端默认模型；selected 是调用时的当前选择。
-  async function reloadModels(selected: ModelRef | null) {
+  async function reloadModels(
+    selected: ModelRef | null,
+    ready: (options: ModelOption[]) => boolean
+  ) {
     const location = conn.directory ? { directory: conn.directory } : undefined;
     const [list, current] = await Promise.all([
       client.model.list({ location, types: ['chat'] }),
@@ -210,8 +217,8 @@ export default function Chat({ conn, onDisconnect }: { conn: Conn; onDisconnect:
       modelID: item.id,
     }));
     setModelOptions(options);
-    // 空列表说明 provider 目录还在加载，先保留偏好，等下一轮重试。
-    if (!options.length) return options;
+    // 列表可能先是空的，或只有内置模型（服务端插件还没激活完）；没等到就保留偏好，下一轮再看。
+    if (!ready(options)) return options;
 
     // 保存的模型如果已不在目录里，清掉偏好并退回服务端默认模型。
     const valid = (ref: ModelRef) =>
@@ -238,7 +245,7 @@ export default function Chat({ conn, onDisconnect }: { conn: Conn; onDisconnect:
   ) {
     for (let attempt = 0; attempt < 60 && alive(); attempt++) {
       try {
-        if (ready(await reloadModels(selected))) return;
+        if (ready(await reloadModels(selected, ready))) return;
       } catch {
         // 模型列表属于可选 UI；拉取失败时仍使用服务端默认模型。
       }
@@ -248,7 +255,22 @@ export default function Chat({ conn, onDisconnect }: { conn: Conn; onDisconnect:
 
   useEffect(() => {
     let alive = true;
-    void reloadModelsWhenReady(useAppStore.getState().model, undefined, () => alive);
+    void (async () => {
+      // 服务端插件激活前会先返回只有内置模型的列表，等配置里的自定义模型都出现再停。
+      let expected: string[] = [];
+      try {
+        expected = configuredModelValues(await loadModelConfig(client, conn.directory));
+      } catch {
+        // 配置读不到时退回「列表非空即可」，别让下拉一直等。
+      }
+      await reloadModelsWhenReady(
+        useAppStore.getState().model,
+        (options) =>
+          options.length > 0 &&
+          expected.every((value) => options.some((option) => option.value === value)),
+        () => alive
+      );
+    })();
     return () => {
       alive = false;
     };
