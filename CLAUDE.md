@@ -35,14 +35,16 @@ bun run electron:package:linux
 bun run electron:package:win
 
 bun run bundle:runtime   # 复制 npm / agent-desktop 到 apps/desktop/.npm-bundle/
+bun run test             # vitest run（注意不是 bun test）
 bun run format           # Prettier（apps/mobile、apps/server 在 .prettierignore 里）
 bun run format:check
 ```
 
-没有测试和 lint 脚本。类型检查：
+单元测试用根目录的 vitest，测试文件在 `apps/web/test/*.test.ts`；`apps/desktop` 里需要 Electron 的集成检查仍是 `check:embedded`、`check:phone-lan`。没有 lint 脚本。类型检查：
 
 ```bash
 npx tsc -p apps/web/tsconfig.json
+npx tsc -p apps/web/tsconfig.test.json  # test 目录（含被引用的 src）
 npx tsc -p apps/desktop/tsconfig.json
 npx tsc --noEmit -p apps/mobile/tsconfig.json
 ```
@@ -66,8 +68,8 @@ Electron 生产环境把 `apps/desktop/dist/`（构建时从 `apps/web/dist` 拷
 - 本地服务由 `@opencode/server` 在 utilityProcess 里监听 `127.0.0.1` 随机端口；渲染进程一律通过 `makeClient(conn)` 走 HTTP Basic Auth，用户名固定 `opencode`。
 - 手机同步：`packages/protocol` 定义事件名、`PhoneMessage` 和限额；web 端 `core/lib/socket.ts` / `phone.ts` 发送，mobile 端 `routes/phone.tsx` 接收，server 只做房间转发与校验。
 - 手机直连：桌面端配对时由 `apps/desktop/src/phoneLan.ts` 起一个局域网 Socket.IO 端点（token 鉴权、只转发同一连接码），`apps/web/core/lib/socket.ts` 同时接中继和本地端点；二维码里带 `lan` 候选和 `token`，手机端先探测直连、失败或断线回退中继。浏览器版没有 `appBridge`，只走中继。
-- 操作存为 skill：提取逻辑在 `apps/web/src/core/lib/skillDraft.ts`（自检 `apps/web/scripts/skill-draft.check.ts`），保存走 `apps/desktop/src/ipc/skills.ts` 的 `skills:info` / `skills:save`；只写 `~/.config/opencode/skills`，拒绝覆盖 `agent-desktop` 或带 `.installed` 的受管 skill。
-- 对话轨迹：`blocks.ts` 给 block 带 `meta`（时间/归属消息），`useChatSession` 用 `step.*` 事件维护 `steps` 和 `revision`；`useTrajectory` 用 `message.list` cursor 维护独立分页快照，并从 `session.context` 拉当前输入上下文；`core/lib/trajectory.ts` 做纯投影；`TrajectoryView` 渲染轨迹带/虚拟账本/检查器。自检：`bun run check:blocks`、`bun run check:trajectory`。
+- 操作存为 skill：提取逻辑在 `apps/web/src/core/lib/skillDraft.ts`（测试 `apps/web/test/skill-draft.test.ts`），保存走 `apps/desktop/src/ipc/skills.ts` 的 `skills:info` / `skills:save`；只写 `~/.config/opencode/skills`，拒绝覆盖 `agent-desktop` 或带 `.installed` 的受管 skill。
+- 对话轨迹：`blocks.ts` 给 block 带 `meta`（时间/归属消息），`useChatSession` 用 `step.*` 事件维护 `steps` 和 `revision`；`useTrajectory` 用 `message.list` cursor 维护独立分页快照，并从 `session.context` 拉当前输入上下文；`core/lib/trajectory.ts` 做纯投影；`TrajectoryView` 渲染轨迹带/虚拟账本/检查器。单元测试：`apps/web/test/blocks.test.ts`、`trajectory.test.ts`。
 
 ### Node 能力（IPC）
 

@@ -9,6 +9,7 @@
   ],
   "scripts": {
     "dev": "cd apps/web && bun run dev",
+    "test": "vitest run",
     "build": "cd apps/web && bun run build",
     "dev:web": "cd apps/web && bun run dev",
     "dev:mobile": "cd apps/mobile && bun run dev",
@@ -28,6 +29,7 @@
     "format:check": "prettier --check ."
   },
   "devDependencies": {
-    "prettier": "^3.10.1"
+    "prettier": "^3.10.1",
+    "vitest": "^5.1.2"
   }
 }

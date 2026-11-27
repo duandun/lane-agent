@@ -102,6 +102,16 @@ app
   })
   .catch(fail);
 
+// 退出前先停掉内嵌 server，让它关掉 HTTP 和 SQLite；停不下来时 stopEmbeddedService 3 秒后强杀。
+let quitting = false;
+app.on('before-quit', (event) => {
+  if (quitting) return;
+  event.preventDefault();
+  quitting = true;
+  stopEmbeddedService()
+    .catch((error) => console.error('停止内嵌服务失败：', error))
+    .finally(() => app.quit());
+});
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });

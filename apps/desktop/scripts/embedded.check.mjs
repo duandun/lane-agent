@@ -1,8 +1,13 @@
+import { mkdirSync } from 'node:fs';
 import { app } from 'electron';
 import { OpenCode } from '@opencode/client';
-import { startEmbeddedService, stopEmbeddedService } from '../dist-electron/embedded.js';
+import { stopEmbeddedService } from '../dist-electron/embedded.js';
+import { ensureLocalService } from '../dist-electron/service.js';
 
 const dataDir = '/tmp/lane-embedded-poc';
+const userData = '/tmp/lane-embedded-check';
+mkdirSync(userData, { recursive: true });
+app.setPath('userData', userData);
 const timeout = setTimeout(() => {
   console.error('embedded check timeout');
   app.exit(1);
@@ -11,7 +16,8 @@ const timeout = setTimeout(() => {
 app
   .whenReady()
   .then(async () => {
-    const info = await startEmbeddedService(dataDir, ['http://localhost:5173'], 'poc-password');
+    const info = await ensureLocalService();
+    if (!info) throw new Error('本地服务启动失败');
     console.log('url', info.url);
 
     const token = Buffer.from(`opencode:${info.password}`).toString('base64');
@@ -28,6 +34,16 @@ app
     console.log('client context', context.length);
     const skills = await client.skill.list({ location: { directory: dataDir } });
     console.log('client skills', skills.data.length);
+
+    // 健康进程要复用，不能每次 IPC 都起新进程。
+    const reused = await ensureLocalService();
+    if (reused?.url !== info.url) throw new Error('健康服务不应重启');
+
+    // 进程退出后必须能重新拉起，否则崩溃后 service:local 会一直返回死地址。
+    await stopEmbeddedService();
+    const restarted = await ensureLocalService();
+    if (!restarted) throw new Error('进程退出后无法重启');
+    console.log('restart url', restarted.url);
 
     await stopEmbeddedService();
     clearTimeout(timeout);
